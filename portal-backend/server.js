@@ -17,7 +17,7 @@ const s3 = new S3Client({
 
 const app = express();
 
-mongoose.connect(process.env.MONGODB_URI);
+// mongoose.connect(process.env.MONGODB_URI);
 
 app.use(express.json());
 
@@ -39,7 +39,7 @@ const testS3Connection = async (bucketName) => {
     }
   };
   
-testS3Connection(process.env.S3_BUCKET_NAME);
+// testS3Connection(process.env.S3_BUCKET_NAME);
 
 
 // const uploadToS3 = async (bucketName, key, body) => {
