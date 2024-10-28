@@ -3,7 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
 
 const ApplicationPage = () => {
-  const { user, getAccessTokenSilently } = useAuth0();
+  const { user, getAccessTokenSilently, logout } = useAuth0();
   const [status, setStatus] = useState(null);
   const [file, setFile] = useState(null);
   const [error, setError] = useState(null);
@@ -85,7 +85,12 @@ const ApplicationPage = () => {
 
   return (
     <div>
-      <h2>Application Submission</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Application Submission</h2>
+        <button onClick={() => logout({ returnTo: window.location.origin })}>
+          Log Out
+        </button>
+      </div>
       
       <form onSubmit={submitApplication}>
         <div>
