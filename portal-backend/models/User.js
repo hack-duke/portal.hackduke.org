@@ -1,11 +1,43 @@
 const mongoose = require('mongoose');
 
-const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  gradYear: { type: Number, required: true },
-  password: { type: String, required: true },
-  resumeUrl: { type: String, required: true },
+const applicationSchema = new mongoose.Schema({
+  resumeUrl: {
+    type: String,
+    required: true
+  },
+  submissionDate: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
+  }
 });
 
-module.exports = mongoose.model('User', UserSchema);
+const userSchema = new mongoose.Schema({
+  auth0Id: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  email: {
+    type: String,
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
+  },
+  school: String,
+  major: String,
+  graduationYear: Number,
+  applications: [applicationSchema],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+module.exports = mongoose.model('User', userSchema);
