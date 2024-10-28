@@ -1,12 +1,15 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ApplicationPage from './pages/ApplicationPage';
+import DashboardPage from './pages/DashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
+  const theme = createTheme();
   const { isLoading } = useAuth0();
 
   if (isLoading) {
@@ -14,11 +17,12 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route 
+    <ThemeProvider theme={theme}>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route 
           path="/application" 
           element={
             <ProtectedRoute>
@@ -26,9 +30,10 @@ function App() {
             </ProtectedRoute>
           } 
         />
-      </Routes>
-    </Router>
-  );
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>);
 }
 
 export default App;
