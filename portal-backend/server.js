@@ -4,6 +4,7 @@ const { expressjwt: jwt } = require('express-jwt');
 const jwksRsa = require('jwks-rsa');
 const userRoutes = require('./routes/user');
 const applicationRoutes = require('./routes/application');
+const adminRoutes = require('./routes/admin');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -45,8 +46,9 @@ const checkJwt = jwt({
   algorithms: ['RS256'],
 });
 
+app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/applications', checkJwt, applicationRoutes); // Protect applications route with JWT
+app.use('/api/applications', checkJwt, applicationRoutes);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

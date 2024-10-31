@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema({
-  resumeUrl: {
-    type: String,
-    required: true
-  },
+  resumeUrl: String,  // Full S3 URL
+  resumeKey: String,  // S3 key for the file
   submissionDate: {
     type: Date,
     default: Date.now
