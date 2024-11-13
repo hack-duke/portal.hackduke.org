@@ -21,17 +21,26 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
   const file = req.file;
   const userId = req.body.userId;
 
-  // Upload resume to S3 under the user's ID
+  // Create a clean filename
+  const fileName = `${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const s3Key = `${userId}/${fileName}`;
+
   const s3Params = {
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: `${userId}/${Date.now()}_${file.originalname}`,
+    Key: s3Key,
     Body: file.buffer,
     ContentType: 'application/pdf'
   };
 
   try {
     const data = await s3.upload(s3Params).promise();
-    res.status(201).json({ message: 'Application submitted successfully', url: data.Location });
+    // Store just the S3 key instead of the full URL
+    const applicationData = {
+      ...req.body,
+      resumeKey: s3Key, // Store the S3 key
+      resumeUrl: data.Location // Store the full URL as well if needed
+    };
+    res.status(201).json({ message: 'Application submitted successfully', data: applicationData });
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).json({ error: 'File upload failed' });

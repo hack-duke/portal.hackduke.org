@@ -1,14 +1,20 @@
 import React from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
+import { Navigate } from 'react-router-dom';
 
 const RegisterPage = () => {
-  const handleRegister = () => {
-    // implement register here -- need to add Auth0 and shubboleth stuff
-  };
+  const { loginWithRedirect, isAuthenticated } = useAuth0();
+
+  if (isAuthenticated) {
+    return <Navigate to="/application" replace />;
+  }
 
   return (
     <div>
-      <h2>Register Page</h2>
-      <button onClick={handleRegister}>Register</button>
+      <h2>Register</h2>
+      <button onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
+        Register
+      </button>
     </div>
   );
 };

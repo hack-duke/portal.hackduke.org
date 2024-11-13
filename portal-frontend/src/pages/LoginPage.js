@@ -1,19 +1,18 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
+import { Navigate } from 'react-router-dom';
 
 const LoginPage = () => {
-  const navigate = useNavigate();
+  const { loginWithRedirect, isAuthenticated } = useAuth0();
 
-  const handleLogin = () => {
-    // implement login here
-    navigate('/application');
-  };
+  if (isAuthenticated) {
+    return <Navigate to="/application" replace />;
+  }
 
   return (
     <div>
-      <h2>Login Page</h2>
-      <button onClick={handleLogin}>Login</button>
-      <p>Don't have an account? <Link to="/register">Register here</Link></p>
+      <h2>Login</h2>
+      <button onClick={() => loginWithRedirect()}>Log In</button>
     </div>
   );
 };
