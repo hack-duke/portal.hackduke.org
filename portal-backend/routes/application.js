@@ -47,4 +47,46 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
   }
 });
 
+router.post('/rate/:id', (req, res) =>{
+  const applicationId = parseInt(req.params.id);
+  // const { rating } = req.body;
+  const ratings = req.body.ratings; 
+
+  if (!Array.isArray(ratings) || ratings.length === 0) {
+    return res.status(400).send({ error: 'Ratings must be an array with at least one rating' });
+  }
+ 
+  const application = applications.find(app => app.id === applicationId);
+
+  if (!application) {
+    return res.status(404).send({ error: 'Application not found' });
+  }
+ 
+  for (let rate of ratings)
+    if (rate < 1 || rate > 5) {
+      return res.status(400).send({ error: 'Each rating must be a number between 1 and 5' });
+    }
+  
+  application.ratings.push({ ratings, date: new Date() });
+
+  res.status(201).send({ message: `Ratings added to application ${applicationId}` });
+});
+
+router.get('/status', (req, res) => {
+  res.send({ status: 'Application status logic here' });
+});
+
+router.get('/fetch/:id', (req, res) => {
+  const applicationId = parseInt(req.params.id);
+  const application = applications.find(app => app.id === applicationId);
+
+  if (!application){
+    return res.status(404).send({ error: 'Application not found' });
+  }
+
+  res.send(application);
+  console.log(req.body);
+  res.send({ status: "Application Fetched" });
+});
+
 module.exports = router;
