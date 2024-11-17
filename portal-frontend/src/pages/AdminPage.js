@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Navbar } from '../components/navbar';
 
 const AdminPage = () => {
   const [password, setPassword] = useState('');
@@ -83,6 +84,7 @@ const AdminPage = () => {
   if (!isAuthenticated) {
     return (
       <div>
+        <Navbar/>
         <h2>Admin Login</h2>
         <form onSubmit={handleLogin}>
           <div>
@@ -108,7 +110,9 @@ const AdminPage = () => {
   const application = currentApp.applications[currentApp.applications.length - 1];
 
   return (
+
     <div>
+      <Navbar />
       <h2>Admin Dashboard</h2>
       <div style={{ display: 'flex' }}>
         <div style={{ flex: '1', marginRight: '20px' }}>

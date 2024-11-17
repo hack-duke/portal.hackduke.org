@@ -37,3 +37,92 @@
     transform: rotate(360deg);
   }
 }
+
+.hero-background {
+  position: relative;
+}
+
+.bg-picture{
+  position: absolute;
+}
+
+#hero-bg-blueBlob {
+  z-index: 1;
+}
+
+#hero-bg-yellowRing {
+  z-index: 2;
+}
+
+#hero-bg-orangeBlob{
+  z-index: 3;
+}
+
+#hero-bg-orangeBlobLining{
+  z-index:3;
+}
+
+#hero-bg-whiteSquare{
+  z-Index: 3;
+}
+
+
+/* Base styles */
+.login-heading {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #0042c6;
+  font-family: 'Urbanist', sans-serif;
+  font-weight: 550;
+  font-size: 6rem;
+  text-align: center;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  margin-top: 30vh;
+  margin-left: 15vw;
+  z-index: 10;
+}
+
+.login-button {
+  position: absolute;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  top: 60%;
+  left: 60%;
+  width: 198px;
+  height: 72.33px;
+  border: none;
+  cursor: pointer;
+  color: transparent;
+  background-color: transparent;
+  z-index: 5;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 1000px) {
+  .login-heading {
+    top: 50%; /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    margin-left: 0;
+    white-space: nowrap;
+  }
+
+  .login-button {
+    top: 60%; /* Move below the heading */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, 0);
+    margin-top: 0;
+    margin-left: 0;
+  }
+
+  .hero-bg-1,
+  .hero-bg-2 {
+    display: none; /* Hide these sections */
+  }
+}
+

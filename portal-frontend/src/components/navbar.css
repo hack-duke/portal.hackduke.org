@@ -11,3 +11,28 @@
     z-index: 1000;
     height: 13%;
   }
+
+  /* Adjust sizes for small screens */
+@media (max-width: 768px) {
+  .SmallLogo {
+    width: 10vw; /* Scales with screen width */
+    height: 10vh; /* Scales with screen height */
+  }
+
+  .LargeLogo {
+    width: 25vw;
+    height: 6vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .SmallLogo {
+    width: 8vw;
+    height: 8vh;
+  }
+
+  .LargeLogo {
+    width: 20vw;
+    height: 5vh;
+  }
+}

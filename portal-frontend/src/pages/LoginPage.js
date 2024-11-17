@@ -3,6 +3,8 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { Navigate } from 'react-router-dom';
 import { Navbar } from '../components/navbar';
 import { useEffect } from 'react';
+import '../App.css';
+
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -16,53 +18,83 @@ const LoginPage = () => {
   }
 
   return (
-    
-    <div style = {{
-      position: 'relative',
-      backgroundImage: `url(/images/BG_Elements.svg)`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      height: '100vh',
-      width: '100vw',
-      left: '-10px',
-    }}>
+    <div 
+      style={{
+        position: 'relative',
+        // backgroundImage: `url(/images/BG_Elements.svg)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        height: '100vh',
+        width: '100vw',
+        left: '-10px',
+      }}
+    >
+
+    <div class = "hero-background" style={{
+        position: 'relative',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        height: '100vh',
+        width: '100vw',
+      }}>
+      <div class="hero-bg-1">
+        {/* right side elements that do not move */}
+        <img class="bg-picture" id="hero-bg-blueBlob" src="/images/bg-blueBlob.svg" alt="Blue Blob Shape"></img>
+        <img class="bg-picture" id="hero-bg-yellowRing" src="/images/bg-yellowRing.svg" alt="Yellow Ring"></img>
+        <img class="bg-picture" id="hero-bg-orangeBlob" src="/images/bg-orangeBlob.svg" alt="Orange Blob Shape"></img>
+        <img class="bg-picture" id="hero-bg-orangeBlobLining" src="/images/bg-orangeBlobLining.svg" alt="Orange Blob Lining"></img>
+      </div>
+
+      {/* left side elements that do not move */}
+      <div class="hero-bg-2">
+        <img class="bg-picture" id="hero-bg-greenQuarterCircle" src="/images/bg-greenQuarterCircle.svg" alt="Green Quarter Circle"></img>
+        <img class="bg-picture" id="hero-bg-blueSnowflake" src="/images/bg-blueSnowflake.svg" alt="Blue Snowflake"></img>
+        <img class="bg-picture" id="hero-bg-whiteSnowflake" src="/images/bg-whiteSnowflake.svg" alt="White Snowflake"></img>
+        <img class="bg-picture" id="hero-bg-bigYellowTraingle" src="/images/bg-bigYellowTriangle.svg" alt="Big Yellow Triangle"></img>
+        <img class="bg-picture" id="hero-bg-whiteSquare" src="/images/bg-whiteSquare.svg" alt="White Square"></img>
+      </div>
+
+      {/* Elements on the left that do move */}
+      <div class="hero-bg-3">
+        <img class="bg-picture" id="hero-bg-greenOval" src="/images/bg-greenOval.svg" alt="Green Oval Shape"></img>
+        <img class="bg-picture" id="hero-bg-yellowCircle" src="/images/bg-yellowCircle.svg" alt="Yellow Circle"></img>
+        <img class="bg-picture" id="hero-bg-redSwiggly" src="/images/bg-redSgwiggly.svg" alt="Red Swiggly Line"></img>
+        <img class="bg-picture" id="hero-bg-greenSnowflake" src="/images/bg-greenSnowflake.svg" alt="Green Snowflake"></img>
+        <img class="bg-picture" id="hero-bg-redSnowflake" src="/images/bg-redSnowflake.svg" alt="Red Snowflake"></img>
+        <img class="bg-picture" id="hero-bg-blueTriangle" src="/images/bg-blueTriangle.svg" alt="Blue Triangle"></img>
+        <img class="bg-picture" id="hero-bg-smallRedSquare" src="/images/bg-smallRedSquare.svg" alt="Small Red Square"></img>
+      </div>
+
+      {/*Elements on the right that do move*/}
+      <div class="hero-bg-4">
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-blueDashedCircle" src="/images/bg-blueDashedCircle.svg" alt="Blue Dashed Circle" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-greenCircle" src="/images/bg-greenCircle.svg" alt="Green Circle" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowSquare" src="/images/bg-yellowSquare.svg" alt="Yellow Square" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowTriangle" src="/images/bg-yellowTriangle.svg" alt="Yellow Triangle" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-blueSgwiggly" src="/images/bg-blueSgwiggly.svg" alt="Blue Sgwiggly" />          
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redSquare" src="/images/bg-redSquare.svg" alt="Red Square" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redLine" src="/images/bg-redLine.svg" alt="Red Line" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-greenSquare" src="/images/bg-greenSquare.svg" alt="Green Square" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowSnowflake" src="/images/bg-yellowSnowflake.svg" alt="Yellow Snowflake" />
+        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redDashedCircle" src="/images/bg-redDashedCircle.svg" alt="Red Dashed Circle" />
+      </div>
+    </div>
+
       <Navbar />
 
-      <div> 
-        
-      </div>
-      <h2 style = {{
-        position: 'relative',
-        background: '#0042C6',
-        font: 'urbanist',
-        width: '10.2vw',                     // Set responsive width based on viewport width
-        height: '3.75vw',                  // Set responsive height based on viewport width to maintain aspect ratio
-        // marginTop: '59.5vh',                 // Adjust based on the layout
-        // marginLeft: '62vw',
-      }}>Login</h2>
+      <h1 className="login-heading">
+        Log In
+      </h1>
 
       <button
+        className="login-button"
         style={{
           backgroundImage: `url('/images/Log_In_Button.png')`,
-          backgroundSize: 'cover',           // Ensures the image covers the button's area
-          backgroundPosition: 'center',      // Centers the image within the button
-          backgroundRepeat: 'no-repeat',     // Prevents the image from tiling
-          width: '10.2vw',                     // Set responsive width based on viewport width
-          height: '3.75vw',                  // Set responsive height based on viewport width to maintain aspect ratio
-          marginTop: '59.5vh',                 // Adjust based on the layout
-          marginLeft: '62vw',
-          border: 'none',
-          cursor: 'pointer',
-          color: 'transparent',
-          backgroundColor: 'transparent',    // Ensures no extra background color
-          position: 'absolute',              // Allows precise placement with margin values
         }}
         onClick={() => loginWithRedirect()}
       >
         Log In
       </button>
-
-
     </div>
   );
 };

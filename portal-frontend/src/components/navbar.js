@@ -18,14 +18,14 @@ export const Navbar = () => {
                 cursor: 'pointer',              
                 color: 'transparent',            
                 textIndent: '-9999px',  
-                marginLeft: '5%',     
+                marginLeft: '60px',     
                 marginRight: '0',   
             }}
             onClick={() => window.open("https://hackduke.org", "_blank")}>
             HackDuke
         </button>
 
-        <button 
+        {/* <button 
             className="Logo" 
             style={{
                 backgroundImage: `url(/images/HackDuke.png)`,
@@ -42,7 +42,7 @@ export const Navbar = () => {
             }}
             onClick={() => window.open("https://hackduke.org", "_blank")}>
             HackDuke
-        </button>
+        </button> */}
       </nav>
     )
 }
