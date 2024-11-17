@@ -20,6 +20,7 @@ const s3 = new S3Client({
 
 const app = express();
 
+// mongoose.connect(process.env.MONGODB_URI);
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -54,13 +55,32 @@ const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 const testS3Connection = async (bucketName) => {
-  const command = new HeadBucketCommand({ Bucket: bucketName });
-  try {
-    await s3.send(command);
-    console.log(`S3 Connection successful. Bucket "${bucketName}" is accessible.`);
-  } catch (error) {
-    console.error(`S3 Connection failed for bucket "${bucketName}":`, error.message);
-  }
-};
+    const command = new HeadBucketCommand({ Bucket: bucketName });
+    try {
+      await s3.send(command);
+      console.log(`S3 Connection successful. Bucket "${bucketName}" is accessible.`);
+    } catch (error) {
+      console.error(`S3 Connection failed for bucket "${bucketName}":`, error.message);
+    }
+  };
+  
+// testS3Connection(process.env.S3_BUCKET_NAME);
+
+
+// const uploadToS3 = async (bucketName, key, body) => {
+//   const command = new PutObjectCommand({
+//     Bucket: bucketName,
+//     Key: key,
+//     Body: body,
+//   });
+  
+//   try {
+//     const data = await s3.send(command);
+//     console.log('File uploaded successfully', data);
+//   } catch (error) {
+//     console.error('Error uploading file', error);
+//   }
+// };
+
 
 testS3Connection(process.env.S3_BUCKET_NAME);
