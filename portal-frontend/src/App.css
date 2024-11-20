@@ -103,6 +103,13 @@
   z-index: 10;
 }
 
+.passwordInput{
+  height: 30px;
+  width: 400px;
+  border: 2px solid #0042c6;
+  border-radius: 100px;
+}
+
 .login-button {
   position: absolute;
   background-size: cover;
@@ -117,8 +124,54 @@
   color: transparent;
   background-color: transparent;
   z-index: 5;
+  border-radius: 100px;
+  background: #0042c6;
 }
 
+.admin-login-button {
+  position: absolute;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  top: 62.5%;
+  left: 70%;
+  width: 198px;
+  height: 72.33px;
+  border: none;
+  cursor: pointer;
+  color: transparent;
+  background-color: transparent;
+  z-index: 5;
+  border-radius: 100px;
+  background: #0042c6;
+}
+
+.passwordForm{
+  display:grid;
+  grid-template-columns: max-content max-content;
+  grid-gap:5px;
+  position: absolute;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  top: 57%;
+  left: 53%;
+  width: 198px;
+  height: 72.33px;
+  border: none;
+  cursor: pointer;
+  color: transparent;
+  background-color: transparent;
+  z-index: 5;
+  border-radius: 100px;
+}
+
+.passwordLabel{
+  color: #0042c6;
+  font-family: 'Urbanist', sans-serif;
+  margin-top: 6px;
+  font-size: 130%
+}
 /* Media queries for responsiveness */
 @media (max-width: 1000px) {
   .login-heading {
@@ -131,6 +184,14 @@
   }
 
   .login-button {
+    top: 60%; /* Move below the heading */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, 0);
+    margin-top: 0;
+    margin-left: 0;
+  }
+
+  .admin-login-button {
     top: 60%; /* Move below the heading */
     left: 50%; /* Center horizontally */
     transform: translate(-50%, 0);

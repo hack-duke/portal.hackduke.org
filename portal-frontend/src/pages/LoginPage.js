@@ -29,7 +29,6 @@ const LoginPage = () => {
         left: '-10px',
       }}
     >
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <div class = "hero-background" style={{
         position: 'relative',
@@ -70,15 +69,15 @@ const LoginPage = () => {
 
       {/*Elements on the right that do move*/}
       <div class="hero-bg-4">
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-blueDashedCircle" src="/images/bg-blueDashedCircle.svg" alt="Blue Dashed Circle" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-greenCircle" src="/images/bg-greenCircle.svg" alt="Green Circle" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowSquare" src="/images/bg-yellowSquare.svg" alt="Yellow Square" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowTriangle" src="/images/bg-yellowTriangle.svg" alt="Yellow Triangle" />       
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redSquare" src="/images/bg-redSquare.svg" alt="Red Square" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redLine" src="/images/bg-redLine.svg" alt="Red Line" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-greenSquare" src="/images/bg-greenSquare.svg" alt="Green Square" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-yellowSnowflake" src="/images/bg-yellowSnowflake.svg" alt="Yellow Snowflake" />
-        <img class="bg-picture" style = {{top:'0vh',right:'0vw'}} id="hero-bg-redDashedCircle" src="/images/bg-redDashedCircle.svg" alt="Red Dashed Circle" />
+        <img class="bg-picture-left" id="hero-bg-blueDashedCircle" src="/images/bg-blueDashedCircle.svg" alt="Blue Dashed Circle" />
+        <img class="bg-picture-left" id="hero-bg-greenCircle" src="/images/bg-greenCircle.svg" alt="Green Circle" />
+        <img class="bg-picture-left" id="hero-bg-yellowSquare" src="/images/bg-yellowSquare.svg" alt="Yellow Square" />
+        <img class="bg-picture-left" id="hero-bg-yellowTriangle" src="/images/bg-yellowTriangle.svg" alt="Yellow Triangle" />       
+        <img class="bg-picture-left" id="hero-bg-redSquare" src="/images/bg-redSquare.svg" alt="Red Square" />
+        <img class="bg-picture-left" id="hero-bg-redLine" src="/images/bg-redLine.svg" alt="Red Line" />
+        <img class="bg-picture-left" id="hero-bg-greenSquare" src="/images/bg-greenSquare.svg" alt="Green Square" />
+        {/* <img class="bg-picture-left" id="hero-bg-yellowSnowflake" src="/images/bg-yellowSnowflake.svg" alt="Yellow Snowflake" /> */}
+        <img class="bg-picture-left" id="hero-bg-redDashedCircle" src="/images/bg-redDashedCircle.svg" alt="Red Dashed Circle" />
       </div>
     </div>
 
