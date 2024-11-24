@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { Navbar } from '../components/navbar';
 import { useEffect } from 'react';
 import '../App.css';
+import Button from '../components/Button';
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -85,16 +86,9 @@ const LoginPage = () => {
       <h1 className="login-heading">
         Log In
       </h1>
-
-      <button
-        className="login-button"
-        style={{
-          backgroundImage: `url('/images/Log_In_Button.png')`,
-        }}
-        onClick={() => loginWithRedirect()}
-      >
-        Log In
-      </button>
+      <Button className="login-button" onClick={() => loginWithRedirect()}> 
+        register
+      </Button>
     </div>
   );
 };
