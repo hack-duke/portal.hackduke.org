@@ -13,7 +13,7 @@ const AdminPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/admin/applications', {
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`, {
         password
       });
       setApplications(response.data);
@@ -26,13 +26,13 @@ const AdminPage = () => {
 
   const handleStatusUpdate = async (applicationId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/admin/applications/${applicationId}/status`, {
+      await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications/${applicationId}/status`, {
         password,
         status: newStatus
       });
       
       // Refresh applications after status update
-      const response = await axios.post('http://localhost:5000/api/admin/applications', {
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`, {
         password
       });
       setApplications(response.data);
@@ -43,7 +43,7 @@ const AdminPage = () => {
 
   const getSignedUrl = async (key) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/admin/get-signed-url', {
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`, {
         password,
         key
       });
@@ -57,7 +57,7 @@ const AdminPage = () => {
   const handleViewResume = async (application) => {
     try {
       const key = application.resumeKey || application.resumeUrl;
-      const response = await axios.post('http://localhost:5000/api/admin/get-signed-url', {
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`, {
         password,
         key
       });

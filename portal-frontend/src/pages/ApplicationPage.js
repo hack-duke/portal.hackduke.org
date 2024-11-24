@@ -55,7 +55,7 @@ const ApplicationPage = () => {
         submitData.append(key, formData[key]);
       });
 
-      const response = await axios.post('http://localhost:5000/api/applications/submit', 
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/applications/submit`, 
         submitData,
         {
           headers: {

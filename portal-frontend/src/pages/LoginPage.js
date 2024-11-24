@@ -5,7 +5,6 @@ import { Navbar } from '../components/navbar';
 import { useEffect } from 'react';
 import '../App.css';
 
-
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
 

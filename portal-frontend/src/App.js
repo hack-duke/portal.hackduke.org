@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ApplicationPage from './pages/ApplicationPage';
-import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -30,8 +29,7 @@ function App() {
               <ApplicationPage />
             </ProtectedRoute>
           } 
-        />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </Router>
