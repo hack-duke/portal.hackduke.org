@@ -1,0 +1,56 @@
+.hero-background {
+    position: absolute;
+  }
+  
+  .hero-bg-4{
+    top:'0vh';
+    right:'0vw';
+  }
+  
+  .bg-picture-left{
+    position: absolute;
+    top: 0vh;
+    right: 0vw;
+  }
+  .bg-picture-right{
+    position: absolute;
+    height: 100vh;
+    width: 100vw;
+    top: 0vh;
+    left: 0vw;
+  }
+  
+  .bg-picture{
+    position: absolute;
+  }
+  
+  #hero-bg-blueBlob {
+    z-index: 1;
+  }
+  
+  #hero-bg-yellowRing {
+    z-index: 2;
+  }
+  
+  #hero-bg-orangeBlob{
+    z-index: 3;
+  }
+  
+  #hero-bg-orangeBlobLining{
+    z-index:3;
+  }
+  
+  #hero-bg-whiteSquare{
+    z-Index: 3;
+  }
+
+  /* Media queries for responsiveness */
+@media (max-width: 1000px) {  
+  
+    .hero-bg-1,
+    .hero-bg-2{
+      display: none; /* Hide these sections */
+    }
+  }
+  
+  

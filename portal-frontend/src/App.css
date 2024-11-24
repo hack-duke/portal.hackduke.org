@@ -2,29 +2,6 @@
   text-align: center;
 }
 
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
 .App-link {
   color: #61dafb;
 }
@@ -37,53 +14,6 @@
     transform: rotate(360deg);
   }
 }
-
-.hero-background {
-  position: absolute;
-}
-
-.hero-bg-4{
-  top:'0vh';
-  right:'0vw';
-}
-
-.bg-picture-left{
-  position: absolute;
-  top: 0vh;
-  right: 0vw;
-}
-.bg-picture-right{
-  position: absolute;
-  height: 100vh;
-  width: 100vw;
-  top: 0vh;
-  left: 0vw;
-}
-
-.bg-picture{
-  position: absolute;
-}
-
-#hero-bg-blueBlob {
-  z-index: 1;
-}
-
-#hero-bg-yellowRing {
-  z-index: 2;
-}
-
-#hero-bg-orangeBlob{
-  z-index: 3;
-}
-
-#hero-bg-orangeBlobLining{
-  z-index:3;
-}
-
-#hero-bg-whiteSquare{
-  z-Index: 3;
-}
-
 
 /* Base styles */
 .login-heading {
@@ -199,9 +129,5 @@
     margin-left: 0;
   }
 
-  .hero-bg-1,
-  .hero-bg-2{
-    display: none; /* Hide these sections */
-  }
 }
 
