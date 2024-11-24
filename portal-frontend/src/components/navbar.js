@@ -1,4 +1,4 @@
-import './navbar.css';
+import "./Navbar.css";
 
 export const Navbar = () => {
     return (
@@ -13,7 +13,7 @@ export const Navbar = () => {
                 backgroundPosition: 'center',    
                 backgroundColor: 'transparent',
                 width: '68px',            
-                height: '68px',                  
+                height: '68px',                   
                 border: 'none',               
                 cursor: 'pointer',              
                 color: 'transparent',            
@@ -24,25 +24,6 @@ export const Navbar = () => {
             onClick={() => window.open("https://hackduke.org", "_blank")}>
             HackDuke
         </button>
-
-        {/* <button 
-            className="Logo" 
-            style={{
-                backgroundImage: `url(/images/HackDuke.png)`,
-                backgroundSize: 'cover',       
-                backgroundPosition: 'center',    
-                backgroundColor: 'transparent',
-                width: '285px',            
-                height: '37.71px',                  
-                border: 'none',               
-                cursor: 'pointer',              
-                color: 'transparent',            
-                textIndent: '-9999px',
-                marginRight: '5%',         
-            }}
-            onClick={() => window.open("https://hackduke.org", "_blank")}>
-            HackDuke
-        </button> */}
       </nav>
     )
 }

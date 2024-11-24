@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Navbar } from '../components/navbar';
+import { Navbar } from '../components/Navbar';
 import { Background } from '../components/Background';
 
 const AdminPage = () => {
