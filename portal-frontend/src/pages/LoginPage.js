@@ -23,11 +23,12 @@ const LoginPage = () => {
     <div className="index">
         <div className="hero">
             <HeroBackground />
-            {/* make a large white text in urbanist font that says "Apply Now!" */}
+            <img className="logo-img" src="/images/Small_logo.png"></img>
             <div className="hero-text">
                 <h1>Apply Now</h1>
             </div>
-            <button className="hero-button">Log In</button>
+            <button className="hero-button"
+            onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>Log In</button>
 
         </div>
     </div>
