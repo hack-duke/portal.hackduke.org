@@ -1,0 +1,892 @@
+/* Imports */
+@import "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css";
+@import url("https://fonts.googleapis.com/css2?family=Martel+Sans&family=Montserrat&family=Oxygen:wght@400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+Bg Animate :root {
+    --shift: 0;
+    --x: 0;
+    --y: 0;
+}
+
+#hero-bg-1 {
+    transform: translate(calc(1px * var(--x)), calc(1px * var(--y)));
+}
+
+#hero-bg-2 {
+    transform: translate(calc(2px * var(--x)), calc(2px * var(--y)));
+}
+
+#hero-bg-3 {
+    transform: translate(calc(3px * var(--x)), calc(3px * var(--y)));
+}
+
+#hero-bg-4 {
+    transform: translate(calc(4px * var(--x)), calc(4px * var(--y)));
+}
+
+#hero-bg-5 {
+    transform: translate(calc(5px * var(--x)), calc(5px * var(--y)));
+}
+
+#hero-bg-6 {
+    transform: translate(calc(6px * var(--x)), calc(6px * var(--y)));
+}
+
+/* l2.style.transform = `translate3d(${2 * x}px, ${2 * y}px, 0)`;
+l3.style.transform = `translate3d(${3 * x}px, ${3 * y}px, 0)`;
+l4.style.transform = `translate3d(${4 * x}px, ${4 * y}px, 0)`;
+l5.style.transform = `translate3d(${5 * x}px, ${5 * y}px, 0)`;
+l6.style.transform = `translate3d(${6 * x}px, ${6 * y}px, 0)`; */
+
+/* General */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(720deg);
+    }
+}
+
+@keyframes grow {
+    0% {
+        transform: scale(1) rotate(37deg);
+    }
+
+    50% {
+        transform: scale(1.3) rotate(96deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(37deg);
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* General Components */
+.button {
+    font-size: 1.25rem;
+    border-color: transparent;
+    background-color: transparent;
+    position: relative;
+    padding: 0 0;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.button:hover {
+    border-color: transparent;
+    background-color: transparent;
+}
+
+.button::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    border-radius: 4px;
+    background-color: #0042c6;
+    bottom: 4px;
+    left: 0;
+    transform-origin: right;
+    transform: scaleX(0);
+    transition: transform 0.3s ease-in-out;
+}
+
+.button:hover::before {
+    transform-origin: left;
+    transform: scaleX(1);
+}
+
+.faicon {
+    font-size: 1.5rem;
+    margin-left: 0.5rem;
+}
+
+.container {
+    padding-left: 5vw;
+    padding-right: 5vw;
+}
+
+.container .subtitle {
+    font-family: "Oxygen";
+    font-size: 1.25rem;
+    color: black;
+    margin-bottom: 0.5rem;
+}
+
+.container .title {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 2rem;
+    color: #0042c6;
+    margin-bottom: 2rem;
+}
+
+/* Components/Navbar.js */
+
+.navbar-button:hover::before {
+    transform-origin: left;
+    transform: scaleX(1);
+}
+
+.is-active .navbar-item {
+    margin-left: 2vw;
+    margin-right: 2vw;
+}
+
+/* Components/HeroBackground */
+.hero-bg {
+    position: absolute;
+    background-color: #0042c6;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+}
+
+/* .hero-bg div {
+    transition: all 0.5s ease-out;
+} */
+
+.hero-bg div img {
+    position: absolute;
+}
+
+#hero-bg-blob {
+    top: 45vh;
+    left: -5vw;
+    width: 600px;
+}
+
+#hero-bg-plus {
+    animation: spin 2.5s ease-in-out infinite reverse;
+}
+
+#hero-bg-blob-circle {
+    animation: spin 10s linear infinite;
+}
+
+#hero-bg-asterisk {
+    animation: grow 5s ease-in-out infinite;
+}
+
+/* Components/JoinUs.js */
+#join-us {
+    background-image: url("/graphics/join.svg");
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 30rem;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+
+#join-us .container {
+    padding-left: 20vw;
+    padding-right: 20vw;
+}
+
+#join-us .title {
+    color: black;
+    font-weight: 600;
+}
+
+/* Components/SponsorUs.js */
+#sponsor-us {
+    background-image: url("/graphics/join.svg");
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 30rem;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+
+#sponsor-us .container {
+    padding-left: 20vw;
+    padding-right: 20vw;
+}
+
+#sponsor-us .title {
+    color: black;
+    font-weight: 600;
+}
+
+/* Components/Footer.js */
+.footer {
+    background-color: #0042c6;
+    color: white;
+    font-family: "Oxygen";
+    font-size: 1.2rem;
+    padding-bottom: 2rem;
+}
+
+.footer .logo {
+    width: 10rem;
+    margin-bottom: 2rem;
+    margin-top: 1rem;
+}
+
+.footer .footer-text {
+    margin-bottom: 1rem;
+}
+
+.footer-icons {
+    display: flex;
+    align-items: center;
+}
+
+.footer-icons .faicon {
+    font-size: 2rem;
+    margin-left: 0rem;
+    margin-right: 1.5rem;
+    /* align middle */
+}
+
+.footer-icons .faicon:hover {
+    cursor: pointer;
+}
+
+.footer .column-title {
+    font-size: 1.5rem;
+    /* font-weight: 600; */
+    margin-bottom: 1rem;
+}
+
+.footer .column-text {
+    margin-bottom: 0.25rem;
+    font-size: 1.2rem;
+    position: relative;
+    width: fit-content;
+}
+
+.footer .column-text p:hover {
+    cursor: pointer;
+}
+
+.footer .column-text p::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    border-radius: 4px;
+    background-color: white;
+    bottom: -2px;
+    left: 0;
+    transform-origin: right;
+    transform: scaleX(0);
+    transition: transform 0.3s ease-in-out;
+}
+
+.footer .column-text p:hover::before {
+    transform-origin: left;
+    transform: scaleX(1);
+}
+
+.footer .column-small-text {
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    position: relative;
+    width: fit-content;
+}
+
+.footer .column-small-text p:hover {
+    cursor: pointer;
+}
+
+.footer .column-small-text p::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    border-radius: 4px;
+    background-color: white;
+    bottom: -2px;
+    left: 0;
+    transform-origin: right;
+    transform: scaleX(0);
+    transition: transform 0.3s ease-in-out;
+}
+
+.footer .column-small-text p:hover::before {
+    transform-origin: left;
+    transform: scaleX(1);
+}
+
+#footer-message {
+    margin-top: 2rem;
+    /* center */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1rem;
+    text-align: center;
+    flex-direction: column;
+}
+
+/* Components/MemberCard.js */
+
+/* Components/TeamCards.js */
+
+/* Pages/index.js */
+.hero {
+    /* background-color: #0042c6; */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-text {
+    font-family: "Urbanist";
+    font-size: 4rem;
+    color: white;
+    text-align: center;
+}
+
+.hero-button {
+    margin-top: 1rem;
+    font-family: "Urbanist";
+    font-size: 1.5rem;
+    color: white;
+    text-align: center;
+    background-color: rgb(5, 33, 118);
+    width: 11rem;
+    height: 3rem;
+    border-radius: 100px;
+}
+
+.container #index-s1-c1 {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.container #index-s1-c2 {
+    text-align: center;
+}
+
+#index-s1-i1 {
+    width: 20rem;
+}
+
+#index-s2 .column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 4px solid black;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin: 3vw;
+}
+
+#index-s2 .card-image {
+    width: 10rem;
+    height: 10rem;
+    margin-bottom: 1rem;
+    margin-top: -1rem;
+}
+
+#index-s2 .card-title {
+    font-family: "Oxygen";
+    font-size: 1.5rem;
+    color: black;
+    margin-bottom: 0.5rem;
+}
+
+#index-s2 .card-text {
+    font-family: "Oxygen";
+    font-size: 1rem;
+    color: #202020;
+    text-align: center;
+}
+
+.index-image {
+    /* round corner */
+    border-radius: 1rem;
+}
+
+#index-s4-i img {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+#index-s4-i1 {
+    width: 40%;
+}
+
+#index-s4-i2 {
+    width: 60%;
+    margin-left: 20%;
+}
+
+#index-s4-i3 {
+    width: 40%;
+    margin-left: 60%;
+}
+
+#index-s5-i img {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+#index-s5-i1 {
+    width: 70%;
+}
+
+#index-s5-i2 {
+    width: 70%;
+    margin-left: 30%;
+}
+
+/* Pages/about.js */
+#about-hero {
+    background-color: #e55511;
+    background-image: url("/graphics/about.svg");
+    background-position: 50% 90%;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    padding-top: 10rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#about-hero .container {
+    padding-right: 40vw;
+}
+
+#about-hero .section-title {
+    font-family: "Oxygen";
+    font-weight: 600;
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 2rem;
+}
+
+#about-hero .subtitle {
+    color: white;
+}
+
+.about-story .subtitle {
+    margin-top: 0;
+}
+
+.about-story .section-title {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 2rem;
+    color: #0042c6;
+    margin-bottom: 0.75rem;
+}
+
+.about-story .quote {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 1rem;
+    color: #0042c6;
+    margin-top: 1rem;
+}
+
+.about-story .quote::before {
+    content: "“";
+    font-size: 1rem;
+    color: #0042c6;
+    margin-right: 0.5rem;
+    font-weight: 600;
+}
+
+.about-story .quote::after {
+    content: "”";
+    font-size: 1rem;
+    color: #0042c6;
+    margin-left: 0.5rem;
+    font-weight: 600;
+}
+
+.about-story .quote-author {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 1rem;
+    color: #0042c6;
+    text-align: right;
+    margin-top: 0.5rem;
+}
+
+.about-image {
+    /* round corner */
+    border-radius: 1rem;
+}
+
+#about-s2 {
+    margin-top: 3rem;
+    margin-bottom: 5rem;
+    padding-left: 20vw;
+    padding-right: 20vw;
+}
+
+#about-s2-i2 {
+    width: 80%;
+}
+
+#about-s2-i3 {
+    margin-top: -20%;
+    width: 60%;
+    margin-left: 40%;
+}
+
+#about-s3 {
+    padding-left: 15vw;
+    padding-right: 15vw;
+}
+
+#about-s4 {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    padding-left: 20vw;
+    padding-right: 20vw;
+}
+
+#about-s4-i4 {
+    width: 80%;
+    margin-left: 10%;
+}
+
+#about-s5 {
+    padding-left: 15vw;
+    padding-right: 15vw;
+}
+
+#about-s6 {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+}
+
+#about-s6-i img {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+#about-s6-i5 {
+    width: 40%;
+}
+
+#about-s6-i6 {
+    width: 60%;
+    margin-left: 20%;
+}
+
+#about-s6-i7 {
+    width: 40%;
+    margin-left: 60%;
+}
+
+#about-s7 {
+    margin-bottom: 3rem;
+}
+
+#about-s7-i img {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+#about-s7-i8 {
+    width: 70%;
+}
+
+#about-s7-i9 {
+    width: 70%;
+    margin-left: 30%;
+}
+
+#about-s8 {
+    padding-left: 15vw;
+    padding-right: 15vw;
+}
+
+/* Pages/humans,js */
+#humans-hero {
+    background-color: #242424;
+    background-image: url("/graphics/humans.svg");
+    background-position: 40% 75%;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    padding-top: 10rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-position: 40% 75%;
+    padding-top: 10rem;
+}
+
+.team-message {
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
+
+/* Pages/events.js */
+#events-hero {
+    background-color: #36c69b;
+    min-height: 100vh;
+    padding-top: 10rem;
+}
+
+#events-hero .container {
+    padding-left: 5vw;
+    padding-right: 5vw;
+}
+
+#events-hero .section-title {
+    font-family: "Oxygen";
+    font-weight: 600;
+    font-size: 3rem;
+    color: black;
+    margin-bottom: 2rem;
+}
+
+#events-hero .subtitle {
+    color: black;
+}
+
+#events-hero-i1 {
+    width: 80%;
+    margin-top: 10%;
+    margin-left: 10%;
+}
+
+#events-hero .scoreboard {
+    /* border white */
+    border: 4px dashed white;
+    /* background-color: white; */
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+#events-hero .scoreboard .scoreboard-title {
+    font-family: "Oxygen";
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: black;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+#events-hero .scoreboard .scoreboard-number {
+    font-family: "Oxygen";
+    font-weight: 600;
+    font-size: 3rem;
+    color: black;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+#events-hero .scoreboard .scoreboard-text {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 1.5rem;
+    color: black;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.events-image {
+    border-radius: 1rem;
+}
+
+#ideate img {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+#events-s2-i2 {
+    width: 70%;
+}
+
+#events-s2-i3 {
+    width: 70%;
+    margin-left: 30%;
+}
+
+/* Pages/join.js */
+#join-hero {
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+
+#join-hero .container {
+    padding-left: 20vw;
+    padding-right: 20vw;
+}
+
+#join-hero .section-title {
+    font-family: "Oxygen";
+    font-weight: 600;
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 2rem;
+}
+
+#join-hero .subtitle {
+    color: white;
+}
+
+@media only screen and (max-width: 1026px) {
+
+    /* Components/HeroBackground */
+    .hero-bg-hidden {
+        display: none;
+    }
+
+    #hero-bg-blob {
+        top: 45vh;
+        left: -40vw;
+    }
+
+    /* Components/JoinUs.js */
+    #join-us .container {
+        padding-left: 10vw;
+        padding-right: 10vw;
+    }
+
+    /* Components/SponsorUs.js */
+    #sponsor-us .container {
+        padding-left: 10vw;
+        padding-right: 10vw;
+    }
+
+    /* Components/Footer.js */
+
+    #footer-top {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        /* order: 2; */
+    }
+
+    #footer-bot {
+        /* order: 1; */
+        /* padding-left: 5vw;
+        padding-right: 5vw; */
+    }
+
+    .footer-icons {
+        margin-bottom: 1rem;
+    }
+
+    .footer-icons .faicon {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .footer .column-title {
+        position: relative;
+    }
+
+    #footer-bot .column {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    #footer-bot .column-title::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        border-radius: 4px;
+        background-color: white;
+        bottom: -2px;
+        left: 0;
+    }
+
+    #footer-bot .column-text::before {
+        height: 1px;
+    }
+
+    /* Pages/index.js */
+    .hero .logo {
+        max-width: 60%;
+        margin-left: 3vw;
+    }
+
+    #index-s2 .column {
+        margin-top: 2rem;
+    }
+
+    /* Pages/about.js */
+    #about-hero .container {
+        padding-right: 5vw;
+    }
+
+    #about-s2 {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        padding-left: 5vw;
+        padding-right: 5vw;
+    }
+
+    #about-s3 {
+        padding-left: 5vw;
+        padding-right: 5vw;
+    }
+
+    #about-s4 {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        padding-left: 5vw;
+        padding-right: 5vw;
+    }
+
+    #about-s4-i4 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    #about-s5 {
+        padding-left: 5vw;
+        padding-right: 5vw;
+    }
+
+    #about-s6 {
+        /* margin-top: 1rem; */
+        margin-bottom: 1rem;
+    }
+
+    #about-s8 {
+        padding-left: 5vw;
+        padding-right: 5vw;
+    }
+
+    /* Pages/humans.js */
+
+    #humans-hero {
+        background-size: 70%;
+        background-position: 50% 35%;
+    }
+
+    /* Pages/events.js */
+    #events-hero .scoreboard .scoreboard-number {
+        font-size: 2.5rem;
+    }
+
+    #events-hero .scoreboard .scoreboard-text {
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+}
