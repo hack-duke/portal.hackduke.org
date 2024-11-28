@@ -216,18 +216,6 @@ html {
     margin-bottom: 2rem;
 }
 
-/* Components/Navbar.js */
-
-.navbar-button:hover::before {
-    transform-origin: left;
-    transform: scaleX(1);
-}
-
-.is-active .navbar-item {
-    margin-left: 2vw;
-    margin-right: 2vw;
-}
-
 /* Components/HeroBackground */
 .hero-bg {
     position: absolute;
@@ -264,17 +252,6 @@ html {
     animation: grow 5s ease-in-out infinite;
 }
 
-#join-us .container {
-    padding-left: 20vw;
-    padding-right: 20vw;
-}
-
-#join-us .title {
-    color: black;
-    font-weight: 600;
-}
-
-
 /* Pages/index.js */
 .hero {
     /* background-color: #0042c6; */
@@ -306,6 +283,14 @@ html {
 .hero-button:hover {
   transform: scale(1.03);
   transition: transform 0.1s ease-in-out;
+}
+
+.logo-img {
+    width: 40px;
+    height: 40px;
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
 }
 
 @media only screen and (max-width: 1026px) {

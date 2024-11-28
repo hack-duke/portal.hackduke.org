@@ -21,9 +21,10 @@ const LoginPage = () => {
   return (
     <>
     <div className="index">
+        <img className="logo-img" src="/images/Small_Logo.png"></img>
         <div className="hero">
             <HeroBackground />
-            <img className="logo-img" src="/images/Small_logo.png"></img>
+            
             <div className="hero-text">
                 <h1>Apply Now</h1>
             </div>
