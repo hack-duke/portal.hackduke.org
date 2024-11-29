@@ -274,14 +274,16 @@ html {
     font-size: 1.5rem;
     color: white;
     text-align: center;
-    background-color: rgb(5, 33, 118);
+    background-color: rgb(16, 49, 151);
     width: 11rem;
     height: 3rem;
+    border: none;
     border-radius: 100px;
 }
 
 .hero-button:hover {
   transform: scale(1.03);
+  background-color: rgb(5, 33, 118);
   transition: transform 0.1s ease-in-out;
 }
 
