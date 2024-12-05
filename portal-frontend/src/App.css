@@ -1,19 +1,3 @@
-.App {
-  text-align: center;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* Base styles */
 .login-heading {
@@ -131,3 +115,197 @@
 
 }
 
+/* Imports */
+@import "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css";
+@import url("https://fonts.googleapis.com/css2?family=Martel+Sans&family=Montserrat&family=Oxygen:wght@400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+Bg Animate :root {
+    --shift: 0;
+    --x: 0;
+    --y: 0;
+}
+
+#hero-bg-1 {
+    transform: translate(calc(1px * var(--x)), calc(1px * var(--y)));
+}
+
+#hero-bg-2 {
+    transform: translate(calc(2px * var(--x)), calc(2px * var(--y)));
+}
+
+#hero-bg-3 {
+    transform: translate(calc(3px * var(--x)), calc(3px * var(--y)));
+}
+
+#hero-bg-4 {
+    transform: translate(calc(4px * var(--x)), calc(4px * var(--y)));
+}
+
+#hero-bg-5 {
+    transform: translate(calc(5px * var(--x)), calc(5px * var(--y)));
+}
+
+#hero-bg-6 {
+    transform: translate(calc(6px * var(--x)), calc(6px * var(--y)));
+}
+
+/* l2.style.transform = `translate3d(${2 * x}px, ${2 * y}px, 0)`;
+l3.style.transform = `translate3d(${3 * x}px, ${3 * y}px, 0)`;
+l4.style.transform = `translate3d(${4 * x}px, ${4 * y}px, 0)`;
+l5.style.transform = `translate3d(${5 * x}px, ${5 * y}px, 0)`;
+l6.style.transform = `translate3d(${6 * x}px, ${6 * y}px, 0)`; */
+
+/* General */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(720deg);
+    }
+}
+
+@keyframes grow {
+    0% {
+        transform: scale(1) rotate(37deg);
+    }
+
+    50% {
+        transform: scale(1.3) rotate(96deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(37deg);
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* General Components */
+
+.faicon {
+    font-size: 1.5rem;
+    margin-left: 0.5rem;
+}
+
+.container {
+    padding-left: 5vw;
+    padding-right: 5vw;
+}
+
+.container .subtitle {
+    font-family: "Oxygen";
+    font-size: 1.25rem;
+    color: black;
+    margin-bottom: 0.5rem;
+}
+
+.container .title {
+    font-family: "Oxygen";
+    font-weight: 400;
+    font-size: 2rem;
+    color: #0042c6;
+    margin-bottom: 2rem;
+}
+
+/* Components/HeroBackground */
+.hero-bg {
+    position: absolute;
+    background-color: #0042c6;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+}
+
+/* .hero-bg div {
+    transition: all 0.5s ease-out;
+} */
+
+.hero-bg div img {
+    position: absolute;
+}
+
+#hero-bg-blob {
+    top: 45vh;
+    left: -5vw;
+    width: 600px;
+}
+
+#hero-bg-plus {
+    animation: spin 2.5s ease-in-out infinite reverse;
+}
+
+#hero-bg-blob-circle {
+    animation: spin 10s linear infinite;
+}
+
+#hero-bg-asterisk {
+    animation: grow 5s ease-in-out infinite;
+}
+
+/* Pages/index.js */
+.hero {
+    /* background-color: #0042c6; */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-text {
+    font-family: "Urbanist";
+    font-size: 4rem;
+    color: white;
+    text-align: center;
+}
+
+.hero-button {
+    margin-top: 1rem;
+    font-family: "Urbanist";
+    font-size: 1.5rem;
+    color: white;
+    text-align: center;
+    background-color: rgb(16, 49, 151);
+    width: 11rem;
+    height: 3rem;
+    border: none;
+    border-radius: 100px;
+}
+
+.hero-button:hover {
+  transform: scale(1.03);
+  background-color: rgb(5, 33, 118);
+  transition: transform 0.1s ease-in-out;
+}
+
+.logo-img {
+    width: 40px;
+    height: 40px;
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+}
+
+@media only screen and (max-width: 1026px) {
+
+    /* Components/HeroBackground */
+    .hero-bg-hidden {
+        display: none;
+    }
+
+    #hero-bg-blob {
+        top: 45vh;
+        left: -40vw;
+    }
+
+
+}
