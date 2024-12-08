@@ -2,15 +2,29 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const AWS = require('aws-sdk');
+const CFG2025Schema = require('../models/Applications/CFG2025');
 require('dotenv').config();
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+const CURRENT_SCHEMA = CFG2025Schema; // Change this to the schema you want to use
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   region: process.env.AWS_REGION,
+});
+
+router.get('/alreadySubmitted', async (req, res) => {
+  const userId = req.auth.sub;
+
+  const application = await CURRENT_SCHEMA.findOne({ userId });
+  if (application) {
+    return res.status(200).json({ alreadySubmitted: true });
+  }
+
+  res.status(200).json({ alreadySubmitted: false });
 });
 
 router.post('/submit', upload.single('resume'), async (req, res) => {
@@ -40,7 +54,14 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
       resumeKey: s3Key, // Store the S3 key
       resumeUrl: data.Location // Store the full URL as well if needed
     };
-    res.status(201).json({ message: 'Application submitted successfully', data: applicationData });
+    
+    const application = new CURRENT_SCHEMA(applicationData);
+    await application.save();
+
+    res.status(201).json({ 
+      applicationId: application._id
+    });
+    
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).json({ error: 'File upload failed' });
