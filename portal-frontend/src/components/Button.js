@@ -9,11 +9,7 @@ export default function Button({
   onClick,
 }) {
   const buttonClass = classNames(
-    "button",
-    {
-      "button--primary": variant === "primary",
-      "button--secondary": variant === "secondary",
-    },
+    "button", variant,
     className
   );
 

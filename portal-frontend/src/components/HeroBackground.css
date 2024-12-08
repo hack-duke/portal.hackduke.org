@@ -12,7 +12,29 @@ Bg Animate :root {
     --y: 0;
 }
 
-/* General */
+#hero-bg-1 {
+    transform: translate(calc(1px * var(--x)), calc(1px * var(--y)));
+}
+
+#hero-bg-2 {
+    transform: translate(calc(2px * var(--x)), calc(2px * var(--y)));
+}
+
+#hero-bg-3 {
+    transform: translate(calc(3px * var(--x)), calc(3px * var(--y)));
+}
+
+#hero-bg-4 {
+    transform: translate(calc(4px * var(--x)), calc(4px * var(--y)));
+}
+
+#hero-bg-5 {
+    transform: translate(calc(5px * var(--x)), calc(5px * var(--y)));
+}
+
+#hero-bg-6 {
+    transform: translate(calc(6px * var(--x)), calc(6px * var(--y)));
+}
 
 @keyframes spin {
     from {
@@ -38,83 +60,6 @@ Bg Animate :root {
     }
 }
 
-html {
-    scroll-behavior: smooth;
-}
-
-/* General Components */
-.button {
-    font-size: 1.25rem;
-    border-color: transparent;
-    background-color: transparent;
-    position: relative;
-    padding: 0 0;
-    margin-left: 0;
-    margin-right: auto;
-}
-
-.button:hover {
-    border-color: transparent;
-    background-color: transparent;
-}
-
-.button::before {
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 2px;
-    border-radius: 4px;
-    background-color: #0042c6;
-    bottom: 4px;
-    left: 0;
-    transform-origin: right;
-    transform: scaleX(0);
-    transition: transform 0.3s ease-in-out;
-}
-
-.button:hover::before {
-    transform-origin: left;
-    transform: scaleX(1);
-}
-
-.faicon {
-    font-size: 1.5rem;
-    margin-left: 0.5rem;
-}
-
-.container {
-    padding-left: 5vw;
-    padding-right: 5vw;
-}
-
-.container .subtitle {
-    font-family: "Oxygen";
-    font-size: 1.25rem;
-    color: black;
-    margin-bottom: 0.5rem;
-}
-
-.container .title {
-    font-family: "Oxygen";
-    font-weight: 400;
-    font-size: 2rem;
-    color: #0042c6;
-    margin-bottom: 2rem;
-}
-
-/* Components/Navbar.js */
-
-.navbar-button:hover::before {
-    transform-origin: left;
-    transform: scaleX(1);
-}
-
-.is-active .navbar-item {
-    margin-left: 2vw;
-    margin-right: 2vw;
-}
-
-/* Components/HeroBackground */
 .hero-bg {
     position: absolute;
     background-color: #0042c6;
@@ -150,7 +95,6 @@ html {
     animation: grow 5s ease-in-out infinite;
 }
 
-/* Pages/index.js */
 .hero {
     /* background-color: #0042c6; */
     height: 100vh;

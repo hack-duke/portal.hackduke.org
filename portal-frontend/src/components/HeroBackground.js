@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import './HeroBackground.css'
 
 export const HeroBackground = () => {
     // state for mouse x and y position
