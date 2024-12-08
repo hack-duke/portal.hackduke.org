@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import ApplicationPage from './pages/ApplicationPage';
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute';
+import NewApplicationPage from './pages/NewApplicationPage';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -21,7 +22,7 @@ function App() {
         path="/application" 
         element={
           <ProtectedRoute>
-            <ApplicationPage />
+            <NewApplicationPage />
           </ProtectedRoute>
         } 
         />

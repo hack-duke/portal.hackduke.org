@@ -20,7 +20,6 @@ const s3 = new S3Client({
 
 const app = express();
 
-// mongoose.connect(process.env.MONGODB_URI);
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

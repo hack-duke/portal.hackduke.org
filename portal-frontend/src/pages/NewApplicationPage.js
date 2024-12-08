@@ -57,6 +57,9 @@ const NewApplicationPage = () => {
                     <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
                 </Page>
             </MultiPageForm>
+
+            {error && <div style={{color: 'red'}}>{error}</div>}
+            {status && <div style={{color: 'green'}}>{status}</div>}
         </>
     )
 };
