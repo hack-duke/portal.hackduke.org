@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navbar } from '../components/Navbar';
+import Navbar from '../components/navbar';
 import WhiteBackground from '../components/WhiteBackground';
 
 // List of items with corresponding info
