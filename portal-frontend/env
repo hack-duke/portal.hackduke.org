@@ -1,0 +1,4 @@
+REACT_APP_AUTH0_DOMAIN=dev-xgamcty40qpvdf03.us.auth0.com
+REACT_APP_AUTH0_CLIENT_ID=uqCou2vkBql1ZDLWYmUkJUPfxOlHUMbN
+REACT_APP_AUTH0_AUDIENCE=hackathon
+BACKEND_URL=http://localhost:5001
