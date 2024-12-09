@@ -6,7 +6,7 @@ import { Navbar } from '../components/Navbar';
 import './NewApplicationPage.css'
 
 const NewApplicationPage = () => {
-    const { user, getAccessTokenSilently, logout } = useAuth0();
+    const { user, getAccessTokenSilently } = useAuth0();
     const [status, setStatus] = useState(null);
     const [error, setError] = useState(null);
 

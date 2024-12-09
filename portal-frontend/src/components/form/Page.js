@@ -12,7 +12,7 @@ export const Page = ({ children, title, formData, handleInputChange, handleFileC
 
     return (
     <div>
-        <h1 className="title">{title}</h1>
+        <h1 className="page-title">{title}</h1>
         {childrenWithProps}
     </div>);
 }
