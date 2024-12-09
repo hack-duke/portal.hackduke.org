@@ -25,7 +25,7 @@ const formatApplication = (application) => {
   ret.push({'label': 'email', 'value': application['email']})
   ret.push({'label': 'status', 'value': application['status']})
   ret.push({'label': 'grad year', 'value': application['graduationYear']})
-  ret.push({'label': 'school', 'value': application['school']})
+  ret.push({'label': 'university', 'value': application['university']})
   ret.push({'label': 'major', 'value': application['major']})
   ret.push({'label': 'submitted', 'value': formatDistanceToNow(new Date(application['submissionDate']), { addSuffix: true})})
 

@@ -29,7 +29,11 @@ function App() {
         } 
         />
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/status" element={<ApplicationStatusPage />} />
+        <Route path="/status" element={
+          <ProtectedRoute>
+            <ApplicationStatusPage />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   )

@@ -74,7 +74,7 @@ const NewApplicationPage = () => {
                         <Question name="firstName" label="First Name" />
                         <Question name="lastName" label="Last Name" />
                         <Question name="prefName" label="Preferred Name" />
-                        <Question name="birthDate" label="Birth Date" />
+                        <Question name="birthDate" type="date" label="Birth Date" />
                         <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
                     </Page>
                     <Page title="Education">
@@ -85,7 +85,7 @@ const NewApplicationPage = () => {
                     </Page>
                     <Page title="About You">
                         <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5}/>
-                        <LongQuestion name="track" label="Which of our four tracks excites you the most? Why?" rows={2}/>
+                        <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2}/>
                     </Page>
                 </MultiPageForm>
                 {error && <div style={{color: 'red'}}>{error}</div>}
