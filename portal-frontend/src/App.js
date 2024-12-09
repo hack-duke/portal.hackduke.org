@@ -2,12 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import LoginPage from './pages/LoginPage';
-import ApplicationPage from './pages/ApplicationPage';
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute';
-import NewApplicationPage from './pages/NewApplicationPage';
+import ApplicationPage from './pages/ApplicationPage';
 import ApplicationStatusPage from './pages/ApplicationStatusPage';
 import './App.css'
+import { FullPageLoadingSpinner } from './components/FullPageLoadingSpinner';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -24,7 +24,7 @@ function App() {
         path="/application" 
         element={
           <ProtectedRoute>
-            <NewApplicationPage />
+            <ApplicationPage />
           </ProtectedRoute>
         } 
         />

@@ -2,12 +2,8 @@ import { useEffect } from "react";
 import './HeroBackground.css'
 
 export const HeroBackground = () => {
-    // state for mouse x and y position
-    // const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    // let mousePos = {x: 0, y: 0}
     let l1;
 
-    // calculate parallax effect for rectangle
     const parallax = (clientX, clientY) => {
         if (!l1) {
             l1 = document.getElementById("hero-bg-1");
@@ -23,16 +19,10 @@ export const HeroBackground = () => {
     useEffect(() => {
         function updateMouse(e) {
             e.preventDefault();
-            // setMousePos({ x: e.clientX, y: e.clientY });
-            // mousePos = { x: e.clientX, y: e.clientY }
             parallax(e.clientX, e.clientY);
-            // console.log(mousePos);
         }
         l1 = document.getElementById("hero-bg-1");
-        // add event listener
         window.addEventListener("mousemove", updateMouse);
-        // parallax();
-        // remove event listener on cleanup
         return () => window.removeEventListener("mousemove", updateMouse);
     });
 

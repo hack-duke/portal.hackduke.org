@@ -1,159 +1,97 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
+import { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion } from '../components/form/Form'
+import { Navbar } from '../components/Navbar';
+import './ApplicationPage.css'
+import {WhiteBackground} from '../components/WhiteBackground'
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const ApplicationPage = () => {
-  const { user, getAccessTokenSilently, logout } = useAuth0();
-  const [status, setStatus] = useState(null);
-  const [file, setFile] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    school: '',
-    major: '',
-    graduationYear: '',
-  });
+const NewApplicationPage = () => {
+    const { user, getAccessTokenSilently } = useAuth0();
+    const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
-      setError(null);
-    } else {
-      setError('Please select a PDF file');
-      setFile(null);
-    }
-  };
+    const onSubmit = async (formData) => {
+        setError(null);
+        try {
+          const token = await getAccessTokenSilently();
+          const submitData = new FormData();
+          submitData.append('userId', user.sub);
+          submitData.append('email', user.email);
+          submitData.append('name', user.name);
+          Object.keys(formData).forEach((fieldName) => {
+            submitData.append(fieldName, formData[fieldName]);
+          })
+    
+          const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/applications/submit`, 
+            submitData,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+          );
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const submitApplication = async (e) => {
-    e.preventDefault();
-    if (!file) {
-      setError('Please select a resume file');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const token = await getAccessTokenSilently();
-      const submitData = new FormData();
-      submitData.append('resume', file);
-      submitData.append('userId', user.sub);
-      submitData.append('email', user.email);
-      submitData.append('name', user.name);
-      
-      // Append all form data
-      Object.keys(formData).forEach(key => {
-        submitData.append(key, formData[key]);
-      });
-
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/applications/submit`, 
-        submitData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
+          if (response.status === 201) { // Success
+            navigate('/status')
+          }
+        } catch (error) {
+          console.error('Application submission error:', error);
+          setError(error.response?.data?.error || 'Failed to submit application');
         }
-      );
+    };
 
-      setStatus(response.data.message);
-      setFile(null);
-      // Reset form
-      setFormData({
-        school: '',
-        major: '',
-        graduationYear: '',
-      });
-      // Reset file input
-      document.getElementById('resume-upload').value = '';
-    } catch (error) {
-      console.error('Application submission error:', error);
-      setError(error.response?.data?.error || 'Failed to submit application');
-    } finally {
-      setLoading(false);
-    }
-  };
+    useEffect(
+      () => {
+        const checkIfSubmitted = async () => {
+          const token = await getAccessTokenSilently();
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          })
 
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Application Submission</h2>
-        <button onClick={() => logout({ returnTo: window.location.origin })}>
-          Log Out
-        </button>
-      </div>
-      
-      <form onSubmit={submitApplication}>
-        <div>
-          <label htmlFor="school">School:</label>
-          <input
-            type="text"
-            id="school"
-            name="school"
-            value={formData.school}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
+          if (response.status === 200) {
+            navigate('/status')
+          }
+        }
 
-        <div>
-          <label htmlFor="major">Major:</label>
-          <input
-            type="text"
-            id="major"
-            name="major"
-            value={formData.major}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="graduationYear">Graduation Year:</label>
-          <input
-            type="number"
-            id="graduationYear"
-            name="graduationYear"
-            value={formData.graduationYear}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="resume-upload">
-            Upload Resume (PDF only)
-          </label>
-          <input
-            id="resume-upload"
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            required
-          />
-        </div>
-
-        {error && <div style={{color: 'red'}}>{error}</div>}
-        {status && <div style={{color: 'green'}}>{status}</div>}
-
-        <button
-          type="submit"
-          disabled={loading || !file}
-        >
-          {loading ? 'Submitting...' : 'Submit Application'}
-        </button>
-      </form>
-    </div>
-  );
+        checkIfSubmitted()
+      },
+      [navigate]
+    )
+    
+    return (
+        <>
+            <Navbar/>
+            <WhiteBackground/>
+            <div className='form-container'>
+                <MultiPageForm onSubmit={onSubmit}> 
+                    <Page title="General Information">
+                        <Question name="firstName" label="First Name" />
+                        <Question name="lastName" label="Last Name" />
+                        <Question name="prefName" label="Preferred Name" />
+                        <Question name="birthDate" type="date" label="Birth Date" />
+                        <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
+                    </Page>
+                    <Page title="Education">
+                        <Question name="country" label="Country of Residence" />
+                        <Question name="university" label="University Name" />
+                        <Question name="major" label="Major" />
+                        <Question name="graduationYear" label="Graduation Year" type="number" />
+                    </Page>
+                    <Page title="About You">
+                        <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5}/>
+                        <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2}/>
+                    </Page>
+                </MultiPageForm>
+                {error && <div style={{color: 'red'}}>{error}</div>}
+            </div>
+        </>
+    )
 };
 
-export default ApplicationPage;
+export default NewApplicationPage;

@@ -14,6 +14,7 @@ input[type="file"] {
     color: white;
     padding: 5px 15px;
     border-radius: 100px;
+    cursor: pointer;
 }
 
 .file-question-button:hover {

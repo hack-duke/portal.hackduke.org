@@ -29,7 +29,6 @@ const formatApplication = (application) => {
   ret.push({'label': 'major', 'value': application['major']})
   ret.push({'label': 'submitted', 'value': formatDistanceToNow(new Date(application['submissionDate']), { addSuffix: true})})
 
-  console.log(ret)
   return ret
 }
 
