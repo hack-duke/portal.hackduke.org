@@ -1,0 +1,37 @@
+.status-list {
+    display: flex;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.status-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Space between rows */
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    gap: 2rem; /* Space between label and value */
+}
+
+.status-label {
+    font-weight: bold;
+    color: #0047ab;
+    text-align: right; /* Align labels to the right */
+}
+
+.status-value {
+    color: #0047ab;
+    text-align: left;
+}
+
+.status-title {
+    margin-top: 7.5rem;
+    font-size: 3rem;
+    font-family: 'Urbanist';
+    color: #0047ab;
+    text-align: center;
+}

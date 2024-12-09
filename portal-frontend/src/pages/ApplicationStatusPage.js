@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import WhiteBackground from '../components/WhiteBackground';
 import { Navbar } from '../components/Navbar';
+import './ApplicationStatusPage.css'
 
 // List of items with corresponding info
 const statusItems = [
@@ -17,50 +18,15 @@ const statusItems = [
 
 const StatusList = () => {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: '20vh',
-        left: '0',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        zIndex: '10',
-      }}
-    >
-      <div
-        style={{
-          width: '80%',
-          display: 'grid',
-          gridTemplateColumns: 'auto 1fr', // Two columns: labels and values
-          rowGap: '1rem', // Space between rows
-          columnGap: '2rem', // Space between label and value
-        }}
-      >
+    <div className="status-list">
+      <div className="status-items">
         {statusItems.map((item, index) => (
-          <React.Fragment key={index}>
-            <div
-              style={{
-                fontWeight: 'bold',
-                color: '#0047ab',
-                textAlign: 'right', // Align labels to the right
-              }}
-            >
-              {item.label}
-            </div>
-            <div
-              style={{
-                color: '#0047ab',
-                textAlign: 'left', // Align values to the left
-              }}
-            >
-              {item.value}
-            </div>
-          </React.Fragment>
+          <div className="status-item" key={index}>
+            <div className="status-label">{item.label}</div>
+            <div className="status-value">{item.value}</div>
+          </div>
         ))}
       </div>
-      
     </div>
   );
 };
@@ -71,37 +37,11 @@ const ApplicationStatusPage = () => {
   }, []);
 
   return (
-    <div style={{ position: 'relative', height: '100vh' }}>
-        <Navbar/>
-        <div
-            className="login-heading"
-            style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '20vh',
-            margin: '0',
-            fontSize: '3rem',
-            textAlign: 'center',
-            fontFamily: 'Urbanist',
-            color: '#0047ab',
-            }}
-        >
-            Applicant Status
-        </div>
-        
-        <div 
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                marginLeft: '20%'
-            }}
-          >
-            <StatusList />
-        </div>
-      
-    </div>
+    <>
+      <Navbar />
+      <h1 className='status-title'>Applicant Status</h1>
+      <StatusList />
+    </>
   );
 };
 
