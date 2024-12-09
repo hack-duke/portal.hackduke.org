@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Navbar } from '../components/Navbar';
 import { Background } from '../components/Background';
 
 const AdminPage = () => {
@@ -86,7 +85,6 @@ const AdminPage = () => {
     return (
       <div>
         <Background/>
-        <Navbar/>
         <h1 className="login-heading">
           Admin Log In
         </h1>
@@ -123,8 +121,6 @@ const AdminPage = () => {
 
     <div>
       <Background />
-
-      <Navbar />
       <h2>Admin Dashboard</h2>
       <div style={{ display: 'flex' }}>
         <div style={{ flex: '1', marginRight: '20px' }}>

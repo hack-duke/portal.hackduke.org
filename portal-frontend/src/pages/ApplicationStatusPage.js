@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import Navbar from '../components/navbar';
 import WhiteBackground from '../components/WhiteBackground';
+import { Navbar } from '../components/Navbar';
 
 // List of items with corresponding info
 const statusItems = [
@@ -72,8 +72,7 @@ const ApplicationStatusPage = () => {
 
   return (
     <div style={{ position: 'relative', height: '100vh' }}>
-        <Navbar />
-        <WhiteBackground />
+        <Navbar/>
         <div
             className="login-heading"
             style={{
@@ -82,8 +81,10 @@ const ApplicationStatusPage = () => {
             alignItems: 'center',
             height: '20vh',
             margin: '0',
-            fontSize: '2rem',
+            fontSize: '3rem',
             textAlign: 'center',
+            fontFamily: 'Urbanist',
+            color: '#0047ab',
             }}
         >
             Applicant Status

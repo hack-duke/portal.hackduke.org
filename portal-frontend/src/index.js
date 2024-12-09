@@ -3,9 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { Auth0Provider } from '@auth0/auth0-react';
 import "@fontsource/urbanist/700.css";
-
-// huh dotenv not working
-// routes broken cause not reading from env file correctly FIX
+import "@fontsource/oxygen"
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 

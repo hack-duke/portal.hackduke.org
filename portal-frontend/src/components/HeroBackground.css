@@ -104,22 +104,10 @@ Bg Animate :root {
 }
 
 .hero-text {
-    font-family: "Urbanist";
     font-size: 4rem;
     color: white;
     text-align: center;
-}
-
-.hero-button {
-    margin-top: 1rem;
-    font-family: "Urbanist";
-    font-size: 1.5rem;
-    color: white;
-    text-align: center;
-    background-color: rgb(5, 33, 118);
-    width: 11rem;
-    height: 3rem;
-    border-radius: 100px;
+    font-family: 'Urbanist';
 }
 
 @media only screen and (max-width: 1026px) {

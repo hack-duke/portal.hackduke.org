@@ -1,1 +1,5 @@
-{}
+{
+  "dependencies": {
+    "@fontsource/oxygen": "^5.1.0"
+  }
+}

@@ -6,6 +6,8 @@ import ApplicationPage from './pages/ApplicationPage';
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute';
 import NewApplicationPage from './pages/NewApplicationPage';
+import ApplicationStatusPage from './pages/ApplicationStatusPage';
+import './App.css'
 
 function App() {
   const { isLoading } = useAuth0();
@@ -27,6 +29,7 @@ function App() {
         } 
         />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/status" element={<ApplicationStatusPage />} />
       </Routes>
     </Router>
   )
