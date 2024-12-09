@@ -1,6 +1,6 @@
 .status-list {
     display: flex;
-    margin-top: 0rem;
+    margin-top: 1rem;
     justify-content: center;
 }
 
@@ -34,7 +34,7 @@
 }
 
 .status-title {
-    margin-top: 4.5rem;
+    margin-top: 7.5rem;
     font-size: 3rem;
     font-family: 'Urbanist';
     color: #ffffff;
