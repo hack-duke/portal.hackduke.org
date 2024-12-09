@@ -5,11 +5,14 @@ import { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion } from 
 import { Navbar } from '../components/Navbar';
 import './NewApplicationPage.css'
 import {WhiteBackground} from '../components/WhiteBackground'
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const NewApplicationPage = () => {
     const { user, getAccessTokenSilently } = useAuth0();
     const [status, setStatus] = useState(null);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     const onSubmit = async (formData) => {
         setError(null);
@@ -40,6 +43,27 @@ const NewApplicationPage = () => {
           setError(error.response?.data?.error || 'Failed to submit application');
         }
     };
+
+    useEffect(
+      () => {
+        const checkIfSubmitted = async () => {
+          const token = await getAccessTokenSilently();
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/alreadySubmitted`, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          })
+
+          const json = await response.json();
+          if (json.alreadySubmitted) {
+            navigate('/status')
+          }
+        }
+
+        checkIfSubmitted()
+      },
+      [navigate]
+    )
     
     return (
         <>

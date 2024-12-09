@@ -9,7 +9,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 const CURRENT_SCHEMA = CFG2025Schema; // Change this to the schema you want to use
-
+// WE MUST USE A NEW SCHEMA EVERY SEASON
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
