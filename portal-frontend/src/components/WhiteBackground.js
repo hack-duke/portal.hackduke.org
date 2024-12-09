@@ -4,7 +4,7 @@ import './WhiteBackground.css'
 export const WhiteBackground = () => {
   return (
     <div className = "hero-background" style={{
-        position: 'relative',
+        position: 'absolute',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         height: '100vh',

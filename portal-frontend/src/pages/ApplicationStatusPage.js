@@ -18,7 +18,7 @@ const statusItems = [
 
 const StatusList = () => {
   return (
-    <div className="status-list">
+    <div className="status-list" style={{ zIndex: 100, position: 'relative' }}>
       <div className="status-items">
         {statusItems.map((item, index) => (
           <div className="status-item" key={index}>
@@ -39,6 +39,7 @@ const ApplicationStatusPage = () => {
   return (
     <>
       <Navbar />
+      <WhiteBackground />
       <h1 className='status-title'>Applicant Status</h1>
       <StatusList />
     </>
