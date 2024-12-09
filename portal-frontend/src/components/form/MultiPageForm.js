@@ -1,5 +1,6 @@
 import { useState } from "react";
 import React from "react";
+import Button from "../Button";
 
 export const MultiPageForm = ({ onSubmit, children }) => {
     const [page, setPage] = useState(0);
@@ -46,10 +47,18 @@ export const MultiPageForm = ({ onSubmit, children }) => {
     return (
         <div>
             {childrenWithProps[page]}
-            <div>
-                {page > 0 && <button onClick={handleBack}>Back</button>}
-                {page < children.length - 1 && <button onClick={handleNext}>Next</button>}
-                {page == children.length - 1 && <button onClick={handleSubmit} disabled={loading}>Submit</button>}
+            <div style={
+                {
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    marginTop: '1rem',
+                }
+            }>
+                {page > 0 && <Button onClick={handleBack}>Back</Button>}
+                {page < children.length - 1 && <Button onClick={handleNext}>Next</Button>}
+                {page == children.length - 1 && <Button onClick={handleSubmit} disabled={loading}>Submit</Button>}
             </div>
         </div>
     );

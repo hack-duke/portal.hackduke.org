@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
 import { MultiPageForm, Page, Question, FileUploadQuestion } from '../components/form/Form'
+import { HeroBackground } from '../components/HeroBackground'
+import Button from '../components/Button'
 
 const NewApplicationPage = () => {
     const { user, getAccessTokenSilently, logout } = useAuth0();
@@ -40,12 +42,16 @@ const NewApplicationPage = () => {
     
     return (
         <>
+            <HeroBackground />
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2>Application Submission</h2>
-                <button onClick={() => logout({ returnTo: window.location.origin })}>
-                Log Out
-                </button>
+                <Button onClick={() => logout({ returnTo: window.location.origin })} children="Log Out">
+                    
+                </Button>
             </div>
+
+            
 
             <MultiPageForm onSubmit={onSubmit}> 
                 <Page>
