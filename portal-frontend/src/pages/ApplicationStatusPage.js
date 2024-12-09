@@ -18,15 +18,13 @@ const statusItems = [
 
 const StatusList = () => {
   return (
-    <div className="status-list" style={{ zIndex: 100, position: 'relative' }}>
-      <div className="status-items">
-        {statusItems.map((item, index) => (
-          <div className="status-item" key={index}>
-            <div className="status-label">{item.label}</div>
-            <div className="status-value">{item.value}</div>
-          </div>
-        ))}
-      </div>
+    <div className="status-grid">
+      {statusItems.map((item, index) => (
+        <div key={index}>
+          <div className='status-label'>{item.label}</div>
+          <div className='status-value'>{item.value}</div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -38,11 +36,12 @@ const ApplicationStatusPage = () => {
 
   return (
     <>
-      
-      <HeroBackground />
       <Navbar />
+      <HeroBackground/>
       <h1 className='status-title'>Applicant Status</h1>
-      <StatusList />
+      <div className='status-container'>
+        <StatusList />
+      </div>
     </>
   );
 };

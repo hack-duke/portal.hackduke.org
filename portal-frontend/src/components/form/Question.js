@@ -1,8 +1,10 @@
+import './Question.css'
+
 export const Question = ({ name, label, type = 'text', formData, handleInputChange }) => {
     return (
         <div>
-            <label htmlFor={name}>{label}</label>
-            <input
+            <label className="label" htmlFor={name}>{label}</label>
+            <input className='input'
                 type={type}
                 id={name}
                 name={name}

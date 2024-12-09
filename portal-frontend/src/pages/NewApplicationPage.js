@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
 import { MultiPageForm, Page, Question, FileUploadQuestion } from '../components/form/Form'
+import { Navbar } from '../components/Navbar';
+import './NewApplicationPage.css'
 
 const NewApplicationPage = () => {
     const { user, getAccessTokenSilently, logout } = useAuth0();
@@ -40,23 +42,22 @@ const NewApplicationPage = () => {
     
     return (
         <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>Application Submission</h2>
-                <button onClick={() => logout({ returnTo: window.location.origin })}>
-                Log Out
-                </button>
+            <Navbar/>
+            <div className='form-container'>
+                <MultiPageForm onSubmit={onSubmit}> 
+                    <Page title="General Information">
+                        <Question name="firstName" label="First Name" />
+                        <Question name="lastName" label="Last Name" />
+                        <Question name="prefName" label="Preferred Name" />
+                        <Question name="birthDate" label="Birth Date" />
+                        <Question name="school" label="School" />
+                        <Question name="graduationYear" label="Graduation Year" type="number" />
+                    </Page>
+                    <Page>
+                        <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
+                    </Page>
+                </MultiPageForm>
             </div>
-
-            <MultiPageForm onSubmit={onSubmit}> 
-                <Page>
-                    <Question name="school" label="School:" />
-                    <Question name="major" label="Major:" />
-                    <Question name="graduationYear" label="Graduation Year:" type="number" />
-                </Page>
-                <Page>
-                    <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
-                </Page>
-            </MultiPageForm>
 
             {error && <div style={{color: 'red'}}>{error}</div>}
             {status && <div style={{color: 'green'}}>{status}</div>}

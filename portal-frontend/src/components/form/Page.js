@@ -1,6 +1,7 @@
 import React from "react";
+import './Page.css';
 
-export const Page = ({ children, formData, handleInputChange, handleFileChange }) => {
+export const Page = ({ children, title, formData, handleInputChange, handleFileChange }) => {
     const childrenWithProps = React.Children.map(children, child => {
         return React.cloneElement(child, {
             formData,
@@ -9,5 +10,9 @@ export const Page = ({ children, formData, handleInputChange, handleFileChange }
         });
     });
 
-    return <div>{childrenWithProps}</div>;
+    return (
+    <div>
+        <h1 className="title">{title}</h1>
+        {childrenWithProps}
+    </div>);
 }
