@@ -98,11 +98,21 @@ router.get('/application/:id', async (req, res) => {
 });
 
 router.get('/application', async (req, res) => {
+  // This is the endpoint used by normal users
   const userId = req.auth.sub;
   const application = await CURRENT_SCHEMA.findOne({ userId });
 
   if (application) {
-    res.status(200).json(application)
+    const {status, school, graduationYear, submissionDate, name, major, email} = application
+    res.status(200).json({
+      status,
+      school,
+      graduationYear,
+      submissionDate,
+      name,
+      major,
+      email
+    })
   }
 
   else {

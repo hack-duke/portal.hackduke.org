@@ -48,14 +48,13 @@ const NewApplicationPage = () => {
       () => {
         const checkIfSubmitted = async () => {
           const token = await getAccessTokenSilently();
-          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/alreadySubmitted`, {
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
             headers: {
               "Authorization": `Bearer ${token}`
             }
           })
 
-          const json = await response.json();
-          if (json.alreadySubmitted) {
+          if (response.status === 200) {
             navigate('/status')
           }
         }
