@@ -16,17 +16,6 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-router.get('/alreadySubmitted', async (req, res) => {
-  const userId = req.auth.sub;
-
-  const application = await CURRENT_SCHEMA.findOne({ userId });
-  if (application) {
-    return res.status(200).json({ alreadySubmitted: true });
-  }
-
-  res.status(200).json({ alreadySubmitted: false });
-});
-
 router.post('/submit', upload.single('resume'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -97,17 +86,28 @@ router.get('/status', (req, res) => {
   res.send({ status: 'Application status logic here' });
 });
 
-router.get('/fetch/:id', (req, res) => {
-  const applicationId = parseInt(req.params.id);
-  const application = applications.find(app => app.id === applicationId);
+router.get('/application/:id', async (req, res) => {
+  const applicationId = req.params.id;
+  const application = await CURRENT_SCHEMA.findById(applicationId).exec()
 
   if (!application){
-    return res.status(404).send({ error: 'Application not found' });
+    return res.status(404).json({ error: 'Application not found' });
   }
 
-  res.send(application);
-  console.log(req.body);
-  res.send({ status: "Application Fetched" });
+  res.status(200).json(application);
 });
+
+router.get('/application', async (req, res) => {
+  const userId = req.auth.sub;
+  const application = await CURRENT_SCHEMA.findOne({ userId });
+
+  if (application) {
+    res.status(200).json(application)
+  }
+
+  else {
+    res.status(404).json({ error: 'Application not found with this authentication'})
+  }
+})
 
 module.exports = router;
