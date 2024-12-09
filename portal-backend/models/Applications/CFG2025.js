@@ -18,9 +18,18 @@ const CFG2025Schema = new mongoose.Schema({
         default: 'pending'
     },
     name: String,
-    school: String,
+    firstName: String,
+    lastName: String,
+    prefName: String,
+    birthDate: {
+        type: Date,
+    },
+    country: String,
+    university: String,
     major: String,
     graduationYear: Number,
+    whyhackduke: String,
+    whytrack: String,
     email: {
         type: String,
         unique: true,

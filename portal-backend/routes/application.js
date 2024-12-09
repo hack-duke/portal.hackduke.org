@@ -103,10 +103,10 @@ router.get('/application', async (req, res) => {
   const application = await CURRENT_SCHEMA.findOne({ userId });
 
   if (application) {
-    const {status, school, graduationYear, submissionDate, name, major, email} = application
+    const {status, university, graduationYear, submissionDate, name, major, email} = application
     res.status(200).json({
       status,
-      school,
+      university,
       graduationYear,
       submissionDate,
       name,
