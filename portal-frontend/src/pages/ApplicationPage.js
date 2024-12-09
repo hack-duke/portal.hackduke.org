@@ -39,7 +39,7 @@ const NewApplicationPage = () => {
           );
 
           if (response.status === 201) { // Success
-            navigate('/status')
+            navigate('/status', { state: { firstTime: true }})
           }
         } catch (error) {
           console.error('Application submission error:', error);
@@ -77,7 +77,7 @@ const NewApplicationPage = () => {
             <div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}> 
                     <Page title="General Information">
-                        <Question name="firstName" label="First Name" />
+                        <Question name="firstName" label="First Name"/>
                         <Question name="lastName" label="Last Name" />
                         <Question name="prefName" label="Preferred Name" />
                         <Question name="birthDate" type="date" label="Birth Date" />

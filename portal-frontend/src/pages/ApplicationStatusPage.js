@@ -5,7 +5,9 @@ import './ApplicationStatusPage.css'
 import { useAuth0 } from '@auth0/auth0-react';
 import { formatDistanceToNow } from 'date-fns';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
-
+import {useWindowSize} from 'react-use';
+import Confetti from 'react-confetti'
+import { useLocation } from 'react-router-dom';
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -22,22 +24,25 @@ const StatusList = ({ statusItems }) => {
 
 const formatApplication = (application) => {
   var ret = [];
-  ret.push({'label': 'name', 'value': application['name']})
-  ret.push({'label': 'email', 'value': application['email']})
-  ret.push({'label': 'status', 'value': application['status']})
-  ret.push({'label': 'grad year', 'value': application['graduationYear']})
-  ret.push({'label': 'university', 'value': application['university']})
-  ret.push({'label': 'major', 'value': application['major']})
-  ret.push({'label': 'submitted', 'value': formatDistanceToNow(new Date(application['submissionDate']), { addSuffix: true})})
+  ret.push({ 'label': 'name', 'value': application['name'] })
+  ret.push({ 'label': 'email', 'value': application['email'] })
+  ret.push({ 'label': 'status', 'value': application['status'] })
+  ret.push({ 'label': 'grad year', 'value': application['graduationYear'] })
+  ret.push({ 'label': 'university', 'value': application['university'] })
+  ret.push({ 'label': 'major', 'value': application['major'] })
+  ret.push({ 'label': 'submitted', 'value': formatDistanceToNow(new Date(application['submissionDate']), { addSuffix: true }) })
 
   return ret
 }
 
 const ApplicationStatusPage = () => {
-  const {user, getAccessTokenSilently, logout } = useAuth0();
+  const { getAccessTokenSilently } = useAuth0();
   const [application, setApplication] = useState(null)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { width, height } = useWindowSize()
+  const location = useLocation();
+  const { firstTime } = location.state || {};
 
   useEffect(
     () => {
@@ -69,14 +74,20 @@ const ApplicationStatusPage = () => {
   return (
     <>
       <Navbar />
-      <HeroBackground/>
-      {loading && <FullPageLoadingSpinner/>}
+      <HeroBackground />
+      {loading && <FullPageLoadingSpinner />}
+      {firstTime && <Confetti
+        width={width}
+        height={height}
+        recycle={false}
+        numberOfPieces={400}
+      />}
       <h1 className='status-title'>Applicant Status</h1>
       {error & <p>{error}</p>}
 
       {application && <div className='status-container'>
-        
-        <StatusList statusItems={application}/>
+
+        <StatusList statusItems={application} />
       </div>}
     </>
   );
