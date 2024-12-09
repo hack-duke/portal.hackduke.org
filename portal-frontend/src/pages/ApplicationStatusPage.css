@@ -1,7 +1,12 @@
 .status-list {
     display: flex;
-    margin-top: 1rem;
+    margin-top: 0rem;
     justify-content: center;
+}
+
+.body {
+
+    background-color: #0042c6;
 }
 
 .status-items {
@@ -19,19 +24,19 @@
 
 .status-label {
     font-weight: bold;
-    color: #0047ab;
+    color: #ffffff;
     text-align: right; /* Align labels to the right */
 }
 
 .status-value {
-    color: #0047ab;
+    color: #ffffff;
     text-align: left;
 }
 
 .status-title {
-    margin-top: 7.5rem;
+    margin-top: 4.5rem;
     font-size: 3rem;
     font-family: 'Urbanist';
-    color: #0047ab;
+    color: #ffffff;
     text-align: center;
 }

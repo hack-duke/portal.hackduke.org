@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import WhiteBackground from '../components/WhiteBackground';
+import HeroBackground from '../components/HeroBackground';
 import { Navbar } from '../components/Navbar';
 import './ApplicationStatusPage.css'
 
@@ -38,8 +38,9 @@ const ApplicationStatusPage = () => {
 
   return (
     <>
+      
+      <HeroBackground />
       <Navbar />
-      <WhiteBackground />
       <h1 className='status-title'>Applicant Status</h1>
       <StatusList />
     </>
