@@ -4,7 +4,6 @@ import './MultiPageForm.css' // Maybe move these styles into a button component
 import { BackButton } from "./BackButton";
 import { NextButton } from "./NextButton";
 import Button from "../Button";
-import { FullPageLoadingSpinner } from "../FullPageLoadingSpinner";
 
 export const MultiPageForm = ({ onSubmit, children }) => {
     const [page, setPage] = useState(0);
@@ -47,7 +46,6 @@ export const MultiPageForm = ({ onSubmit, children }) => {
 
     return (
         <div>
-            {loading && <FullPageLoadingSpinner/>}
             {childrenWithProps[page]}
             <div className="submit-container">
                 {page === children.length - 1 && <Button className="submit-button" variant="tertiary" onClick={handleSubmit} disabled={loading}>Submit</Button>}

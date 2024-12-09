@@ -7,13 +7,16 @@ import './ApplicationPage.css'
 import {WhiteBackground} from '../components/WhiteBackground'
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
 
 const NewApplicationPage = () => {
     const { user, getAccessTokenSilently } = useAuth0();
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const onSubmit = async (formData) => {
+        setLoading(true);
         setError(null);
         try {
           const token = await getAccessTokenSilently();
@@ -42,6 +45,7 @@ const NewApplicationPage = () => {
           console.error('Application submission error:', error);
           setError(error.response?.data?.error || 'Failed to submit application');
         }
+        setLoading(false);
     };
 
     useEffect(
@@ -58,8 +62,9 @@ const NewApplicationPage = () => {
             navigate('/status')
           }
         }
-
+        setLoading(true)
         checkIfSubmitted()
+        setLoading(false)
       },
       [navigate]
     )
@@ -68,6 +73,7 @@ const NewApplicationPage = () => {
         <>
             <Navbar/>
             <WhiteBackground/>
+            {loading && <FullPageLoadingSpinner/>}
             <div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}> 
                     <Page title="General Information">

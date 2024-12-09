@@ -4,6 +4,7 @@ import { Navbar } from '../components/Navbar';
 import './ApplicationStatusPage.css'
 import { useAuth0 } from '@auth0/auth0-react';
 import { formatDistanceToNow } from 'date-fns';
+import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
 
 
 const StatusList = ({ statusItems }) => {
@@ -36,6 +37,7 @@ const ApplicationStatusPage = () => {
   const {user, getAccessTokenSilently, logout } = useAuth0();
   const [application, setApplication] = useState(null)
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(
     () => {
@@ -57,7 +59,9 @@ const ApplicationStatusPage = () => {
         }
       }
 
+      setLoading(true);
       checkIfSubmitted()
+      setLoading(false);
     },
     []
   )
@@ -66,6 +70,7 @@ const ApplicationStatusPage = () => {
     <>
       <Navbar />
       <HeroBackground/>
+      {loading && <FullPageLoadingSpinner/>}
       <h1 className='status-title'>Applicant Status</h1>
       {error & <p>{error}</p>}
 
