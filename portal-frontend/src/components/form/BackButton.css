@@ -1,0 +1,23 @@
+.back-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    width: fit-content;
+    gap: 6px;
+    transition: transform 0.2s ease; 
+}
+
+.back-container:hover {
+    transform: translateX(-6px); 
+}
+
+.back-text {
+    font-family: 'Urbanist';
+    color: #E55511;
+    font-size: 20px;
+}
+
+.back-icon {
+    height: 24px;
+    width: 24px;
+}

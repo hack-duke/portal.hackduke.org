@@ -1,6 +1,6 @@
 .button {
     border: none;
-    border-radius: 5px;
+    border-radius: 7.5px;
     font-size: 1.5rem;
     cursor: pointer;
     padding-right: 3rem;
@@ -18,6 +18,11 @@
 
 .button.secondary {
     background-color: #6c757d;
+    color: white;
+}
+
+.button.tertiary {
+    background-color: #FFAB00;
     color: white;
 }
 

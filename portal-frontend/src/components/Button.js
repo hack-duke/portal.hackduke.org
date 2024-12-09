@@ -7,6 +7,7 @@ export default function Button({
   children,
   variant = "primary",
   onClick,
+  ...props
 }) {
   const buttonClass = classNames(
     "button", variant,
@@ -17,6 +18,7 @@ export default function Button({
     <button
       className={`${buttonClass} ${styles}`}
       onClick={onClick}
+      {...props}
     >
       {children}
     </button>

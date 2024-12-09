@@ -1,5 +1,9 @@
 import { useState } from "react";
 import React from "react";
+import './MultiPageForm.css' // Maybe move these styles into a button component
+import { BackButton } from "./BackButton";
+import { NextButton } from "./NextButton";
+import Button from "../Button";
 
 export const MultiPageForm = ({ onSubmit, children }) => {
     const [page, setPage] = useState(0);
@@ -46,10 +50,12 @@ export const MultiPageForm = ({ onSubmit, children }) => {
     return (
         <div>
             {childrenWithProps[page]}
-            <div>
-                {page > 0 && <button onClick={handleBack}>Back</button>}
-                {page < children.length - 1 && <button onClick={handleNext}>Next</button>}
-                {page == children.length - 1 && <button onClick={handleSubmit} disabled={loading}>Submit</button>}
+            <div className="submit-container">
+                {page === children.length - 1 && <Button className="submit-button" variant="tertiary" onClick={handleSubmit} disabled={loading}>Submit</Button>}
+            </div>
+            <div className="button-container">
+                {page > 0 && <BackButton onClick={handleBack}/>}
+                {page < children.length - 1 && <NextButton onClick={handleNext}/>}
             </div>
         </div>
     );

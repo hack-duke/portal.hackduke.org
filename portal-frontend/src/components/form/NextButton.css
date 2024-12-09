@@ -1,0 +1,23 @@
+.next-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    width: fit-content;
+    gap: 6px;
+    transition: transform 0.2s ease; 
+}
+
+.next-container:hover {
+    transform: translateX(6px); 
+}
+
+.next-text {
+    font-family: 'Urbanist';
+    color: #35C69B;
+    font-size: 20px;
+}
+
+.next-icon {
+    height: 24px;
+    width: 24px;
+}

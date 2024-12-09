@@ -1,3 +1,12 @@
+.hero-background {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    top: 0;
+    overflow: hidden;
+}
+
 .hero-bg-4 {
     top: '0vh';
     right: '0vw';
@@ -41,6 +50,7 @@
     z-Index: 3;
 }
 
+/* Media queries for responsiveness */
 @media (max-width: 1000px) {
 
     .hero-bg-1,

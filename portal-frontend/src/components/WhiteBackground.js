@@ -1,24 +1,19 @@
 import React from 'react';
-import './WhiteBackground.css'
+import '../App.css';
+import './WhiteBackground.css';
 
 export const WhiteBackground = () => {
-  return (
-    <div className = "hero-background" style={{
-        position: 'absolute',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        height: '100vh',
-        width: '100vw',
-      }}>
+    return (
+    <div className = "hero-background">
+      {/* Elements on the right that do NOT move */}
       <div className="hero-bg-1">
-        <img className="bg-picture-left" id="hero-bg-smallRedSquare" src="/images/bg-smallRedSquare.svg" alt="Small Red Square"></img>
         <img className="bg-picture-left" id="hero-bg-blueSgwiggly" src="/images/bg-blueSgwiggly.svg" alt="Blue Sgwiggly" />   
-        <img className="bg-picture-left" id="hero-bg-greenQuarterCircle" src="/images/bg-greenQuarterCircle.svg" alt="Green Quarter Circle"></img>
         <img className="bg-picture-left" id="hero-bg-bigYellowTraingle" src="/images/bg-bigYellowTriangle.svg" alt="Big Yellow Triangle"></img>
         <img className="bg-picture-left" id="hero-bg-whiteSnowflake" src="/images/bg-whiteSnowflake.svg" alt="White Snowflake"></img>
         <img className="bg-picture-left" id="hero-bg-blueSnowflake" src="/images/bg-blueSnowflake.svg" alt="Blue Snowflake"></img>
       </div>
 
+      {/* Elements on the left that do NOT move */}
       <div className="hero-bg-2">
         <img className="bg-picture-right" id="hero-bg-blueBlob" src="/images/bg-blueBlob.svg" alt="Blue Blob Shape"></img>
         <img className="bg-picture-right" id="hero-bg-yellowRing" src="/images/bg-yellowRing.svg" alt="Yellow Ring"></img>
@@ -29,6 +24,7 @@ export const WhiteBackground = () => {
         <img className="bg-picture-right" id="hero-bg-redSnowflake" src="/images/bg-redSnowflake.svg" alt="Red Snowflake"></img>
       </div>
 
+      {/* Elements on the left that do move */}
       <div className="hero-bg-3">
         <img className="bg-picture-right" id="hero-bg-greenOval" src="/images/bg-greenOval.svg" alt="Green Oval Shape"></img>
         <img className="bg-picture-right" id="hero-bg-yellowCircle" src="/images/bg-yellowCircle.svg" alt="Yellow Circle"></img>
@@ -36,6 +32,7 @@ export const WhiteBackground = () => {
         <img className="bg-picture-right" id="hero-bg-greenSnowflake" src="/images/bg-greenSnowflake.svg" alt="Green Snowflake"></img>
       </div>
 
+      {/*Elements on the right that do move*/}
       <div className="hero-bg-4">
         <img className="bg-picture-left" id="hero-bg-blueDashedCircle" src="/images/bg-blueDashedCircle.svg" alt="Blue Dashed Circle" />
         <img className="bg-picture-left" id="hero-bg-greenCircle" src="/images/bg-greenCircle.svg" alt="Green Circle" />

@@ -15,5 +15,6 @@ import { FileUploadQuestion } from './FileUploadQuestion';
 import { Question } from './Question';
 import { Page } from './Page';
 import { MultiPageForm } from './MultiPageForm';
+import { LongQuestion } from './LongQuestion';
 
-export { MultiPageForm, Page, Question, FileUploadQuestion };
+export { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion };
