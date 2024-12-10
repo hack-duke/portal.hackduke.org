@@ -16,5 +16,6 @@ import { Question } from './Question';
 import { Page } from './Page';
 import { MultiPageForm } from './MultiPageForm';
 import { LongQuestion } from './LongQuestion';
+import { DropdownQuestion } from './DropdownQuestion';
 
-export { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion };
+export { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion, DropdownQuestion };
