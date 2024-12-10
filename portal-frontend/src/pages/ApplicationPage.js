@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
 
-const NewApplicationPage = () => {
+const ApplicationPage = () => {
     const { user, getAccessTokenSilently } = useAuth0();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -75,9 +75,10 @@ const NewApplicationPage = () => {
             <WhiteBackground/>
             {loading && <FullPageLoadingSpinner/>}
             <div className='form-container'>
-                <MultiPageForm onSubmit={onSubmit}> 
+                {/* Bug: passing a non-question element as a child will break everything */}
+                <MultiPageForm onSubmit={onSubmit}>
                     <Page title="General Information">
-                        <Question name="firstName" label="First Name" required/> {/* Can pass a custom isValid(value) function */}
+                        <Question name="firstName" label="First Name" required/> 
                         <Question name="lastName" label="Last Name" required/>
                         <Question name="prefName" label="Preferred Name"/>
                         <Question name="birthDate" type="date" label="Birth Date" required/>
@@ -100,4 +101,4 @@ const NewApplicationPage = () => {
     )
 };
 
-export default NewApplicationPage;
+export default ApplicationPage;
