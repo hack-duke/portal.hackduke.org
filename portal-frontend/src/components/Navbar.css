@@ -22,6 +22,7 @@
     font-size: 1.2rem;
     text-decoration: none; /* Ensures there's no default underline */
     overflow: hidden;
+    cursor: pointer;
 }
 
 .nav-button::after {
