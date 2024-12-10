@@ -5,7 +5,7 @@ import './ApplicationStatusPage.css'
 import { useAuth0 } from '@auth0/auth0-react';
 import { formatDistanceToNow } from 'date-fns';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
-import {useWindowSize} from 'react-use';
+import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti'
 import { useLocation } from 'react-router-dom';
 
@@ -40,7 +40,7 @@ const ApplicationStatusPage = () => {
   const [application, setApplication] = useState(null)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { width, height } = useWindowSize()
+  const { width, height } = useWindowSize();
   const location = useLocation();
   const { firstTime } = location.state || {};
 

@@ -77,7 +77,7 @@ const NewApplicationPage = () => {
             <div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}> 
                     <Page title="General Information">
-                        <Question name="firstName" label="First Name" required/> {/* If needed can define custom isValid function */}
+                        <Question name="firstName" label="First Name" required/> 
                         <Question name="lastName" label="Last Name" required/>
                         <Question name="prefName" label="Preferred Name"/>
                         <Question name="birthDate" type="date" label="Birth Date" required/>
