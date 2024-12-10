@@ -1,8 +1,7 @@
     import React, {forwardRef, useImperativeHandle, useRef} from "react";
     import './Page.css';
-    import classNames from "classnames";
 
-    export const Page = forwardRef(({ children, title, formData, handleInputChange, handleFileChange}, ref) => {
+    export const Page = forwardRef(({ children, title, formData, handleInputChange, handleFileChange, firstTry}, ref) => {
         const questionRefs = useRef([]);
         
         const childrenWithProps = React.Children.map(children, (child, index) => {
@@ -10,12 +9,13 @@
                 formData,
                 handleInputChange,
                 handleFileChange,
+                firstTry,
                 ref: (el) => (questionRefs.current[index] = el),
             });
         });
 
         useImperativeHandle(ref, () => ({
-            isPageValid: () => {
+            isPageValid: () => { // If we want to we can customize this too for each page
                 return questionRefs.current.every((question) =>
                     question?.isValid ? question.isValid() : true
                 );

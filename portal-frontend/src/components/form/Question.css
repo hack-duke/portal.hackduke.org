@@ -25,3 +25,7 @@
     box-shadow: 4px 4px 4px rgba(62, 181, 255, 0.3);
     padding: 10px 10px;
 }
+
+.invalid-border {
+    border-color: #D03027;
+}

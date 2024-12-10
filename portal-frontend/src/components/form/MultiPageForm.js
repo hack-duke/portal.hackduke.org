@@ -10,6 +10,7 @@ export const MultiPageForm = ({ onSubmit, children }) => {
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
     const [isPageValid, setIsPageValid] = useState(false);
+    const [firstTry, setFirstTry] = useState(true);
     const pageRefs = useRef([]);
 
     useEffect(() => {
@@ -19,11 +20,15 @@ export const MultiPageForm = ({ onSubmit, children }) => {
     const handleNext = () => {
         if (isPageValid) {
             setPage(page + 1);
+            setFirstTry(true);
+        } else {
+            setFirstTry(false);
         }
     }
 
     const handleBack = () => {
         setPage(page - 1);
+        setFirstTry(true);
     }
 
     const handleSubmit = async () => {
@@ -51,6 +56,7 @@ export const MultiPageForm = ({ onSubmit, children }) => {
             formData,
             handleInputChange,
             handleFileChange,
+            firstTry,
             ref: (el) => (pageRefs.current[index] = el),
         });
     });
