@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
 
-const NewApplicationPage = () => {
+const ApplicationPage = () => {
     const { user, getAccessTokenSilently } = useAuth0();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -75,29 +75,30 @@ const NewApplicationPage = () => {
             <WhiteBackground/>
             {loading && <FullPageLoadingSpinner/>}
             <div className='form-container'>
-                <MultiPageForm onSubmit={onSubmit}> 
+                {/* Bug: passing a non-question element as a child will break everything */}
+                <MultiPageForm onSubmit={onSubmit}>
                     <Page title="General Information">
-                        <Question name="firstName" label="First Name"/>
-                        <Question name="lastName" label="Last Name" />
-                        <Question name="prefName" label="Preferred Name" />
-                        <Question name="birthDate" type="date" label="Birth Date" />
-                        <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
+                        <Question name="firstName" label="First Name" required/> 
+                        <Question name="lastName" label="Last Name" required/>
+                        <Question name="prefName" label="Preferred Name"/>
+                        <Question name="birthDate" type="date" label="Birth Date" required/>
+                        <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" required/>
                     </Page>
                     <Page title="Education">
-                        <Question name="country" label="Country of Residence" />
-                        <Question name="university" label="University Name" />
-                        <Question name="major" label="Major" />
-                        <Question name="graduationYear" label="Graduation Year" type="number" />
+                        <Question name="country" label="Country of Residence" required/>
+                        <Question name="university" label="University Name" required/>
+                        <Question name="major" label="Major" required/>
+                        <Question name="graduationYear" label="Graduation Year" type="number" required/>
                     </Page>
                     <Page title="About You">
-                        <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5}/>
-                        <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2}/>
+                        <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5} required/>
+                        <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2} required/>
                     </Page>
                 </MultiPageForm>
-                {error && <div style={{color: 'red'}}>{error}</div>}
+                {error && <div style={{color: 'red'}}>{error}</div>}  {/* Put this into a modal or something */}
             </div>
         </>
     )
 };
 
-export default NewApplicationPage;
+export default ApplicationPage;

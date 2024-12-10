@@ -1,18 +1,30 @@
-import React from "react";
-import './Page.css';
+    import React, {forwardRef, useImperativeHandle, useRef} from "react";
+    import './Page.css';
 
-export const Page = ({ children, title, formData, handleInputChange, handleFileChange }) => {
-    const childrenWithProps = React.Children.map(children, child => {
-        return React.cloneElement(child, {
-            formData,
-            handleInputChange,
-            handleFileChange,
+    export const Page = forwardRef(({ children, title, formData, handleInputChange, handleFileChange, firstTry}, ref) => {
+        const questionRefs = useRef([]);
+        
+        const childrenWithProps = React.Children.map(children, (child, index) => {
+            return React.cloneElement(child, {
+                formData,
+                handleInputChange,
+                handleFileChange,
+                firstTry,
+                ref: (el) => (questionRefs.current[index] = el),
+            });
         });
-    });
 
-    return (
-    <div>
-        <h1 className="page-title">{title}</h1>
-        {childrenWithProps}
-    </div>);
-}
+        useImperativeHandle(ref, () => ({
+            isPageValid: () => { // If we want to we can customize this too for each page
+                return questionRefs.current.every((question) =>
+                    question?.isValid ? question.isValid() : true
+                );
+            },
+        }));
+
+        return (
+        <div>
+            <h1 className="page-title">{title}</h1>
+            {childrenWithProps}
+        </div>);
+    });

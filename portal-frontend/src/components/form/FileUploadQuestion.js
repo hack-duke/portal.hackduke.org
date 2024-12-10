@@ -1,9 +1,22 @@
 import './FileUploadQuestion.css'
+import React, { forwardRef, useImperativeHandle } from 'react';
 
-export const FileUploadQuestion = ({ name, label, accept, formData, handleFileChange }) => {
+export const FileUploadQuestion = forwardRef(({ 
+    name, 
+    label, 
+    accept, 
+    formData, 
+    handleFileChange,
+    required = false, 
+    isValid = (value) => !required || value}, ref) => {
+
+    useImperativeHandle(ref, () => ({
+        isValid: () => isValid(formData[name]), // Is this the best way to validate?
+    }));
+
     return (
         <div>
-            <label className="file-question-label" htmlFor={name}>{label}</label>
+            <label className="file-question-label" htmlFor={name}>{label}{required && '*'}</label>
             <label className="file-question-button" htmlFor={name}>Choose File</label>
             <input
                 id={name}
@@ -17,4 +30,4 @@ export const FileUploadQuestion = ({ name, label, accept, formData, handleFileCh
             </span>
         </div>
     );
-}
+});

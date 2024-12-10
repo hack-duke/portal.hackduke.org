@@ -1,11 +1,28 @@
 import './Question.css';
+import React, { forwardRef, useImperativeHandle } from 'react';
+import classNames from 'classnames';
 
-export const Question = ({ name, label, type = 'text', formData, handleInputChange }) => {
+export const Question = forwardRef(({ 
+    name, 
+    label, 
+    type = 'text', 
+    formData, 
+    handleInputChange, 
+    required = false, 
+    firstTry,
+    isValid = (value) => !required || (value && value.trim() !== '')}, ref) => { // Default validation function
+
+    useImperativeHandle(ref, () => ({
+        isValid: () => isValid(formData[name]),
+    }));
+
+    console.log(isValid(formData[name]));
+
     return (
         <div className="question-container">
-            <label className="question-label" htmlFor={name}>{label}</label>
+            <label className="question-label" htmlFor={name}>{label}{required && '*'}</label>
             <input
-                className="question-input"
+                className={classNames('question-input', { 'invalid-border': !firstTry && !isValid(formData[name]) })}
                 type={type}
                 id={name}
                 name={name}
@@ -15,4 +32,4 @@ export const Question = ({ name, label, type = 'text', formData, handleInputChan
             />
         </div>
     );
-};
+});
