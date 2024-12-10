@@ -94,7 +94,7 @@ const NewApplicationPage = () => {
                         <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2} required/>
                     </Page>
                 </MultiPageForm>
-                {error && <div style={{color: 'red'}}>{error}</div>}
+                {error && <div style={{color: 'red'}}>{error}</div>}  {/* Put this into a modal or something */}
             </div>
         </>
     )
