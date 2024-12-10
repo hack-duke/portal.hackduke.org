@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import React from "react";
-import './MultiPageForm.css' // Maybe move these styles into a button component
+import './MultiPageForm.css'
 import { BackButton } from "./BackButton";
 import { NextButton } from "./NextButton";
 import Button from "../Button";
@@ -9,9 +9,17 @@ export const MultiPageForm = ({ onSubmit, children }) => {
     const [page, setPage] = useState(0);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const [isPageValid, setIsPageValid] = useState(false);
+    const pageRefs = useRef([]);
+
+    useEffect(() => {
+        setIsPageValid(pageRefs.current[page]?.isPageValid() === true);
+    }, [page, formData]);
 
     const handleNext = () => {
-        setPage(page + 1);
+        if (isPageValid) {
+            setPage(page + 1);
+        }
     }
 
     const handleBack = () => {
@@ -20,9 +28,11 @@ export const MultiPageForm = ({ onSubmit, children }) => {
 
     const handleSubmit = async () => {
         if (page === children.length - 1) {
-            setLoading(true);
-            await onSubmit(formData);
-            setLoading(false);
+            if (isPageValid) {
+                setLoading(true);
+                await onSubmit(formData);
+                setLoading(false);
+            }
         } else {
             setPage(page + 1);
         }
@@ -36,11 +46,12 @@ export const MultiPageForm = ({ onSubmit, children }) => {
         setFormData({ ...formData, [name]: file });
     }
 
-    const childrenWithProps = React.Children.map(children, child => {
+    const childrenWithProps = React.Children.map(children,(child, index) => {
         return React.cloneElement(child, {
             formData,
             handleInputChange,
             handleFileChange,
+            ref: (el) => (pageRefs.current[index] = el),
         });
     });
 
@@ -48,11 +59,11 @@ export const MultiPageForm = ({ onSubmit, children }) => {
         <div>
             {childrenWithProps[page]}
             <div className="submit-container">
-                {page === children.length - 1 && <Button className="submit-button" variant="tertiary" onClick={handleSubmit} disabled={loading}>Submit</Button>}
+                {page === children.length - 1 && <Button className="submit-button" variant="tertiary" onClick={handleSubmit} disabled={loading || !isPageValid}>Submit</Button>}
             </div>
             <div className="button-container">
                 {page > 0 && <BackButton onClick={handleBack}/>}
-                {page < children.length - 1 && <NextButton onClick={handleNext}/>}
+                {page < children.length - 1 && <NextButton onClick={handleNext} disabled={!isPageValid}/>}
             </div>
         </div>
     );

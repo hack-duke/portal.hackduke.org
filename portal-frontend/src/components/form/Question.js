@@ -1,9 +1,22 @@
 import './Question.css';
+import React, { forwardRef, useImperativeHandle } from 'react';
 
-export const Question = ({ name, label, type = 'text', formData, handleInputChange }) => {
+export const Question = forwardRef(({ 
+    name, 
+    label, 
+    type = 'text', 
+    formData, 
+    handleInputChange, 
+    required = false, 
+    isValid = (value) => !required || (value && value.trim() !== '')}, ref) => {
+
+    useImperativeHandle(ref, () => ({
+        isValid: () => isValid(formData[name]),
+    }));
+
     return (
         <div className="question-container">
-            <label className="question-label" htmlFor={name}>{label}</label>
+            <label className="question-label" htmlFor={name}>{label}{required && '*'}</label>
             <input
                 className="question-input"
                 type={type}
@@ -15,4 +28,4 @@ export const Question = ({ name, label, type = 'text', formData, handleInputChan
             />
         </div>
     );
-};
+});

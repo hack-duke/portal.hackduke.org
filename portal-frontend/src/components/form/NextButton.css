@@ -8,7 +8,7 @@
 }
 
 .next-container:hover {
-    transform: translateX(6px); 
+    transform: translateX(5px); 
 }
 
 .next-text {
@@ -20,4 +20,17 @@
 .next-icon {
     height: 24px;
     width: 24px;
+}
+
+.vibrate {
+    animation: vibrate 0.4s linear;
+}
+
+@keyframes vibrate {
+    0% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+    100% { transform: translateX(0); }
 }
