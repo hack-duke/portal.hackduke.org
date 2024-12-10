@@ -76,12 +76,17 @@ const ApplicationStatusPage = () => {
       <Navbar />
       <HeroBackground />
       {loading && <FullPageLoadingSpinner />}
-      {firstTime && <Confetti
-        width={width}
-        height={height}
-        recycle={false}
-        numberOfPieces={400}
-      />}
+      {
+        firstTime &&
+        <div className='confetti'>
+          <Confetti
+            width={width}
+            height={height}
+            recycle={false}
+            numberOfPieces={400}
+          />
+        </div>
+      }
       <h1 className='status-title'>Applicant Status</h1>
       {error & <p>{error}</p>}
 
