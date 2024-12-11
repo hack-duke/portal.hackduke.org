@@ -13,6 +13,9 @@
     margin-bottom: 0;
 }
 
+/* !important is given to override the styling for DropdownQuestions */
+/* Can rewrite to use css selectors if necessary */
+
 .question-input {
     border-style: solid !important;
     border-width: 1px !important;
