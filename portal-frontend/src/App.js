@@ -8,7 +8,6 @@ import ApplicationPage from './pages/ApplicationPage';
 import ApplicationStatusPage from './pages/ApplicationStatusPage';
 import './App.css'
 import { FullPageLoadingSpinner } from './components/FullPageLoadingSpinner';
-import DropdownQuestion from './components/form/DropdownQuestion';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -35,7 +34,6 @@ function App() {
             <ApplicationStatusPage />
           </ProtectedRoute>
         } />
-        <Route path="/form" element={<DropdownQuestion/>}/>
       </Routes>
     </Router>
   )

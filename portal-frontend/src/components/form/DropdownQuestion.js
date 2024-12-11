@@ -20,10 +20,13 @@ export const DropdownQuestion = forwardRef(({
   required = false,
   firstTry,
   isValid = (value) => !required || (value && value.trim() !== ''),
-  options
+  options,
+  placeholder
 }, ref) => {
 
   // options should be [{value: 'value', label: 'label'}]
+
+  // TODO: add functionality for other
 
   useImperativeHandle(ref, () => ({
     isValid: () => isValid(formData[name]),
@@ -36,8 +39,10 @@ export const DropdownQuestion = forwardRef(({
         defaultValue={formData[name]}
         onChange={({ value }) => handleInputChange(name, value)}
         options={options}
-        placeholder={"Select country"}
+        placeholder={placeholder}
         classNamePrefix={"dropdown"}
+        value={options.find(option => option.value === formData[name])}
+        required={required}
         classNames={{
           control: () => {return (!firstTry && !isValid(formData[name])) ? 'invalid-border question-input' : 'question-input'}
         }}
