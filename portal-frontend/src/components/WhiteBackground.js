@@ -1,50 +1,39 @@
 import React from 'react';
 import '../App.css';
+import { useEffect } from "react";
+
 import './WhiteBackground.css';
 
 export const WhiteBackground = () => {
-    return (
-    <div className = "hero-background">
-      {/* Elements on the right that do NOT move */}
-      <div className="hero-bg-1">
-        <img className="bg-picture-left" id="hero-bg-blueSgwiggly" src="/images/bg-blueSgwiggly.svg" alt="Blue Sgwiggly" />   
-        <img className="bg-picture-left" id="hero-bg-bigYellowTraingle" src="/images/bg-bigYellowTriangle.svg" alt="Big Yellow Triangle"></img>
-        <img className="bg-picture-left" id="hero-bg-whiteSnowflake" src="/images/bg-whiteSnowflake.svg" alt="White Snowflake"></img>
-        <img className="bg-picture-left" id="hero-bg-blueSnowflake" src="/images/bg-blueSnowflake.svg" alt="Blue Snowflake"></img>
-      </div>
+  let l1;
 
-      {/* Elements on the left that do NOT move */}
-      <div className="hero-bg-2">
-        <img className="bg-picture-right" id="hero-bg-blueBlob" src="/images/bg-blueBlob.svg" alt="Blue Blob Shape"></img>
-        <img className="bg-picture-right" id="hero-bg-yellowRing" src="/images/bg-yellowRing.svg" alt="Yellow Ring"></img>
-        <img className="bg-picture-right" id="hero-bg-orangeBlob" src="/images/bg-orangeBlob.svg" alt="Orange Blob Shape"></img>
-        <img className="bg-picture-right" id="hero-bg-blueTriangle" src="/images/bg-blueTriangle.svg" alt="Blue Triangle"></img>
-        <img className="bg-picture-right" id="hero-bg-orangeBlobLining" src="/images/bg-orangeBlobLining.svg" alt="Orange Blob Lining"></img>
-        <img className="bg-picture-right" id="hero-bg-whiteSquare" src="/images/bg-whiteSquare.svg" alt="White Square"></img>
-        <img className="bg-picture-right" id="hero-bg-redSnowflake" src="/images/bg-redSnowflake.svg" alt="Red Snowflake"></img>
-      </div>
+  const parallax = (clientX, clientY) => {
+    if (!l1) {
+      l1 = document.getElementById("white-bg-full");
+    }
+    const x = (clientX - l1.offsetLeft) / 100;
+    const y = (clientY - l1.offsetTop) / 100;
 
-      {/* Elements on the left that do move */}
-      <div className="hero-bg-3">
-        <img className="bg-picture-right" id="hero-bg-greenOval" src="/images/bg-greenOval.svg" alt="Green Oval Shape"></img>
-        <img className="bg-picture-right" id="hero-bg-yellowCircle" src="/images/bg-yellowCircle.svg" alt="Yellow Circle"></img>
-        <img className="bg-picture-right" id="hero-bg-redSwiggly" src="/images/bg-redSgwiggly.svg" alt="Red Swiggly Line"></img>
-        <img className="bg-picture-right" id="hero-bg-greenSnowflake" src="/images/bg-greenSnowflake.svg" alt="Green Snowflake"></img>
-      </div>
+    const parent = document.querySelector(":root");
+    parent.style.setProperty("--x", x);
+    parent.style.setProperty("--y", y);
+  };
 
-      {/*Elements on the right that do move*/}
-      <div className="hero-bg-4">
-        <img className="bg-picture-left" id="hero-bg-blueDashedCircle" src="/images/bg-blueDashedCircle.svg" alt="Blue Dashed Circle" />
-        <img className="bg-picture-left" id="hero-bg-greenCircle" src="/images/bg-greenCircle.svg" alt="Green Circle" />
-        <img className="bg-picture-left" id="hero-bg-yellowSquare" src="/images/bg-yellowSquare.svg" alt="Yellow Square" />
-        <img className="bg-picture-left" id="hero-bg-yellowTriangle" src="/images/bg-yellowTriangle.svg" alt="Yellow Triangle" />       
-        <img className="bg-picture-left" id="hero-bg-redSquare" src="/images/bg-redSquare.svg" alt="Red Square" />
-        <img className="bg-picture-left" id="hero-bg-redLine" src="/images/bg-redLine.svg" alt="Red Line" />
-        <img className="bg-picture-left" id="hero-bg-greenSquare" src="/images/bg-greenSquare.svg" alt="Green Square" />
-        <img className="bg-picture-left" id="hero-bg-redDashedCircle" src="/images/bg-redDashedCircle.svg" alt="Red Dashed Circle" />
-      </div>
+  useEffect(() => {
+    function updateMouse(e) {
+      e.preventDefault();
+      parallax(e.clientX, e.clientY);
+    }
+    window.addEventListener("mousemove", updateMouse);
+    return () => window.removeEventListener("mousemove", updateMouse);
+  });
+
+  return (
+    <div class="white-bg-frame">
+      <img className='white-bg-full' id="white-bg-full" src='/images/white-bg-full.svg' alt="Repeating White Background" />
+      {/* Export the entire frame from Figma as an SVG */}
     </div>
-    )
+  )
 };
 
 export default WhiteBackground;
