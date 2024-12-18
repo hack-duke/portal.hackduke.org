@@ -4,7 +4,7 @@
     align-items: flex-start;
     gap: 8px;
     margin-bottom: 1.5rem; 
-    width: 600px;
+    max-width: 600px;
 }
 
 .long-label {
