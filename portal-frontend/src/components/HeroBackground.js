@@ -21,13 +21,12 @@ export const HeroBackground = () => {
             e.preventDefault();
             parallax(e.clientX, e.clientY);
         }
-        l1 = document.getElementById("hero-bg-1");
         window.addEventListener("mousemove", updateMouse);
         return () => window.removeEventListener("mousemove", updateMouse);
     });
 
     return (
-        <>
+        <div className="hero-bg-frame">
             <div className="hero-bg">
                 <div id="hero-bg-1">
                     <img
@@ -119,7 +118,7 @@ export const HeroBackground = () => {
                     />
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 

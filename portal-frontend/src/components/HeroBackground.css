@@ -1,16 +1,6 @@
 /* Imports */
 @import "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css";
-@import url("https://fonts.googleapis.com/css2?family=Martel+Sans&family=Montserrat&family=Oxygen:wght@400&display=swap");
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-Bg Animate :root {
-    --shift: 0;
-    --x: 0;
-    --y: 0;
-}
 
 #hero-bg-1 {
     transform: translate(calc(1px * var(--x)), calc(1px * var(--y)));
@@ -60,14 +50,20 @@ Bg Animate :root {
     }
 }
 
-.hero-bg {
+.hero-bg-frame {
     position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: -1;
+}
+
+.hero-bg {
     background-color: #0042c6;
     width: 100vw;
     height: 100vh;
-    z-index: -1;
-    top:0;
-    overflow: hidden;
 }
 
 /* .hero-bg div {
@@ -97,7 +93,6 @@ Bg Animate :root {
 }
 
 .hero {
-    /* background-color: #0042c6; */
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -112,8 +107,6 @@ Bg Animate :root {
 }
 
 @media only screen and (max-width: 1026px) {
-
-    /* Components/HeroBackground */
     .hero-bg-hidden {
         display: none;
     }
