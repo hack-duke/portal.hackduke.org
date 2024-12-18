@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import LoginPage from './pages/LoginPage';
-import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute';
 import ApplicationPage from './pages/ApplicationPage';
 import ApplicationStatusPage from './pages/ApplicationStatusPage';
@@ -27,7 +26,6 @@ function App() {
           </ProtectedRoute>
         } 
         />
-        <Route path="/admin" element={<AdminPage />} />
         <Route path="/status" element={
           <ProtectedRoute>
             <ApplicationStatusPage />

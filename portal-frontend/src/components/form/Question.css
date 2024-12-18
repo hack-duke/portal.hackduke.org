@@ -1,9 +1,21 @@
 .question-container {
     display: grid;
-    grid-template-columns: 175px 350px; /* Label column and input column widths */
+    grid-template-columns: 175px 350px; /* Label column and input column widths !important breaks things*/
     column-gap: 2rem; 
     margin-bottom: 1.5rem; 
     align-items: center;
+}
+
+@media (max-width: 600px) {
+    .question-container {
+        grid-template-columns: 1fr; /* Single-column layout */
+        row-gap: 0.2rem; 
+        margin-bottom: 0.5rem;
+    }
+
+    .question-label {
+        text-align: left !important;
+    }
 }
 
 .question-label {
