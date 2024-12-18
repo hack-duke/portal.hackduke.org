@@ -1,3 +1,9 @@
+.file-question-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem; /* Don't love this apporach for responsiveness but will work for now */
+}
+
 .file-question-label {
     color: #0042c6;
     text-align: right; 
