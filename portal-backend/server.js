@@ -49,6 +49,7 @@ const checkJwt = jwt({
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', checkJwt, applicationRoutes);
+app.get('/health', (req, res) => res.send('Server is running'));
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
