@@ -12,7 +12,7 @@ export const Navbar = () => {
       <div className='nav-buttons'>
         <Link to='/' className='nav-button'>application</Link>
         <a href="https://2025.hackduke.org/" className='nav-button' target="_blank" rel="noopener noreferrer">event</a>
-        <span onClick={() => logout({ returnTo: window.location.origin })} className='nav-button'>log out</span>
+        <span onClick={() => logout({ logoutParams: {returnTo: window.location.origin }})} className='nav-button'>log out</span>
       </div>
     </nav>
   );
