@@ -9,6 +9,11 @@ const ProtectedRoute = ({ children }) => {
     return <FullPageLoadingSpinner/>;
   }
 
+  console.log(
+    'isAuthenticated: ', isAuthenticated,
+    'isLoading: ', isLoading
+  )
+
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
