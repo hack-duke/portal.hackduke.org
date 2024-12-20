@@ -1,0 +1,26 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+  backend:
+    image: 339712819458.dkr.ecr.us-east-2.amazonaws.com/portal-backend:1.0.1
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - caddy
+
+
+volumes:
+  caddy_data:
+  caddy_config:
