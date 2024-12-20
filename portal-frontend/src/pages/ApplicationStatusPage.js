@@ -24,7 +24,7 @@ const StatusList = ({ statusItems }) => {
 
 const formatApplication = (application) => {
   var ret = [];
-  ret.push({ 'label': 'name', 'value': application['name'] })
+  ret.push({ 'label': 'name', 'value': (application['prefName'] || application['firstName']) + ' ' + application['lastName']})
   ret.push({ 'label': 'email', 'value': application['email'] })
   ret.push({ 'label': 'status', 'value': application['status'] })
   ret.push({ 'label': 'grad year', 'value': application['graduationYear'] })
