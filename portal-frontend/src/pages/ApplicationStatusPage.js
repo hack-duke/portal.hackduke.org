@@ -47,6 +47,7 @@ const ApplicationStatusPage = () => {
   useEffect(
     () => {
       const checkIfSubmitted = async () => {
+        setLoading(true);
         const token = await getAccessTokenSilently();
         const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
           headers: {
@@ -62,11 +63,10 @@ const ApplicationStatusPage = () => {
           const json = await response.json();
           setApplication(formatApplication(json))
         }
+        setLoading(false);
       }
 
-      setLoading(true);
       checkIfSubmitted()
-      setLoading(false);
     },
     []
   )
