@@ -8,12 +8,17 @@ import {WhiteBackground} from '../components/WhiteBackground'
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
+import Modal, {ModalHeader} from '../components/Modal';
 
 const ApplicationPage = () => {
     const { user, getAccessTokenSilently } = useAuth0();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
 
     const onSubmit = async (formData) => {
         setLoading(true);
@@ -42,8 +47,9 @@ const ApplicationPage = () => {
             navigate('/status', { state: { firstTime: true }})
           }
         } catch (error) {
+          openModal();
           console.error('Application submission error:', error);
-          setError(error.response?.data?.error || 'Failed to submit application');
+          setError(error.response?.data?.error); // TODO: does this actually give anything?
         }
         setLoading(false);
     };
@@ -74,6 +80,11 @@ const ApplicationPage = () => {
             <Navbar/>
             <WhiteBackground/>
             {loading && <FullPageLoadingSpinner/>}
+            <Modal isOpen={isModalOpen} onClose={closeModal}>
+              <ModalHeader>Application Submission Error</ModalHeader>
+              <p>An error has occurred when submitting your application. Please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org</a> and we will help resolve your issue promptly.</p>
+              <p>{error}</p>
+            </Modal>
             <div className='form-container'>
                 {/* Bug: passing a non-question element as a child will break everything */}
                 <MultiPageForm onSubmit={onSubmit}>
@@ -95,7 +106,6 @@ const ApplicationPage = () => {
                         <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2} required/>
                     </Page>
                 </MultiPageForm>
-                {error && <div style={{color: 'red'}}>{error}</div>}  {/* Put this into a modal or something */}
             </div>
         </>
     )

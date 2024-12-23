@@ -26,6 +26,11 @@
     color: white;
 }
 
+.button.error {
+    background-color: #dc2222;
+    color: white;
+}
+
 .button:hover {
     opacity: 0.9;
 }
