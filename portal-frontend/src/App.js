@@ -7,6 +7,7 @@ import ApplicationPage from './pages/ApplicationPage';
 import ApplicationStatusPage from './pages/ApplicationStatusPage';
 import './App.css'
 import { FullPageLoadingSpinner } from './components/FullPageLoadingSpinner';
+import NotFound from './components/404page';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -31,6 +32,8 @@ function App() {
             <ApplicationStatusPage />
           </ProtectedRoute>
         } />
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   )
