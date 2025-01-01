@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
-import { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion } from '../components/form/Form'
+import { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion, CheckQuestion } from '../components/form/Form'
 import { Navbar } from '../components/Navbar';
 import './ApplicationPage.css'
 import {WhiteBackground} from '../components/WhiteBackground'
@@ -104,6 +104,17 @@ const ApplicationPage = () => {
                     <Page title="About You">
                         <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5} required/>
                         <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2} required/>
+                    </Page>
+                    <Page title="Agreements">
+                      <CheckQuestion name="mlh1" required>
+                        I have read and agree to the <a href='https://github.com/MLH/mlh-policies/blob/main/code-of-conduct.md'>MLH Code of Conduct</a>.
+                      </CheckQuestion>
+                      <CheckQuestion name="mlh2" required>
+                        I authorize you to share my application/registration information with Major League Hacking for event administration, ranking, and MLH administration in-line with the <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">MLH Privacy Policy</a>. I further agree to the terms of both the <a href="https://github.com/MLH/mlh-policies/blob/main/contest-terms.md">MLH Contest Terms and Conditions</a> and the <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">MLH Privacy Policy</a>.
+                      </CheckQuestion>
+                      <CheckQuestion name="mlh3" required>
+                        I authorize MLH to send me occasional emails about relevant events, career opportunities, and community announcements.
+                      </CheckQuestion>
                     </Page>
                 </MultiPageForm>
             </div>

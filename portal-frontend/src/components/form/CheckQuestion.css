@@ -1,0 +1,40 @@
+.check-container {
+    display: flex;
+    gap: 8px;
+    max-width: 550px;
+    margin-bottom: 1.5rem;
+}
+
+.check-label {
+    color: #0042c6;
+    font-size: 16px;
+}
+
+.check-label a {
+    text-decoration: underline; 
+    color: #0042c6; 
+}
+
+.styled-checkbox {
+    display: none;
+}
+
+
+.checkbox-style {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 1px solid #0042c6;
+    border-radius: 5px;
+    box-shadow: 2px 2px 2px rgba(62, 181, 255, 0.3);
+    background-color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    vertical-align: middle;
+}
+
+.styled-checkbox:not(:disabled):checked + .checkbox-style {
+    background-color: #0042c6;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32"><path fill="white" d="M11.941,28.877l-11.941-11.942l5.695-5.696l6.246,6.246l14.364-14.364L32,8.818"/></svg>');
+    background-size: cover;
+}

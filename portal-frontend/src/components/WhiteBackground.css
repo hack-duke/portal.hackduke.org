@@ -9,7 +9,7 @@
 }
 
 .white-bg-full {
-    transform: translate(calc(2px * var(--x)), calc(2px * var(--y))) scale(1.07) translateX(-4%); /* Size up and translate svg so there are no visible seams*/
+    transform: translate(calc(2px * var(--x)), calc(2px * var(--y))) scale(1.09) translateX(-3%); /* Size up and translate svg so there are no visible seams*/
     width: 100vw;
     height: 100vh;
     object-fit: cover;
