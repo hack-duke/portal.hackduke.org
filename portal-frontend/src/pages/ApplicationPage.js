@@ -100,6 +100,8 @@ const ApplicationPage = () => {
                         <Question name="university" label="University Name" required/>
                         <Question name="major" label="Major" required/>
                         <Question name="graduationYear" label="Graduation Year" type="number" required/>
+                        {/* Bug: missing input validation for phone numbers -- should we enforce a format?*/}
+                        <Question name="phone" label="Phone Number" type="tel" required/>
                     </Page>
                     <Page title="About You">
                         <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5} required/>

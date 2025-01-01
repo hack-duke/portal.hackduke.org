@@ -32,6 +32,11 @@ const CFG2025Schema = new mongoose.Schema({
         type: String,
         unique: true,
         required: true
+    },
+    phone: {
+        type: String,
+        required: true,
+        unique: true
     }
 });
 
