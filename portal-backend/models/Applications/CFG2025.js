@@ -21,9 +21,7 @@ const CFG2025Schema = new mongoose.Schema({
     firstName: String,
     lastName: String,
     prefName: String,
-    birthDate: {
-        type: Date,
-    },
+    age: Number,
     country: String,
     university: String,
     major: String,
