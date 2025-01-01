@@ -92,7 +92,7 @@ const ApplicationPage = () => {
                         <Question name="firstName" label="First Name" required/> 
                         <Question name="lastName" label="Last Name" required/>
                         <Question name="prefName" label="Preferred Name"/>
-                        <Question name="birthDate" type="date" label="Birth Date" required/>
+                        <Question name="age" type="number" label="Age" required/>
                         <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" required/>
                     </Page>
                     <Page title="Education">
