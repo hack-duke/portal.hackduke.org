@@ -37,7 +37,7 @@ jobs:
               env:
                 ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
                 IMAGE_TAG: ${{ env.IMAGE_TAG }}
-              run:
+              run: |
                 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG portal-backend
                 docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
                 echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
