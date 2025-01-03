@@ -57,7 +57,7 @@ jobs:
               run: |
                 echo "$PRIVATE_KEY" > key.pem
                 chmod 600 key.pem
-                ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
+                ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
                   aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REGISTRY
                   docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
                   sed -i 's|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:.*|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}|' docker-compose.yml
