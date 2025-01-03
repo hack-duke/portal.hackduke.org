@@ -42,3 +42,19 @@ jobs:
                 docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
                 echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
             
+            - name: SSH into ec2 and restart
+              env:
+                PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+                EC2_USER: ec2-user
+                EC2_IP: ${{ secrets.EC2_IP }}
+                IMAGE_TAG: ${{ env.IMAGE_TAG }}
+                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+              run: |
+                echo "$PRIVATE_KEY" > key.pem
+                chmod 600 key.pem
+                ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
+                  aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REGISTRY
+                  docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                  sed -i 's|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:.*|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}|' docker-compose.yml
+                  docker-compose up -d
+                EOF
