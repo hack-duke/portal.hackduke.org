@@ -1,4 +1,4 @@
-name: Deploy to Amazon ECR
+name: Build to ECR, deploy on EC2
 
 on:
   push:
