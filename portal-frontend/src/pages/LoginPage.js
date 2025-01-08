@@ -26,9 +26,9 @@ const LoginPage = () => {
         <h1 className="hero-text">Apply Now</h1>
         <div className='buttons-container'>
           <Button className="hero-button" onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
-            Log In
+            Participant
           </Button>
-          <Button className="mentor-button" variant='secondary'>
+          <Button className="mentor-button" variant='secondary' onClick={() => window.open("https://forms.gle/gtWwViqvjWqsXBo5A", "_blank")}>
             Mentor/Judge
           </Button>
         </div>
