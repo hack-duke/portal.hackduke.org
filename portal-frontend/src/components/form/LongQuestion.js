@@ -1,4 +1,5 @@
 import './LongQuestion.css';
+import classNames from 'classnames';
 import React, { forwardRef, useImperativeHandle } from 'react';
 
 export const LongQuestion = forwardRef(({ 
@@ -8,6 +9,7 @@ export const LongQuestion = forwardRef(({
     handleInputChange, 
     rows,
     required = false, 
+    firstTry,
     isValid = (value) => !required || (value && value.trim() !== '')}, ref) => {
 
     useImperativeHandle(ref, () => ({
@@ -18,7 +20,7 @@ export const LongQuestion = forwardRef(({
         <div className="long-container">
             <label className="long-label" htmlFor={name}>{label}{required && '*'}</label>
             <textarea
-                className="long-textarea"
+                className={classNames('long-textarea', { 'invalid-border': !firstTry && !isValid(formData[name]) })}
                 id={name}
                 name={name}
                 value={formData[name] || ''}

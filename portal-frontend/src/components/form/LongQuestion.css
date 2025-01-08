@@ -27,3 +27,7 @@
     resize: none;
     height: auto;
 }
+
+.invalid-border {
+    border-color: #D03027;
+}

@@ -1,6 +1,6 @@
 .question-container {
     display: grid;
-    grid-template-columns: 175px 350px; /* Label column and input column widths !important breaks things*/
+    grid-template-columns: 30% 70%;
     column-gap: 2rem; 
     margin-bottom: 1.5rem; 
     align-items: center;
@@ -11,6 +11,7 @@
         grid-template-columns: 1fr; /* Single-column layout */
         row-gap: 0.2rem; 
         margin-bottom: 0.5rem;
+        width: 100%;
     }
 
     .question-label {
