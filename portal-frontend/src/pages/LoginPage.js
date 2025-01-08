@@ -5,6 +5,7 @@ import { HeroBackground } from '../components/HeroBackground';
 import { useEffect } from 'react';
 import Button from '../components/Button';
 import './LoginPage.css'
+import Countdown from 'react-countdown';
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -21,6 +22,7 @@ const LoginPage = () => {
     <>
       <div className="hero">
         <HeroBackground />
+        <Countdown date={new Date("2025-01-20")} className="hero-countdown"/>
         <h1 className="hero-text">Apply Now</h1>
         <Button className="hero-button" onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
           Log In
