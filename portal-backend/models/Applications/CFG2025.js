@@ -37,6 +37,10 @@ const CFG2025Schema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true
+    },
+    mlh_email_permission: {
+        type: Boolean,
+        default: false
     }
 });
 
