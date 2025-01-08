@@ -9,6 +9,7 @@ export const Question = forwardRef(({
     formData, 
     handleInputChange, 
     required = false, 
+    placeholder,
     firstTry,
     isValid = (value) => !required || (value && value.trim() !== '')}, ref) => { // Default validation function
 
@@ -28,6 +29,7 @@ export const Question = forwardRef(({
                 name={name}
                 value={formData[name] || ''}
                 onChange={e => handleInputChange(name, e.target.value)}
+                placeholder={placeholder}
                 required
             />
         </div>

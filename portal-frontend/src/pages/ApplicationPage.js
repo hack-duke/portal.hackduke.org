@@ -99,15 +99,26 @@ const ApplicationPage = () => {
                         <Question name="country" label="Country of Residence" required/>
                         <Question name="university" label="University Name" required/>
                         <Question name="major" label="Major" required/>
-                        <Question name="graduationYear" label="Graduation Year" type="number" required/>
+                        <Question name="graduationYear" label="Graduation Year" type="number" placeholder="20XX" required/>
                         {/* Bug: missing input validation for phone numbers -- should we enforce a format?*/}
-                        <Question name="phone" label="Phone Number" type="tel" required/>
+                        <Question name="phone" label="Phone Number" type="tel" placeholder="123-456-7890" required/>
                     </Page>
                     <Page title="About You">
                         <LongQuestion name="whyhackduke" label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?" rows={5} required/>
                         <LongQuestion name="whytrack" label="Which of our four tracks excites you the most? Why?" rows={2} required/>
                     </Page>
                     <Page title="Agreements">
+                      <CheckQuestion name="community_agr" required>
+                        I have read and agree to abide by the <a href='https://dukecommunitystandard.students.duke.edu/'>Duke Community Standard</a> during the event.
+                      </CheckQuestion>
+                      <CheckQuestion name="photo_agr" required>
+                        I hereby grant permission for HackDuke and all official sponsors to use my photograph and or video in marketing, promotional materials, and publications, both online and in print, without compensation.
+                      </CheckQuestion>
+                      <CheckQuestion name="waiver_agr" required>
+                        I acknowledge and assume all risks associated with participation, releasing the organizers from any liability for injury, loss, or damage.
+                      </CheckQuestion>
+                    </Page>
+                    <Page title="Agreements (MLH)">
                       <CheckQuestion name="mlh1" required>
                         I have read and agree to the <a href='https://github.com/MLH/mlh-policies/blob/main/code-of-conduct.md'>MLH Code of Conduct</a>.
                       </CheckQuestion>

@@ -25,6 +25,10 @@
     margin-bottom: 0;
 }
 
+.question-input::placeholder {
+    color: rgb(167, 184, 212);
+}
+
 .question-input {
     border-style: solid;
     border-width: 1px;
