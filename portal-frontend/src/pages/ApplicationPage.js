@@ -125,7 +125,7 @@ const ApplicationPage = () => {
                       <CheckQuestion name="mlh2" required>
                         I authorize you to share my application/registration information with Major League Hacking for event administration, ranking, and MLH administration in-line with the <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">MLH Privacy Policy</a>. I further agree to the terms of both the <a href="https://github.com/MLH/mlh-policies/blob/main/contest-terms.md">MLH Contest Terms and Conditions</a> and the <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">MLH Privacy Policy</a>.
                       </CheckQuestion>
-                      <CheckQuestion name="mlh3" required>
+                      <CheckQuestion name="mlh_email_permission">
                         I authorize MLH to send me occasional emails about relevant events, career opportunities, and community announcements.
                       </CheckQuestion>
                     </Page>
