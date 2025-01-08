@@ -116,3 +116,9 @@
         left: -40vw;
     }
 }
+
+@media only screen and (max-width: 600px) {
+    #hero-bg-blob {
+        top: 60vh;
+    }
+}

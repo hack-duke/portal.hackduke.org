@@ -5,6 +5,7 @@
     margin-top: 1rem;
     padding: 2rem;
     width: fit-content;
+    max-width: 90vw;
     margin-left: auto;
     margin-right: auto;
     border-radius: 10px;
@@ -17,6 +18,16 @@
     font-family: 'Urbanist';
     text-align: center;
     color: white;
+}
+
+@media (max-width: 600px) { /* Adjust the max-width to your desired breakpoint */
+    .status-container {
+        margin-top: 0.5rem;
+    }
+
+    .status-title {
+        margin-top: 12rem;
+    }
 }
 
 .status-grid {
