@@ -22,7 +22,7 @@ const LoginPage = () => {
     <>
       <div className="hero">
         <HeroBackground />
-        <Countdown date={new Date("2025-01-20")} className="hero-countdown"/>
+        <Countdown date={new Date("2025-01-31")} className="hero-countdown"/>
         <h1 className="hero-text">Apply Now</h1>
         <div className='buttons-container'>
           <Button className="hero-button" onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
