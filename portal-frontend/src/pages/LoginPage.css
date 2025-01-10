@@ -13,8 +13,9 @@
 
 .hero-countdown {
     color: white;
-    font-size: 1.5rem;
+    font-size: 1rem;
     font-weight: bold;
+    margin-top: 2rem;
 }
 
 .hero-button {
@@ -36,4 +37,10 @@
     .buttons-container {
         flex-direction: column;
     }
+
+    .hero-countdown {
+        max-width: 45%;
+        text-align: center;
+    }
 }
+

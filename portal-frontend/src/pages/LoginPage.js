@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import Button from '../components/Button';
 import './LoginPage.css'
 import Countdown from 'react-countdown';
+import CountdownRenderer from '../components/CountdownRenderer';
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -22,7 +23,7 @@ const LoginPage = () => {
     <>
       <div className="hero">
         <HeroBackground />
-        <Countdown date={new Date("2025-01-31")} className="hero-countdown"/>
+        
         <h1 className="hero-text">Apply Now</h1>
         <div className='buttons-container'>
           <Button className="hero-button" onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
@@ -32,6 +33,8 @@ const LoginPage = () => {
             Mentor/Judge
           </Button>
         </div>
+
+        <Countdown date={new Date("2025-01-31")} renderer={CountdownRenderer}/>
       </div>
     </>
   );
