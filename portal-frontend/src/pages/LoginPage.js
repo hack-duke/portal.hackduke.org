@@ -35,6 +35,7 @@ const LoginPage = () => {
         </div>
 
         <Countdown date={new Date("2025-01-31")} renderer={CountdownRenderer}/>
+        <p className='priority-text'>Non-Duke applications will be reviewed on a rolling basis</p>
       </div>
     </>
   );

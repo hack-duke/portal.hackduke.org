@@ -18,6 +18,10 @@
     margin-top: 2rem;
 }
 
+.priority-text {
+    color: white;
+}
+
 .hero-button {
     margin-top: 1rem;
 }
@@ -39,6 +43,14 @@
     }
 
     .hero-countdown {
+        margin-top: 0.5rem;
+        max-width: 45%;
+        text-align: center;
+    }
+
+    .priority-text {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
         max-width: 45%;
         text-align: center;
     }
