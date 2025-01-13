@@ -49,6 +49,20 @@ const ApplicationPage = () => {
         } catch (error) {
           openModal();
           console.error('Application submission error:', error);
+          fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/debug/log`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: 'Application submission error',
+                error: error,
+                user: user,
+              }),
+            }
+          )
           setError(error.response?.data?.error); // TODO: does this actually give anything?
         }
         setLoading(false);
