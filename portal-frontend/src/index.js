@@ -16,7 +16,7 @@ root.render(
         redirect_uri: window.location.origin,
         audience: process.env.REACT_APP_AUTH0_AUDIENCE
       }}
-      useRefreshTokens={false}
+      useRefreshTokens={true}
       cacheLocation="localstorage"
     >
       <App />
