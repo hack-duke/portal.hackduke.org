@@ -1,24 +1,24 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { Navigate } from 'react-router-dom';
 import { FullPageLoadingSpinner } from './FullPageLoadingSpinner';
+import { useEffect } from 'react';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth0();
+  const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      loginWithRedirect({
+        appState: { returnTo: window.location.pathname }
+      });
+    }
+  }, [isLoading, isAuthenticated, loginWithRedirect]);
 
   if (isLoading) {
     return <FullPageLoadingSpinner/>;
   }
 
-  console.log(
-    'isAuthenticated: ', isAuthenticated,
-    'isLoading: ', isLoading
-  )
-
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
+  return isAuthenticated ? children : null;
 };
 
 export default ProtectedRoute;

@@ -24,16 +24,29 @@ const ApplicationPage = () => {
         setLoading(true);
         setError(null);
         try {
-          const token = await getAccessTokenSilently();
+          let token;
+          try {
+            token = await getAccessTokenSilently();
+          } catch (tokenError) {
+            console.error('Token error:', tokenError);
+            if (tokenError.message.includes('Missing Refresh Token')) {
+              openModal();
+              setError('Session expired. Please try logging out and logging back in.');
+              return;
+            }
+            throw tokenError;
+          }
+
           const submitData = new FormData();
           submitData.append('userId', user.sub);
           submitData.append('email', user.email);
           submitData.append('name', user.name);
           Object.keys(formData).forEach((fieldName) => {
             submitData.append(fieldName, formData[fieldName]);
-          })
-    
-          const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/applications/submit`, 
+          });
+
+          const response = await axios.post(
+            `${process.env.REACT_APP_BACKEND_URL}/api/applications/submit`,
             submitData,
             {
               headers: {
@@ -43,27 +56,13 @@ const ApplicationPage = () => {
             }
           );
 
-          if (response.status === 201) { // Success
-            navigate('/status', { state: { firstTime: true }})
+          if (response.status === 201) {
+            navigate('/status', { state: { firstTime: true }});
           }
         } catch (error) {
           openModal();
           console.error('Application submission error:', error);
-          fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/debug/log`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                message: 'Application submission error',
-                error: error,
-                user: user,
-              }),
-            }
-          )
-          setError(error.response?.data?.error); // TODO: does this actually give anything?
+          setError(error.response?.data?.error || 'An error occurred while submitting your application. Please try logging out and logging back in.');
         }
         setLoading(false);
     };
@@ -96,8 +95,9 @@ const ApplicationPage = () => {
             {loading && <FullPageLoadingSpinner/>}
             <Modal isOpen={isModalOpen} onClose={closeModal}>
               <ModalHeader>Application Submission Error</ModalHeader>
-              <p>An error has occurred when submitting your application. Please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org</a> and we will help resolve your issue promptly.</p>
               <p>{error}</p>
+              <p>If this error continues to occur, please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org</a> and we will help resolve your issue promptly.</p>
+              
             </Modal>
             <div className='form-container'>
                 {/* Bug: passing a non-question element as a child will break everything */}
