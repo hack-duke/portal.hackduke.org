@@ -98,7 +98,7 @@ const ApplicationStatusPage = () => {
 
       {application && application[2]['value'].includes('accepted') && (
   <div className="qr-code-container">
-    <QRCodeSVG value={user.sub} />
+    <QRCodeSVG value={user.sub} marginSize={1} minVersion={5} />
   </div>
 )}
 
