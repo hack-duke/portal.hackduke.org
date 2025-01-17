@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import HeroBackground from '../components/HeroBackground';
 import { Navbar } from '../components/Navbar';
-import './ApplicationStatusPage.css'
+import './ApplicationStatusPage.css';
 import { useAuth0 } from '@auth0/auth0-react';
 import { formatDistanceToNow } from 'date-fns';
 import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
 import { useWindowSize } from 'react-use';
-import Confetti from 'react-confetti'
+import Confetti from 'react-confetti';
 import { useLocation } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -24,7 +25,7 @@ const StatusList = ({ statusItems }) => {
 
 const formatApplication = (application) => {
   var ret = [];
-  ret.push({ 'label': 'name', 'value': (application['prefName'] || application['firstName']) + ' ' + application['lastName']})
+  ret.push({ 'label': 'name', 'value': (application['prefName'] || application['firstName']) + ' ' + application['lastName'] })
   ret.push({ 'label': 'email', 'value': application['email'] })
   ret.push({ 'label': 'status', 'value': application['status'] })
   ret.push({ 'label': 'grad year', 'value': application['graduationYear'] })
@@ -32,44 +33,43 @@ const formatApplication = (application) => {
   ret.push({ 'label': 'major', 'value': application['major'] })
   ret.push({ 'label': 'submitted', 'value': formatDistanceToNow(new Date(application['submissionDate']), { addSuffix: true }) })
 
-  return ret
+  return ret;
 }
 
 const ApplicationStatusPage = () => {
-  const { getAccessTokenSilently } = useAuth0();
-  const [application, setApplication] = useState(null)
+  const { user, getAccessTokenSilently } = useAuth0();
+  const [application, setApplication] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const { width, height } = useWindowSize();
   const location = useLocation();
   const { firstTime } = location.state || {};
 
-  useEffect(
-    () => {
-      const checkIfSubmitted = async () => {
-        setLoading(true);
-        const token = await getAccessTokenSilently();
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        })
+  useEffect(() => {
+    const checkIfSubmitted = async () => {
+      setLoading(true);
+      const token = await getAccessTokenSilently();
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
 
-        if (response.status !== 200) {
-          const js = await response.json();
-          setError(js.error);
-        }
-        else {
-          const json = await response.json();
-          setApplication(formatApplication(json))
-        }
-        setLoading(false);
+      if (response.status !== 200) {
+        const js = await response.json();
+        setError(js.error);
       }
+      else {
+        const json = await response.json();
+        setApplication(formatApplication(json));
+      }
+      setLoading(false);
+    }
 
-      checkIfSubmitted()
-    },
-    []
-  )
+    checkIfSubmitted();
+  }, [getAccessTokenSilently]);
+
+  console.log();
 
   return (
     <>
@@ -88,12 +88,23 @@ const ApplicationStatusPage = () => {
         </div>
       }
       <h1 className='status-title'>Applicant Status</h1>
-      {error & <p>{error}</p>}
+      {error && <p>{error}</p>}
 
       {application && <div className='status-container'>
-
         <StatusList statusItems={application} />
+
       </div>}
+
+
+      {application && application[2]['value'].includes('accepted') && (
+  <div className="qr-code-container">
+    <QRCodeSVG value={user.sub} />
+  </div>
+)}
+
+      
+
+
     </>
   );
 };
