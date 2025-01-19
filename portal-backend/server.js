@@ -6,6 +6,7 @@ const userRoutes = require('./routes/user');
 const applicationRoutes = require('./routes/application');
 const adminRoutes = require('./routes/admin');
 const debugRoutes = require('./routes/debug');
+const ticketsRoutes = require('./routes/tickets');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -48,6 +49,7 @@ const checkJwt = jwt({
 });
 
 app.use('/api/admin', adminRoutes);
+app.use('/tickets', ticketsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', checkJwt, applicationRoutes);
 app.use('/api/debug', debugRoutes);
