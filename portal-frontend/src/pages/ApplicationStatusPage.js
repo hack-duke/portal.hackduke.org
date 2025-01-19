@@ -41,6 +41,7 @@ const ApplicationStatusPage = () => {
   const [application, setApplication] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const { width, height } = useWindowSize();
   const location = useLocation();
   const { firstTime } = location.state || {};
@@ -97,13 +98,28 @@ const ApplicationStatusPage = () => {
 
 
       {application && application[2]['value'].includes('accepted') && (
-  <div className="qr-code-container">
-    <QRCodeSVG value={user.sub} />
-  </div>
-)}
+        <>
+          <div className="qr-code-container" onClick={() => setShowQRModal(true)} style={{ cursor: 'pointer' }}>
+            <QRCodeSVG value={user.sub} marginSize={2} minVersion={6} />
+          </div>
 
-      
-
+          {showQRModal && (
+            <div 
+              className="qr-modal-overlay"
+              onClick={() => setShowQRModal(false)}
+            >
+              <div className="qr-modal-content">
+                <QRCodeSVG 
+                  value={user.sub} 
+                  size={Math.min(width * 0.8, height * 0.8)} 
+                  marginSize={2} 
+                  minVersion={6}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
     </>
   );
