@@ -28,8 +28,12 @@
     margin-top: 20px;       
     /* background-color: #f0f0f0;  */
     border-radius: 10px;    
+    transition: transform 0.2s;
   }
   
+.qr-code-container:hover {
+    transform: scale(1.05);
+}
 
 @media (max-width: 600px) { /* Adjust the max-width to your desired breakpoint */
     .status-container {
@@ -73,4 +77,26 @@
     .status-grid {
         column-gap: 3rem;
     }
+}
+
+.qr-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.qr-modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
