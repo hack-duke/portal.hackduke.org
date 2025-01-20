@@ -9,6 +9,7 @@ import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import Button from '../components/Button';
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -99,10 +100,7 @@ const ApplicationStatusPage = () => {
 
       {application && application[2]['value'].includes('accepted') && (
         <>
-          <div className="qr-code-container" onClick={() => setShowQRModal(true)} style={{ cursor: 'pointer' }}>
-            <QRCodeSVG value={user.sub} marginSize={2} minVersion={6} />
-          </div>
-
+					<Button variant="secondary" className="checkin-button" onClick={() => setShowQRModal(true)}>Check-In Code</Button>
           {showQRModal && (
             <div 
               className="qr-modal-overlay"

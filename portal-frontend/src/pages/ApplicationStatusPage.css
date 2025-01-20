@@ -20,19 +20,13 @@
     color: white;
 }
 
-.qr-code-container {
-    display: flex;
-    justify-content: center; 
-    align-items: center;    
-    padding: 20px;          
-    margin-top: 20px;       
-    /* background-color: #f0f0f0;  */
-    border-radius: 10px;    
-    transition: transform 0.2s;
-  }
-  
-.qr-code-container:hover {
-    transform: scale(1.05);
+.checkin-button {
+	margin-top: 1.5rem;
+	padding-left: 1.5rem;
+	padding-right: 1.5rem;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
 }
 
 @media (max-width: 600px) { /* Adjust the max-width to your desired breakpoint */
