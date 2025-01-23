@@ -98,7 +98,7 @@ const ApplicationStatusPage = () => {
       </div>}
 
 
-      {application && application[2]['value'].includes('accepted') && (
+      {application && application[2]['value'].includes('confirmed') && (
         <>
 					<Button variant="secondary" className="checkin-button" onClick={() => setShowQRModal(true)}>Check-In Code</Button>
           {showQRModal && (
