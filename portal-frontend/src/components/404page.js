@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WhiteBackground from './WhiteBackground';
 import { Navbar } from './Navbar';
+import './404page.css';
 
 const countdownLength = 5;
 
@@ -25,18 +26,10 @@ const NotFound = () => {
     }, [navigate]);
 
     return (
-        <div>
-            <Navbar/>
-            <WhiteBackground/>
-            <h1 style={{
-                textAlign: 'center',
-                marginTop: '20vh',
-                fontSize: '3em',
-            }}>404 - Not Found!</h1>
-            <p style={{
-                textAlign: 'center',
-                fontSize: '1.5em',
-            }}>Redirecting to home in {countdown} second{countdown !== 1 ? 's' : ''}...</p>
+        <div className='building-container'>
+			      <img className='building' src='/images/building.svg' alt="Building Graphic" />
+						<h1 className='notfound-title'>404</h1>
+            <p className='notfound-desc'>Page Not Found: {countdown}</p>
         </div>
     );
 }

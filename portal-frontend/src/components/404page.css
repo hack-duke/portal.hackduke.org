@@ -1,0 +1,25 @@
+.building{
+	width: 400px;
+}
+
+.notfound-title{
+	font-family: 'Urbanist';
+	margin-top: 18px;
+	font-size: 72px;
+	color: #0042c6
+}
+
+.notfound-desc{
+	color: #82A5ED;
+	font-family: 'Urbanist';
+	font-size: 24px;
+}
+
+.building-container{
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+	height: 100vh;
+	line-height: 1;
+}
