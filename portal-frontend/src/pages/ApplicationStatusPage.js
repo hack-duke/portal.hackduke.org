@@ -97,7 +97,7 @@ const ApplicationStatusPage = () => {
       </div>}
 
 
-      {application && application[2]['value'].includes('accepted') && (
+      {application && application[2]['value'].includes('confirmed') && (
         <>
           <div className="qr-code-container" onClick={() => setShowQRModal(true)} style={{ cursor: 'pointer' }}>
             <QRCodeSVG value={user.sub} marginSize={2} minVersion={6} />
