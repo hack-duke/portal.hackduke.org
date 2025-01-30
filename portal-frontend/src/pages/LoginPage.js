@@ -34,7 +34,7 @@ const LoginPage = () => {
           </Button>
         </div>
 
-        <Countdown date={new Date("2025-01-31")} renderer={CountdownRenderer}/>
+        <Countdown date={new Date("2025-02-01T04:59:00Z")} renderer={CountdownRenderer}/>
         <p className='priority-text'>Non-Duke applications will be reviewed on a rolling basis</p>
       </div>
     </>
