@@ -8,3 +8,34 @@
     /* background-color: white; */
     padding: 2rem;
 }
+
+.notice-container {
+	color: #0042c6;
+  border: #0042c6 solid 1px;
+  box-shadow: 4px 4px 4px rgba(62, 181, 255, 0.3);
+	width: 400px;
+  padding: 2rem;
+  max-width: 90vw;
+  border-radius: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.notice-container h1 {
+	font-family: 'Urbanist';
+	text-align: center;
+	font-weight: bold;
+	font-size: 1.25rem;
+	margin-bottom: 10px;
+}
+
+.notice-container p {
+	margin-top: 5px;
+}
+
+.notice-container a {
+	color: #0042c6;
+	text-decoration: underline;
+}
