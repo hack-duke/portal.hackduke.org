@@ -24,7 +24,7 @@ const LoginPage = () => {
       <div className="hero">
         <HeroBackground />
         
-        <h1 className="hero-text">Apply Now</h1>
+        <h1 className="hero-text">Portal</h1>
         <div className='buttons-container'>
           <Button className="hero-button" onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
             Participant
@@ -35,7 +35,7 @@ const LoginPage = () => {
         </div>
 
         <Countdown date={new Date("2025-02-01T04:59:00Z")} renderer={CountdownRenderer}/>
-        <p className='priority-text'>Non-Duke applications will be reviewed on a rolling basis</p>
+        <p className='priority-text'>Applications are closed.</p>
       </div>
     </>
   );
