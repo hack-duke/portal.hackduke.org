@@ -20,7 +20,7 @@ const ApplicationPage = () => {
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => setIsModalOpen(false);
 
-    const onSubmit = async (formData) => {
+    /* const onSubmit = async (formData) => {
         setLoading(true);
         setError(null);
         try {
@@ -65,7 +65,7 @@ const ApplicationPage = () => {
           setError(error.response?.data?.error || 'An error occurred while submitting your application. Please try logging out and logging back in.');
         }
         setLoading(false);
-    };
+    }; */
 
     useEffect(
       () => {
@@ -98,14 +98,14 @@ const ApplicationPage = () => {
               <p>{error}</p>
               <p>If this error continues to occur, please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org</a> and we will help resolve your issue promptly.</p>
             </Modal>
-{/* <div className='notice-container'>
+						<div className='notice-container'>
 							<h1>Applications Closed.</h1>
   						<p>Thank you for your interest in HackDuke Code for Good. The application window has now officially closed. </p> 
 							<p>If you believe there was an error with your application, please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org.</a></p> 
 							<p>Stay tuned for future opportunities!</p>
-						</div>*/}
+						</div>
             {/* Bug: passing a non-question element as a child will break everything */}
-						{<div className='form-container'>
+						{/*<div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}>
                     <Page title="General Information">
                         <Question name="firstName" label="First Name" required/> 
@@ -149,7 +149,7 @@ const ApplicationPage = () => {
                     </Page>
                 </MultiPageForm>
             </div>
-						}
+						*/}
         </>
     )
 };
