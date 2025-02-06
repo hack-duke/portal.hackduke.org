@@ -20,7 +20,7 @@ const ApplicationPage = () => {
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => setIsModalOpen(false);
 
-    /* const onSubmit = async (formData) => {
+    const onSubmit = async (formData) => {
         setLoading(true);
         setError(null);
         try {
@@ -65,7 +65,7 @@ const ApplicationPage = () => {
           setError(error.response?.data?.error || 'An error occurred while submitting your application. Please try logging out and logging back in.');
         }
         setLoading(false);
-    }; */
+    };
 
     useEffect(
       () => {
@@ -105,7 +105,7 @@ const ApplicationPage = () => {
 							<p>Stay tuned for future opportunities!</p>
 						</div>
             {/* Bug: passing a non-question element as a child will break everything */}
-						{/*<div className='form-container'>
+						{<div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}>
                     <Page title="General Information">
                         <Question name="firstName" label="First Name" required/> 
@@ -149,7 +149,7 @@ const ApplicationPage = () => {
                     </Page>
                 </MultiPageForm>
             </div>
-						*/}
+						}
         </>
     )
 };
