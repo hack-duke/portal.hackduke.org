@@ -16,7 +16,6 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-/*
 router.post('/submit', upload.single('resume'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -57,7 +56,6 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
     res.status(500).json({ error: 'File upload failed' });
   }
 });
-*/
 
 router.post('/rate/:id', (req, res) =>{
   const applicationId = parseInt(req.params.id);
