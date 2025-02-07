@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+require('dotenv').config();
 
-// Function to get encryption key (matches Python version)
 function getEncryptionKey(password) {
-    const salt = Buffer.from('salt_123'); // Same salt as Python
+    console.log(process.env.ENCRYPTION_SALT, process.env.ENCRYPTION_PASSWORD);
+    const salt = Buffer.from(process.env.ENCRYPTION_SALT); 
     const keyLength = 32;
     const iterations = 100000;
 
@@ -50,8 +51,8 @@ router.get('/get_ticket', async (req, res) => {
         return res.status(400).send('No code provided');
     }
 
-    // Get encryption key using the same password as Python
-    const key = getEncryptionKey('hackers!bruh');
+    // Get encryption key using the password from .env
+    const key = getEncryptionKey(process.env.ENCRYPTION_PASSWORD);
     
     // Decrypt the code
     const decryptedValue = decrypt(code, key);
