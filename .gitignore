@@ -1,5 +1,4 @@
 # Node.js modules (for both frontend and backend)
-/node_modules/
 **/node_modules/
 
 # Build output (React frontend)
