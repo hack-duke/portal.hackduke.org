@@ -1,5 +1,5 @@
 # Development Environment
-This project uses a Dev Container for a consistent development environment across machines. The container is defined in .devcontainer/devcontainer.json and built from a custom Dockerfile.
+This project uses a Dev Container for a consistent development environment across machines. The container is defined in `.devcontainer/devcontainer.json` and built from a custom Dockerfile.
 
 ## Requirements
 - Docker
@@ -36,7 +36,7 @@ To attach your VSCode/Cursor instance to the running container:
 3. Open Folder and navigate to the project root (located at `../workspaces/portal.hackduke.org`) 
 
 ## Setting up Git
-Sharing Git credentials from the host machine to the container is [possible](https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials), but is probably more trouble than it is worth.
+> Sharing Git credentials from the host machine to the container is [possible](https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials), but is probably more trouble than it is worth.
 
 Open a terminal in the devcontainer and generate a SSH key.
 ```
