@@ -11,7 +11,9 @@
         "ms-vscode-remote.remote-containers",
         "ms-azuretools.vscode-docker",
         "ms-python.python",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "charliermarsh.ruff"
       ]
     }
   }
