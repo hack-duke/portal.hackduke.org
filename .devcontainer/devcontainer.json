@@ -1,19 +1,15 @@
 {
   "name": "Portal Dev",
-  "context": "..",
+  "context": ".",
   "dockerFile": "Dockerfile",
   "remoteUser": "vscode",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000], 
   "customizations": {
     "vscode": {
-      "extensions": [
+      "extensions": [ 
         "ms-vscode-remote.remote-containers",
-        "ms-azuretools.vscode-docker",
-        "ms-python.python",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint",
-        "charliermarsh.ruff"
+        "ms-azuretools.vscode-docker"
       ]
     }
   }
