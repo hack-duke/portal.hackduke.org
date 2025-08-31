@@ -85,5 +85,9 @@ export TERM=xterm-256color
 
 Accept suggestions with → or Ctrl + E.
 
+## Rebuilding Dev Container
 
+You will need to rebuild the container if you change `devcontainer.json` (to update extensions or expose another port, for example) or the `.devcontainer/Dockerfile`. I think this is probably not worth it unless you've set up SSH forwarding since it will reset your SSH config.
+
+For now, install extensions manually and we can revisit this later.
 
