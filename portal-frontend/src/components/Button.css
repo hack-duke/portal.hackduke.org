@@ -1,38 +1,38 @@
 .button {
-    border: none;
-    border-radius: 7.5px;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding-right: 3rem;
-    padding-left: 3rem;
-    padding-top: 0;
-    padding-bottom: 0;
-    height: 3rem;
-    font-family: 'Urbanist';
+  border: none;
+  border-radius: 7.5px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding-right: 3rem;
+  padding-left: 3rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  height: 3rem;
+  font-family: "Urbanist";
 }
 
 .button.primary {
-    background-color: rgb(16, 49, 151);
-    color: white;
+  background-color: rgb(16, 49, 151);
+  color: white;
 }
 
 .button.secondary {
-    background-color: rgba(0, 0, 0, 0);
-    border: solid;
-    border-color: white(16, 49, 151);
-    color: white;
+  background-color: rgba(0, 0, 0, 0);
+  border: solid;
+  border-color: white(16, 49, 151);
+  color: white;
 }
 
 .button.tertiary {
-    background-color: #FFAB00;
-    color: white;
+  background-color: #ffab00;
+  color: white;
 }
 
 .button.error {
-    background-color: #dc2222;
-    color: white;
+  background-color: #dc2222;
+  color: white;
 }
 
 .button:hover {
-    opacity: 0.9;
+  opacity: 0.9;
 }

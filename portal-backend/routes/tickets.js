@@ -1,77 +1,71 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const crypto = require('crypto');
-const QRCode = require('qrcode');
-require('dotenv').config();
+const crypto = require("crypto");
+const QRCode = require("qrcode");
+require("dotenv").config();
 
 function getEncryptionKey(password) {
-    console.log(process.env.ENCRYPTION_SALT, process.env.ENCRYPTION_PASSWORD);
-    const salt = Buffer.from(process.env.ENCRYPTION_SALT); 
-    const keyLength = 32;
-    const iterations = 100000;
+  console.log(process.env.ENCRYPTION_SALT, process.env.ENCRYPTION_PASSWORD);
+  const salt = Buffer.from(process.env.ENCRYPTION_SALT);
+  const keyLength = 32;
+  const iterations = 100000;
 
-    return crypto.pbkdf2Sync(
-        password,
-        salt,
-        iterations,
-        keyLength,
-        'sha256'
-    );
+  return crypto.pbkdf2Sync(password, salt, iterations, keyLength, "sha256");
 }
 
 // Decrypt function
 function decrypt(encryptedText, key) {
-    try {
-        // Convert base64 to buffer
-        const combined = Buffer.from(encryptedText, 'base64');
-        
-        // Extract IV and ciphertext
-        const iv = combined.slice(0, 16);
-        const ciphertext = combined.slice(16);
+  try {
+    // Convert base64 to buffer
+    const combined = Buffer.from(encryptedText, "base64");
 
-        // Create decipher
-        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-        
-        // Decrypt
-        let decrypted = decipher.update(ciphertext);
-        decrypted = Buffer.concat([decrypted, decipher.final()]);
-        console.log('Decrypted:', decrypted);
-        
-        return decrypted.toString();
-    } catch (error) {
-        console.error('Decryption error:', error);
-        return null;
-    }
+    // Extract IV and ciphertext
+    const iv = combined.slice(0, 16);
+    const ciphertext = combined.slice(16);
+
+    // Create decipher
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+
+    // Decrypt
+    let decrypted = decipher.update(ciphertext);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    console.log("Decrypted:", decrypted);
+
+    return decrypted.toString();
+  } catch (error) {
+    console.error("Decryption error:", error);
+    return null;
+  }
 }
 
-router.get('/get_ticket', async (req, res) => {
-    const { code } = req.query;
-    
-    if (!code) {
-        return res.status(400).send('No code provided');
-    }
+router.get("/get_ticket", async (req, res) => {
+  const { code } = req.query;
 
-    // Get encryption key using the password from .env
-    const key = getEncryptionKey(process.env.ENCRYPTION_PASSWORD);
-    
-    // Decrypt the code
-    const decryptedValue = decrypt(code, key);
-    console.log('Decrypted value:', decryptedValue);
-    if (!decryptedValue) {
-        return res.status(400).send('Invalid code');
-    }
+  if (!code) {
+    return res.status(400).send("No code provided");
+  }
 
-    // Generate QR code with higher quality
-    try {
-        const qrCodeDataUrl = await QRCode.toDataURL(decryptedValue, {
-            width: 800,
-            margin: 2,
-            quality: 1.0,
-            scale: 8
-        });
-        
-        // Serve HTML page with QR code and modal functionality
-        const html = `
+  // Get encryption key using the password from .env
+  const key = getEncryptionKey(process.env.ENCRYPTION_PASSWORD);
+
+  // Decrypt the code
+  const decryptedValue = decrypt(code, key);
+  console.log("Decrypted value:", decryptedValue);
+  if (!decryptedValue) {
+    return res.status(400).send("Invalid code");
+  }
+
+  // Generate QR code with higher quality
+  try {
+    const qrCodeDataUrl = await QRCode.toDataURL(decryptedValue, {
+      width: 800,
+      margin: 2,
+      quality: 1.0,
+      scale: 8,
+    });
+
+    // Serve HTML page with QR code and modal functionality
+    const html = `
             <!DOCTYPE html>
             <html>
             <head>
@@ -160,12 +154,12 @@ router.get('/get_ticket', async (req, res) => {
             </body>
             </html>
         `;
-        
-        res.send(html);
-    } catch (error) {
-        console.error('QR Code generation error:', error);
-        res.status(500).send('Error generating QR code');
-    }
+
+    res.send(html);
+  } catch (error) {
+    console.error("QR Code generation error:", error);
+    res.status(500).send("Error generating QR code");
+  }
 });
 
 module.exports = router;

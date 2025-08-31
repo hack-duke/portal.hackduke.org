@@ -1,76 +1,77 @@
 .status-container {
-    border: white;
-    border-style: solid;
-    border-width: 1px;
-    margin-top: 1rem;
-    padding: 2rem;
-    width: fit-content;
-    max-width: 90vw;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 10px;
-    background-color: rgba(255, 255, 255, 0.2);
+  border: white;
+  border-style: solid;
+  border-width: 1px;
+  margin-top: 1rem;
+  padding: 2rem;
+  width: fit-content;
+  max-width: 90vw;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .status-title {
-    margin-top: 5rem;
-    font-size: 3rem;
-    font-family: 'Urbanist';
-    text-align: center;
-    color: white;
+  margin-top: 5rem;
+  font-size: 3rem;
+  font-family: "Urbanist";
+  text-align: center;
+  color: white;
 }
 
 .checkin-button {
-	margin-top: 1.5rem;
-	padding-left: 1.5rem;
-	padding-right: 1.5rem;
-	margin-left: auto;
-	margin-right: auto;
-	display: block;
+  margin-top: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
 }
 
-@media (max-width: 600px) { /* Adjust the max-width to your desired breakpoint */
-    .status-container {
-        margin-top: 0.5rem;
-    }
+@media (max-width: 600px) {
+  /* Adjust the max-width to your desired breakpoint */
+  .status-container {
+    margin-top: 0.5rem;
+  }
 
-    .status-title {
-        margin-top: 12rem;
-    }
+  .status-title {
+    margin-top: 12rem;
+  }
 }
 
 .status-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    column-gap: 8rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  column-gap: 8rem;
 }
 
 .status-label {
-    font-weight: bold;
-    font-size: 1rem;
-    color: #c0daff;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #c0daff;
 }
 
 .status-value {
-    font-size: 1.25rem;
-    color: white
+  font-size: 1.25rem;
+  color: white;
 }
 
 .confetti {
-    position: absolute;
-    top: 0;
-    z-index: 9999;
+  position: absolute;
+  top: 0;
+  z-index: 9999;
 }
 
 @media only screen and (max-width: 768px) {
-    .status-container {
-        border: none;
-    }
+  .status-container {
+    border: none;
+  }
 
-    .status-grid {
-        column-gap: 3rem;
-    }
+  .status-grid {
+    column-gap: 3rem;
+  }
 }
 
 .qr-modal-overlay {

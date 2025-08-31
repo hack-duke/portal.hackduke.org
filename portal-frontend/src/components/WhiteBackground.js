@@ -1,8 +1,8 @@
-import React from 'react';
-import '../App.css';
+import React from "react";
+import "../App.css";
 import { useEffect } from "react";
 
-import './WhiteBackground.css';
+import "./WhiteBackground.css";
 
 export const WhiteBackground = () => {
   let l1;
@@ -30,10 +30,15 @@ export const WhiteBackground = () => {
 
   return (
     <div class="white-bg-frame">
-      <img className='white-bg-full' id="white-bg-full" src='/images/white-bg-full.svg' alt="Repeating White Background" />
+      <img
+        className="white-bg-full"
+        id="white-bg-full"
+        src="/images/white-bg-full.svg"
+        alt="Repeating White Background"
+      />
       {/* Export the entire frame from Figma as an SVG */}
     </div>
-  )
+  );
 };
 
 export default WhiteBackground;

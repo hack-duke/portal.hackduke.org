@@ -9,17 +9,10 @@ export default function Button({
   onClick,
   ...props
 }) {
-  const buttonClass = classNames(
-    "button", variant,
-    className
-  );
+  const buttonClass = classNames("button", variant, className);
 
   return (
-    <button
-      className={`${buttonClass} ${styles}`}
-      onClick={onClick}
-      {...props}
-    >
+    <button className={`${buttonClass} ${styles}`} onClick={onClick} {...props}>
       {children}
     </button>
   );

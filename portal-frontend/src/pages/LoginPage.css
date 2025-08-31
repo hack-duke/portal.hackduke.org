@@ -1,58 +1,57 @@
 .hero {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .hero-text {
-    font-size: 4rem;
-    color: white;
-    text-align: center;
+  font-size: 4rem;
+  color: white;
+  text-align: center;
 }
 
 .hero-countdown {
-    color: white;
-    font-size: 1rem;
-    font-weight: bold;
-    margin-top: 2rem;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-top: 2rem;
 }
 
 .priority-text {
-    color: white;
+  color: white;
 }
 
 .hero-button {
-    margin-top: 1rem;
+  margin-top: 1rem;
 }
 
 .mentor-button {
-    margin-top: 1rem;
-    padding-right: 1rem;
-    padding-left: 1rem;
+  margin-top: 1rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
 }
 
-.buttons-container{
-    display: flex;
-    column-gap: 1rem;
+.buttons-container {
+  display: flex;
+  column-gap: 1rem;
 }
 
 @media (max-width: 600px) {
-    .buttons-container {
-        flex-direction: column;
-    }
+  .buttons-container {
+    flex-direction: column;
+  }
 
-    .hero-countdown {
-        margin-top: 0.5rem;
-        max-width: 45%;
-        text-align: center;
-    }
+  .hero-countdown {
+    margin-top: 0.5rem;
+    max-width: 45%;
+    text-align: center;
+  }
 
-    .priority-text {
-        margin-top: 0.5rem;
-        font-size: 0.8rem;
-        max-width: 45%;
-        text-align: center;
-    }
+  .priority-text {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    max-width: 45%;
+    text-align: center;
+  }
 }
-

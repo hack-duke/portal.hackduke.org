@@ -1,10 +1,10 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');  
-const AWS = require('aws-sdk');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-require('dotenv').config();
+const multer = require("multer");
+const AWS = require("aws-sdk");
+const bcrypt = require("bcryptjs");
+const User = require("../models/User");
+require("dotenv").config();
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -15,7 +15,7 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-router.post('/register', upload.single('resume'), async (req, res) => {
+router.post("/register", upload.single("resume"), async (req, res) => {
   const { name, email, gradYear, password } = req.body;
   const resumeFile = req.file;
 
@@ -23,7 +23,7 @@ router.post('/register', upload.single('resume'), async (req, res) => {
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     // Hash the password
@@ -50,22 +50,22 @@ router.post('/register', upload.single('resume'), async (req, res) => {
     });
 
     await user.save();
-    res.status(201).json({ message: 'User registered successfully' });
+    res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
