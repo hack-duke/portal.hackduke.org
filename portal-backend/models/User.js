@@ -1,32 +1,32 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const applicationSchema = new mongoose.Schema({
-  resumeUrl: String,  // Full S3 URL
-  resumeKey: String,  // S3 key for the file
+  resumeUrl: String, // Full S3 URL
+  resumeKey: String, // S3 key for the file
   submissionDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected'],
-    default: 'pending'
-  }
+    enum: ["pending", "accepted", "rejected"],
+    default: "pending",
+  },
 });
 
 const userSchema = new mongoose.Schema({
   auth0Id: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   email: {
     type: String,
-    required: true
+    required: true,
   },
   name: {
     type: String,
-    required: true
+    required: true,
   },
   school: String,
   major: String,
@@ -34,8 +34,8 @@ const userSchema = new mongoose.Schema({
   applications: [applicationSchema],
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);

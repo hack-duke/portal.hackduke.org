@@ -1,33 +1,33 @@
 .file-question-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.2rem; /* Don't love this apporach for responsiveness but will work for now */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem; /* Don't love this apporach for responsiveness but will work for now */
 }
 
 .file-question-label {
-    color: #0042c6;
-    text-align: right; 
-    font-size: 1.2rem;
+  color: #0042c6;
+  text-align: right;
+  font-size: 1.2rem;
 }
 
 input[type="file"] {
-    display: none;
+  display: none;
 }
 
 .file-question-button {
-    margin-left: 2rem;
-    background-color: #35C69B;
-    color: white;
-    padding: 5px 15px;
-    border-radius: 100px;
-    cursor: pointer;
+  margin-left: 2rem;
+  background-color: #35c69b;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 100px;
+  cursor: pointer;
 }
 
 .file-question-button:hover {
-    opacity: 0.9;
+  opacity: 0.9;
 }
 
 .file-question-name {
-    margin-left: 1rem;
-    color: #0042c6;
+  margin-left: 1rem;
+  color: #0042c6;
 }

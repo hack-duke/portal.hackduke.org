@@ -1,17 +1,18 @@
 .white-bg-frame {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    z-index: -1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: -1;
 }
 
 .white-bg-full {
-    transform: translate(calc(2px * var(--x)), calc(2px * var(--y))) scale(1.09) translateX(-5%); /* Size up and translate svg so there are no visible seams*/
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    overflow: hidden;
+  transform: translate(calc(2px * var(--x)), calc(2px * var(--y))) scale(1.09)
+    translateX(-5%); /* Size up and translate svg so there are no visible seams*/
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  overflow: hidden;
 }

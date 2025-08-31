@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { Background } from '../components/Background';
+import React, { useState } from "react";
+import axios from "axios";
+import { Background } from "../components/Background";
 
 const AdminPage = () => {
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState(null);
@@ -13,43 +13,55 @@ const AdminPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`, {
-        password
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`,
+        {
+          password,
+        },
+      );
       setApplications(response.data);
       setIsAuthenticated(true);
       setError(null);
     } catch (error) {
-      setError('Invalid password');
+      setError("Invalid password");
     }
   };
 
   const handleStatusUpdate = async (applicationId, newStatus) => {
     try {
-      await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications/${applicationId}/status`, {
-        password,
-        status: newStatus
-      });
-      
+      await axios.put(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/applications/${applicationId}/status`,
+        {
+          password,
+          status: newStatus,
+        },
+      );
+
       // Refresh applications after status update
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`, {
-        password
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/applications`,
+        {
+          password,
+        },
+      );
       setApplications(response.data);
     } catch (error) {
-      setError('Failed to update status');
+      setError("Failed to update status");
     }
   };
 
   const getSignedUrl = async (key) => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`, {
-        password,
-        key
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`,
+        {
+          password,
+          key,
+        },
+      );
       return response.data.url;
     } catch (error) {
-      setError('Failed to get resume URL');
+      setError("Failed to get resume URL");
       return null;
     }
   };
@@ -57,13 +69,16 @@ const AdminPage = () => {
   const handleViewResume = async (application) => {
     try {
       const key = application.resumeKey || application.resumeUrl;
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`, {
-        password,
-        key
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/get-signed-url`,
+        {
+          password,
+          key,
+        },
+      );
       setShowPDF(response.data.url);
     } catch (error) {
-      setError('Failed to get resume URL');
+      setError("Failed to get resume URL");
     }
   };
 
@@ -84,27 +99,28 @@ const AdminPage = () => {
   if (!isAuthenticated) {
     return (
       <div>
-        <Background/>
-        <h1 className="login-heading">
-          Admin Log In
-        </h1>
+        <Background />
+        <h1 className="login-heading">Admin Log In</h1>
         <form onSubmit={handleLogin}>
-          <div className = "passwordForm">
-            <label class = "passwordLabel">Password:</label>
+          <div className="passwordForm">
+            <label class="passwordLabel">Password:</label>
             <input
-              class = "passwordInput"
-              type = "password"
+              class="passwordInput"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <button 
-          className="admin-login-button"
-          style={{
-            backgroundImage: `url('/images/Log_In_Button.png')`,
-          }}
-          type="submit">Login</button>
-          {error && <div style={{ color: 'red' }}>{error}</div>}
+          <button
+            className="admin-login-button"
+            style={{
+              backgroundImage: `url('/images/Log_In_Button.png')`,
+            }}
+            type="submit"
+          >
+            Login
+          </button>
+          {error && <div style={{ color: "red" }}>{error}</div>}
         </form>
       </div>
     );
@@ -115,55 +131,80 @@ const AdminPage = () => {
   }
 
   const currentApp = applications[currentIndex];
-  const application = currentApp.applications[currentApp.applications.length - 1];
+  const application =
+    currentApp.applications[currentApp.applications.length - 1];
 
   return (
-
     <div>
       <Background />
       <h2>Admin Dashboard</h2>
-      <div style={{ display: 'flex' }}>
-        <div style={{ flex: '1', marginRight: '20px' }}>
-          <h3>Application {currentIndex + 1} of {applications.length}</h3>
-          
-          <div style={{ margin: '20px 0' }}>
+      <div style={{ display: "flex" }}>
+        <div style={{ flex: "1", marginRight: "20px" }}>
+          <h3>
+            Application {currentIndex + 1} of {applications.length}
+          </h3>
+
+          <div style={{ margin: "20px 0" }}>
             <button onClick={previousApplication} disabled={currentIndex === 0}>
               Previous
             </button>
-            <button onClick={nextApplication} disabled={currentIndex === applications.length - 1}>
+            <button
+              onClick={nextApplication}
+              disabled={currentIndex === applications.length - 1}
+            >
               Next
             </button>
           </div>
 
           <div>
             <h4>Applicant Information:</h4>
-            <p><strong>Name:</strong> {currentApp.name}</p>
-            <p><strong>Email:</strong> {currentApp.email}</p>
-            <p><strong>School:</strong> {currentApp.school}</p>
-            <p><strong>Major:</strong> {currentApp.major}</p>
-            <p><strong>Graduation Year:</strong> {currentApp.graduationYear}</p>
-            <p><strong>Status:</strong> {application.status}</p>
+            <p>
+              <strong>Name:</strong> {currentApp.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {currentApp.email}
+            </p>
+            <p>
+              <strong>School:</strong> {currentApp.school}
+            </p>
+            <p>
+              <strong>Major:</strong> {currentApp.major}
+            </p>
+            <p>
+              <strong>Graduation Year:</strong> {currentApp.graduationYear}
+            </p>
+            <p>
+              <strong>Status:</strong> {application.status}
+            </p>
             <button onClick={() => handleViewResume(application)}>
-                View Resume
+              View Resume
             </button>
           </div>
 
-          <div style={{ margin: '20px 0' }}>
+          <div style={{ margin: "20px 0" }}>
             <h4>Update Status:</h4>
-            <button 
-              onClick={() => handleStatusUpdate(application._id, 'accepted')}
-              style={{ backgroundColor: 'green', color: 'white', marginRight: '10px' }}
+            <button
+              onClick={() => handleStatusUpdate(application._id, "accepted")}
+              style={{
+                backgroundColor: "green",
+                color: "white",
+                marginRight: "10px",
+              }}
             >
               Accept
             </button>
-            <button 
-              onClick={() => handleStatusUpdate(application._id, 'rejected')}
-              style={{ backgroundColor: 'red', color: 'white', marginRight: '10px' }}
+            <button
+              onClick={() => handleStatusUpdate(application._id, "rejected")}
+              style={{
+                backgroundColor: "red",
+                color: "white",
+                marginRight: "10px",
+              }}
             >
               Reject
             </button>
-            <button 
-              onClick={() => handleStatusUpdate(application._id, 'pending')}
+            <button
+              onClick={() => handleStatusUpdate(application._id, "pending")}
             >
               Mark as Pending
             </button>
@@ -171,19 +212,19 @@ const AdminPage = () => {
         </div>
 
         {showPDF && (
-          <div style={{ flex: '1' }}>
+          <div style={{ flex: "1" }}>
             <iframe
               src={showPDF}
               title="Resume PDF"
               width="100%"
               height="800px"
-              style={{ border: 'none' }}
+              style={{ border: "none" }}
             />
           </div>
         )}
       </div>
 
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
     </div>
   );
 };

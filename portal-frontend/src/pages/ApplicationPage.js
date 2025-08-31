@@ -1,26 +1,33 @@
-import React, { useState } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import axios from 'axios';
-import { MultiPageForm, Page, Question, LongQuestion, FileUploadQuestion, CheckQuestion } from '../components/form/Form'
-import { Navbar } from '../components/Navbar';
-import './ApplicationPage.css'
-import {WhiteBackground} from '../components/WhiteBackground'
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FullPageLoadingSpinner } from '../components/FullPageLoadingSpinner';
-import Modal, {ModalHeader} from '../components/Modal';
+import React, { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import axios from "axios";
+import {
+  MultiPageForm,
+  Page,
+  Question,
+  LongQuestion,
+  FileUploadQuestion,
+  CheckQuestion,
+} from "../components/form/Form";
+import { Navbar } from "../components/Navbar";
+import "./ApplicationPage.css";
+import { WhiteBackground } from "../components/WhiteBackground";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
+import Modal, { ModalHeader } from "../components/Modal";
 
 const ApplicationPage = () => {
-    const { user, getAccessTokenSilently } = useAuth0();
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
+  const { user, getAccessTokenSilently } = useAuth0();
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const openModal = () => setIsModalOpen(true);
-    const closeModal = () => setIsModalOpen(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
-    /* const onSubmit = async (formData) => {
+  /* const onSubmit = async (formData) => {
         setLoading(true);
         setError(null);
         try {
@@ -67,45 +74,55 @@ const ApplicationPage = () => {
         setLoading(false);
     }; */
 
-    useEffect(
-      () => {
-        const checkIfSubmitted = async () => {
-          const token = await getAccessTokenSilently();
-          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/applications/application`, {
-            headers: {
-              "Authorization": `Bearer ${token}`
-            }
-          })
+  useEffect(() => {
+    const checkIfSubmitted = async () => {
+      const token = await getAccessTokenSilently();
+      const response = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/applications/application`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-          if (response.status === 200) {
-            navigate('/status')
-          }
-        }
-        setLoading(true)
-        checkIfSubmitted()
-        setLoading(false)
-      },
-      [navigate]
-    )
-    
-    return (
-        <>
-            <Navbar/>
-            <WhiteBackground/>
-            {loading && <FullPageLoadingSpinner/>}
-            <Modal isOpen={isModalOpen} onClose={closeModal}>
-              <ModalHeader>Application Submission Error</ModalHeader>
-              <p>{error}</p>
-              <p>If this error continues to occur, please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org</a> and we will help resolve your issue promptly.</p>
-            </Modal>
-						<div className='notice-container'>
-							<h1>Applications Closed.</h1>
-  						<p>Thank you for your interest in HackDuke Code for Good. The application window has now officially closed. </p> 
-							<p>If you believe there was an error with your application, please reach out to <a href='mailto:hackers@hackduke.org'>hackers@hackduke.org.</a></p> 
-							<p>Stay tuned for future opportunities!</p>
-						</div>
-            {/* Bug: passing a non-question element as a child will break everything */}
-						{/*<div className='form-container'>
+      if (response.status === 200) {
+        navigate("/status");
+      }
+    };
+    setLoading(true);
+    checkIfSubmitted();
+    setLoading(false);
+  }, [navigate]);
+
+  return (
+    <>
+      <Navbar />
+      <WhiteBackground />
+      {loading && <FullPageLoadingSpinner />}
+      <Modal isOpen={isModalOpen} onClose={closeModal}>
+        <ModalHeader>Application Submission Error</ModalHeader>
+        <p>{error}</p>
+        <p>
+          If this error continues to occur, please reach out to{" "}
+          <a href="mailto:hackers@hackduke.org">hackers@hackduke.org</a> and we
+          will help resolve your issue promptly.
+        </p>
+      </Modal>
+      <div className="notice-container">
+        <h1>Applications Closed.</h1>
+        <p>
+          Thank you for your interest in HackDuke Code for Good. The application
+          window has now officially closed.{" "}
+        </p>
+        <p>
+          If you believe there was an error with your application, please reach
+          out to <a href="mailto:hackers@hackduke.org">hackers@hackduke.org.</a>
+        </p>
+        <p>Stay tuned for future opportunities!</p>
+      </div>
+      {/* Bug: passing a non-question element as a child will break everything */}
+      {/*<div className='form-container'>
                 <MultiPageForm onSubmit={onSubmit}>
                     <Page title="General Information">
                         <Question name="firstName" label="First Name" required/> 
@@ -150,8 +167,8 @@ const ApplicationPage = () => {
                 </MultiPageForm>
             </div>
 						*/}
-        </>
-    )
+    </>
+  );
 };
 
 export default ApplicationPage;

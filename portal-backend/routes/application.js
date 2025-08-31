@@ -1,9 +1,9 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const AWS = require('aws-sdk');
-const CFG2025Schema = require('../models/Applications/CFG2025');
-require('dotenv').config();
+const multer = require("multer");
+const AWS = require("aws-sdk");
+const CFG2025Schema = require("../models/Applications/CFG2025");
+require("dotenv").config();
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -59,53 +59,70 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
 });
 */
 
-router.post('/rate/:id', (req, res) =>{
+router.post("/rate/:id", (req, res) => {
   const applicationId = parseInt(req.params.id);
   // const { rating } = req.body;
-  const ratings = req.body.ratings; 
+  const ratings = req.body.ratings;
 
   if (!Array.isArray(ratings) || ratings.length === 0) {
-    return res.status(400).send({ error: 'Ratings must be an array with at least one rating' });
+    return res
+      .status(400)
+      .send({ error: "Ratings must be an array with at least one rating" });
   }
- 
-  const application = applications.find(app => app.id === applicationId);
+
+  const application = applications.find((app) => app.id === applicationId);
 
   if (!application) {
-    return res.status(404).send({ error: 'Application not found' });
+    return res.status(404).send({ error: "Application not found" });
   }
- 
+
   for (let rate of ratings)
     if (rate < 1 || rate > 5) {
-      return res.status(400).send({ error: 'Each rating must be a number between 1 and 5' });
+      return res
+        .status(400)
+        .send({ error: "Each rating must be a number between 1 and 5" });
     }
-  
+
   application.ratings.push({ ratings, date: new Date() });
 
-  res.status(201).send({ message: `Ratings added to application ${applicationId}` });
+  res
+    .status(201)
+    .send({ message: `Ratings added to application ${applicationId}` });
 });
 
-router.get('/status', (req, res) => {
-  res.send({ status: 'Application status logic here' });
+router.get("/status", (req, res) => {
+  res.send({ status: "Application status logic here" });
 });
 
-router.get('/application/:id', async (req, res) => {
+router.get("/application/:id", async (req, res) => {
   const applicationId = req.params.id;
-  const application = await CURRENT_SCHEMA.findById(applicationId).exec()
+  const application = await CURRENT_SCHEMA.findById(applicationId).exec();
 
-  if (!application){
-    return res.status(404).json({ error: 'Application not found' });
+  if (!application) {
+    return res.status(404).json({ error: "Application not found" });
   }
 
   res.status(200).json(application);
 });
 
-router.get('/application', async (req, res) => {
+router.get("/application", async (req, res) => {
   // This is the endpoint used by normal users
   const userId = req.auth.sub;
   const application = await CURRENT_SCHEMA.findOne({ userId });
 
   if (application) {
-    const {status, university, graduationYear, submissionDate, name, major, email, firstName, lastName, prefName} = application
+    const {
+      status,
+      university,
+      graduationYear,
+      submissionDate,
+      name,
+      major,
+      email,
+      firstName,
+      lastName,
+      prefName,
+    } = application;
     res.status(200).json({
       status,
       university,
@@ -116,13 +133,13 @@ router.get('/application', async (req, res) => {
       email,
       firstName,
       lastName,
-      prefName
-    })
+      prefName,
+    });
+  } else {
+    res
+      .status(404)
+      .json({ error: "Application not found with this authentication" });
   }
-
-  else {
-    res.status(404).json({ error: 'Application not found with this authentication'})
-  }
-})
+});
 
 module.exports = router;
