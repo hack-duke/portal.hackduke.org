@@ -1,20 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const AWS = require("aws-sdk");
+// const AWS = require("aws-sdk");
 const CFG2025Schema = require("../models/Applications/CFG2025");
 require("dotenv").config();
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage: storage });
 
 const CURRENT_SCHEMA = CFG2025Schema; // Change this to the schema you want to use
 // WE MUST USE A NEW SCHEMA EVERY SEASON
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-});
+// const s3 = new AWS.S3({
+//   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+//   region: process.env.AWS_REGION,
+// });
 
 /*
 router.post('/submit', upload.single('resume'), async (req, res) => {
@@ -58,41 +57,6 @@ router.post('/submit', upload.single('resume'), async (req, res) => {
   }
 });
 */
-
-router.post("/rate/:id", (req, res) => {
-  const applicationId = parseInt(req.params.id);
-  // const { rating } = req.body;
-  const ratings = req.body.ratings;
-
-  if (!Array.isArray(ratings) || ratings.length === 0) {
-    return res
-      .status(400)
-      .send({ error: "Ratings must be an array with at least one rating" });
-  }
-
-  const application = applications.find((app) => app.id === applicationId);
-
-  if (!application) {
-    return res.status(404).send({ error: "Application not found" });
-  }
-
-  for (let rate of ratings)
-    if (rate < 1 || rate > 5) {
-      return res
-        .status(400)
-        .send({ error: "Each rating must be a number between 1 and 5" });
-    }
-
-  application.ratings.push({ ratings, date: new Date() });
-
-  res
-    .status(201)
-    .send({ message: `Ratings added to application ${applicationId}` });
-});
-
-router.get("/status", (req, res) => {
-  res.send({ status: "Application status logic here" });
-});
 
 router.get("/application/:id", async (req, res) => {
   const applicationId = req.params.id;
