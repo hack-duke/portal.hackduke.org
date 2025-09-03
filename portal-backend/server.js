@@ -2,10 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { expressjwt: jwt } = require("express-jwt");
 const jwksRsa = require("jwks-rsa");
-const userRoutes = require("./routes/user");
 const applicationRoutes = require("./routes/application");
-const adminRoutes = require("./routes/admin");
-const debugRoutes = require("./routes/debug");
 const ticketsRoutes = require("./routes/tickets");
 const cors = require("cors");
 require("dotenv").config();
@@ -55,11 +52,8 @@ const checkJwt = jwt({
   algorithms: ["RS256"],
 });
 
-app.use("/api/admin", adminRoutes);
 app.use("/tickets", ticketsRoutes);
-app.use("/api/users", userRoutes);
 app.use("/api/applications", checkJwt, applicationRoutes);
-app.use("/api/debug", debugRoutes);
 app.get("/health", (req, res) => res.send("Server is running"));
 
 const PORT = process.env.PORT || 5001;
@@ -79,22 +73,5 @@ const testS3Connection = async (bucketName) => {
     );
   }
 };
-
-// testS3Connection(process.env.S3_BUCKET_NAME);
-
-// const uploadToS3 = async (bucketName, key, body) => {
-//   const command = new PutObjectCommand({
-//     Bucket: bucketName,
-//     Key: key,
-//     Body: body,
-//   });
-
-//   try {
-//     const data = await s3.send(command);
-//     console.log('File uploaded successfully', data);
-//   } catch (error) {
-//     console.error('Error uploading file', error);
-//   }
-// };
 
 testS3Connection(process.env.S3_BUCKET_NAME);
