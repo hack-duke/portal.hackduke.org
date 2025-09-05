@@ -29,3 +29,8 @@ Thumbs.db
 
 # Ignore AWS-related files (if any)
 .aws/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

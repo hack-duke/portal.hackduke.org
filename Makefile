@@ -1,4 +1,4 @@
-.PHONY: rebuild up shell
+.PHONY: rebuild up shell backend
 
 rebuild: # If you have issues try running devcontainer up --workspace-folder . --remove-existing-container --build-no-cache
 	@devcontainer up --workspace-folder . --remove-existing-container 
@@ -8,3 +8,9 @@ up:
 
 shell:
 	@devcontainer exec --workspace-folder . zsh
+
+backend:
+	cd portal-backend-python && uvicorn server:app --reload
+
+frontend:
+	cd portal-frontend && npm start
