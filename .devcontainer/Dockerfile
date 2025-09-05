@@ -13,3 +13,10 @@ RUN apt-get update && \
         python3 python3-pip \
         nodejs npm \
     && apt-get clean
+
+USER vscode
+ENV PATH="/home/vscode/.local/bin:$PATH"
+ENV POETRY_VERSION=1.8.3
+
+RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION && \
+    poetry config virtualenvs.in-project true
