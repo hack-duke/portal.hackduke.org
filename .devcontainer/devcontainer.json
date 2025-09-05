@@ -24,7 +24,8 @@
       }
     }
   },
-  "mounts": [ // Experimental, mount ssh and gitconfig from host machine
+  "mounts": [
+    // Experimental, mount ssh and gitconfig from host machine
     "type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly",
     "type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig,readonly"
   ]
