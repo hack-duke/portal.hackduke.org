@@ -23,5 +23,5 @@ Use the token with an Authorization Header to make an authorized request to the 
 ```
 curl --request GET \
   --url http://localhost:8000/<endpoint> \
-  --header 'authorization: Bearer <token>`
+  --header "authorization: Bearer <token>"
 ```
