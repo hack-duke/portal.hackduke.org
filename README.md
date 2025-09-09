@@ -15,7 +15,7 @@ The backend is deployed on EC2:
 
 You can do this with any database client (`psql` for CLI, pgAdmin), but I like using Postico (available free for Mac). You can download it [here](https://eggerapps.at/postico2/).
 
-Make sure you are connected to Tailscale. See [networking documentation](https://eggerapps.at/postico2/) for installation details. 
+Make sure you are connected to Tailscale. See [networking documentation](https://github.com/hack-duke/portal.hackduke.org/blob/master/postgres/NETWORKING.md#installing-tailscale) for installation details. 
 
 Open Postico. Click `New Server` to create a new connection. Name your server. 
 
