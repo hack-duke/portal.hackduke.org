@@ -15,6 +15,9 @@ A popup should appear notifying you that a devcontainer environment is available
 If not, you can do this manually by opening the command palette (Command + Shift + P)  and searching for `Dev Containers: Reopen in Container`  
 
 ## Option 2: Starting Container from Terminal
+
+> ❗ This is currently experimental and sometimes fails to link the `devcontainer.json` config to the running container. If anything is not working, switch to starting directly form VSCode/Cursor.
+
 Make sure you have the Dev Containers CLI installed. If not, you can install with:
 ```
 npm install -g @devcontainers/cli
