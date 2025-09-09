@@ -1,4 +1,4 @@
-# Portal Backend
+# Portal Backend - Auth
 
 ## Testing Authenticated Endpoints
 
