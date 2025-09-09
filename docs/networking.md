@@ -88,7 +88,7 @@ Upon advertising, there is an additional verification step in the Tailscale cons
 <img width="617" height="216" alt="Screenshot 2025-09-09 at 2 40 41 AM" src="https://github.com/user-attachments/assets/2e3261f7-b850-46af-9ef3-634d3fc27e12" />
 
 ### CI/CD with Tailscale
-Our GitHub Actions runners use ephemeral Tailscale auth keys to join the tailnet, so CI jobs can reach private DBs without exposing secrets over the public internet. [Official Tailscale Github Action Docs](https://tailscale.com/kb/1276/tailscale-github-action).
+Our GitHub Actions runners use ephemeral Tailscale auth keys to join the tailnet, so CI jobs can reach private DBs without exposing secrets over the public internet. Ephemeral keys are single-use, short-lived (e.g. minutes). Once the GitHub job finishes, the key (and the runner node) disappears. [Official Tailscale Github Action Docs](https://tailscale.com/kb/1276/tailscale-github-action).
 
 A good example of this can be found in our deployment workflow in `.github/deploy-db.yml`. 
 
