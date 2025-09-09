@@ -48,6 +48,13 @@ Each VPC is defined by a **CIDR block**, which specifies the private IP address 
 
 Subnets can be designated as **public** (accessible from the internet through an Internet Gateway) or **private** (isolated from direct internet access, usually connected outward through a NAT Gateway). In our case, we place our PostgreSQL database instance inside a private subnet within the VPC rather than exposing it to the public.  This approach simplifies access management—developers can connect with standard database credentials—while reducing the attack surface by keeping the network closed to external threats.
 
+### Subnet Configuration (TODO)
+- Route table
+- CIDR ranges
+- NAT gateway
+- ACLs
+- IGW + elastic IP
+
 ### Connecting Tailscale
 
 Normally, private subnets can only reach the internet outbound (via a NAT Gateway) and cannot be reached from outside. However, by running a Tailscale router inside the VPC, we can extend our tailnet directly into AWS. This means that developers’ laptops, CI runners, or other machines already on Tailscale can connect to those private resources securely, without opening up public ports.
