@@ -2,6 +2,10 @@ name: Deploy Postgres to EC2
 
 on:
   push:
+    branches:
+      - master
+    paths:
+      - 'postgres/docker-compose.yml'
 
 jobs:
   deploy:
