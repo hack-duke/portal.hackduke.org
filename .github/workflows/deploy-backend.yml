@@ -6,61 +6,61 @@ on:
       - master
 
 env:
-    AWS_REGION: us-east-2
-    ECR_REPOSITORY: portal-backend
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: portal-backend
 
 jobs:
-    build-and-push:
-        name: Build and Push
-        runs-on: ubuntu-latest
-        
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
 
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@0e613a0980cbf65ed5b322eb7a1e075d28913a83
-              with:
-                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                aws-region: ${{ env.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Login to Amazon ECR
-              id: login-ecr
-              uses: aws-actions/amazon-ecr-login@62f4f872db3836360b72999f4b87f1ff13310f3a
-            
-            - name: Set IMAGE_TAG to current time
-              run: echo "IMAGE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            - name: Set up QEMU
-              uses: docker/setup-qemu-action@v3
-      
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
-            
-            - name: Build and push
-              uses: docker/build-push-action@v6
-              with:
-                context: ./portal-backend
-                file: ./portal-backend/Dockerfile
-                platforms: linux/arm64
-                push: true
-                tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-            - name: SSH into ec2 and restart
-              env:
-                PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-                EC2_USER: ec2-user
-                EC2_IP: ${{ secrets.EC2_IP }}
-                IMAGE_TAG: ${{ env.IMAGE_TAG }}
-                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-              run: |
-                echo "$PRIVATE_KEY" > key.pem
-                chmod 600 key.pem
-                ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
-                  aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REGISTRY
-                  docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-                  sed -i 's|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:.*|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}|' compose.yml
-                  docker-compose up -d
-                  docker image prune -a -f
-                EOF
+      - name: Set IMAGE_TAG to current time
+        run: echo "IMAGE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./portal-backend
+          file: ./portal-backend/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: SSH into EC2 and restart
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_USER: ec2-user
+          EC2_IP: ${{ secrets.EC2_IP }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "$PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            docker-compose up -d
+            docker image prune -f
+          EOF
