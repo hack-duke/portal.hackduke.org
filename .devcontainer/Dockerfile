@@ -10,8 +10,9 @@ RUN apt-get update && \
         nano \
         htop \
         zsh \
-        python3 python3-pip \
+        python3 python3-pip python3-dev\
         nodejs npm \
+        libpq-dev \
     && apt-get clean
 
 USER vscode
