@@ -14,6 +14,7 @@ pydantic-settings = "^2.10.1"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
 python-dotenv = "^1.1.1"
 sqlalchemy = "^2.0.43"
+pytest-asyncio = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"
