@@ -13,6 +13,8 @@ RUN apt-get update && \
         python3 python3-pip python3-dev\
         nodejs npm \
         libpq-dev \
+        postgresql \
+        postgresql-client \
     && apt-get clean
 
 USER vscode
