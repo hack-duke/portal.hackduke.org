@@ -31,7 +31,9 @@ async def submit_application(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (
+        db.query(User).filter(User.auth0_id == auth0_id).first()
+    )  # TODO: User creation should not be handled here
     if not user:
         user = User(auth0_id=auth0_id)
         db.add(user)

@@ -12,7 +12,7 @@ class ApplicationStatus(enum.Enum):
     REJECTED = "rejected"
 
 
-class Application(Base):  # not quite robust for arbitrary forms
+class Application(Base):
     __tablename__ = "application"
 
     id = Column(
