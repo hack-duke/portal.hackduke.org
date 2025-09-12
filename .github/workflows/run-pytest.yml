@@ -9,6 +9,8 @@ on:
 
 jobs:
   build:
+    name: Run Unit Tests via Pytest
+
     runs-on: ubuntu-latest
     strategy:
       matrix:

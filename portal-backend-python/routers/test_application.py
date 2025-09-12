@@ -115,3 +115,6 @@ class TestGetApplicationById:
         response = client.get("/application/invalid-uuid")
 
         assert response.status_code == 422
+
+
+# TODO: Add s3 tests for main /submit route
