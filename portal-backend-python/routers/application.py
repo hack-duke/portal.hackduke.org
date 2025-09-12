@@ -147,7 +147,7 @@ async def get_application(
 @router.get("/application/{id}", response_model=GetApplicationResponse)
 async def get_application_by_id(
     id: UUID,
-    auth_payload: Dict[str, Any] = Security(auth.verify),
+    _: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
     application = db.query(Application).filter(Application.id == id).first()
