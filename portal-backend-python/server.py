@@ -3,6 +3,7 @@ from auth import VerifyToken
 import dotenv
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from routers import application
 
 dotenv.load_dotenv()
 
@@ -11,6 +12,7 @@ frontend_url = os.getenv("FRONTEND_URL")
 app = FastAPI()
 auth = VerifyToken()
 
+app.include_router(prefix="/api", router=application.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,8 +26,3 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"message": "OK"}
-
-
-@app.get("/api/applications")
-def get_applications(auth_response: str = Security(auth.verify)):
-    return auth_response
