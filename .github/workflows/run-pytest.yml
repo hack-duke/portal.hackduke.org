@@ -1,0 +1,38 @@
+name: Run Unit Tests via Pytest
+
+on:
+  push:
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+      - "poetry.lock"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+
+      - name: Test with pytest
+        run: |
+          poetry run coverage run -m pytest  -v -s
+
+      - name: Generate Coverage Report
+        run: |
+          poetry run coverage report -m
