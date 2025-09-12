@@ -5,10 +5,11 @@ on:
     branches:
       - master
     paths:
-      - 'postgres/docker-compose.yml'
+      - "postgres/docker-compose.yml"
 
 jobs:
   deploy:
+    name: Deploy Postgres to EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +24,7 @@ jobs:
           tags: tag:ci
 
       # Should probably use Tailscale SSH instead
-      - name: Deploy over SSH  
+      - name: Deploy over SSH
         env:
           EC2_USER: ubuntu
           EC2_IP: ${{ secrets.DB_EC2_IP }}

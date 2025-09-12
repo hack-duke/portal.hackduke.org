@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-and-push:
-    name: Build and Push
+    name: Build & Deploy Backend to EC2
     runs-on: ubuntu-latest
 
     steps:
