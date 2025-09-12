@@ -1,4 +1,4 @@
-.PHONY: rebuild up shell backend
+.PHONY: rebuild up shell backend test
 
 rebuild: # If you have issues try running devcontainer up --workspace-folder . --remove-existing-container --build-no-cache
 	@devcontainer up --workspace-folder . --remove-existing-container 
@@ -14,3 +14,6 @@ backend:
 
 frontend:
 	cd portal-frontend && npm start
+
+test:
+	pytest
