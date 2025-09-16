@@ -10,6 +10,7 @@ class ApplicationStatus(enum.Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+    CONFIRMED = "confirmed"
 
 
 class Application(Base):

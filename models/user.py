@@ -13,3 +13,6 @@ class User(Base):
     auth0_id = Column(
         String, unique=True, nullable=False
     )  # not using this as primary key right now in case we have multiple auth providers
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    email = Column(String, nullable=True)
