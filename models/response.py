@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from sqlalchemy import Column, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
 from models.base import Base
 from sqlalchemy import String
@@ -26,4 +26,6 @@ class Response(Base):
     )
     text_answer = Column(Text, nullable=True)
     bool_answer = Column(Boolean, nullable=True)
+    int_answer = Column(Integer, nullable=True)
+    float_answer = Column(Float, nullable=True)
     file_s3_key = Column(String, nullable=True)

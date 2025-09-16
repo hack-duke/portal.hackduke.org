@@ -10,6 +10,8 @@ class QuestionType(enum.Enum):
     TEXT = "text"
     BOOLEAN = "boolean"
     FILE = "file"
+    INTEGER = "integer"
+    FLOAT = "float"
 
 
 class Question(Base):
@@ -22,5 +24,5 @@ class Question(Base):
         String, ForeignKey("form.form_key", ondelete="CASCADE"), nullable=False
     )
     question_key = Column(String, nullable=False)  # must be unique within the form
-    question_text = Column(Text, nullable=False)
+    # question_text = Column(Text, nullable=False) # not used for now, add back if we want to pull questions from db and render frontend with them
     question_type = Column(Enum(QuestionType), nullable=False)

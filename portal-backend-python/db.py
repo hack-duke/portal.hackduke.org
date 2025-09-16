@@ -34,7 +34,7 @@ def get_db() -> Session:
         db.close()
 
 
-def get_db_session() -> Session:
+def get_local_session() -> Session:
     """
     Get a database session directly.
     Use this when you need a session outside of FastAPI dependency injection.
