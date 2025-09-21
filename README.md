@@ -6,10 +6,10 @@
 
 - [Development Environment](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/devcontainer.md)
 - [PostgreSQL](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/postgres.md)
-- [SQLAlchemy & Alembic](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/sqlalchemy.md)
 - [Networking & Tailscale](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/networking.md)
 - Portal
   - [Auth](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/auth.md)
+  - [SQLAlchemy & Alembic](https://github.com/hack-duke/portal.hackduke.org/blob/master/docs/sqlalchemy.md)
 
 ## Deployment
 
