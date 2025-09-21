@@ -1,16 +1,29 @@
 name: Run Unit Tests via Pytest
 
 on:
-  push:
-    paths:
-      - "**.py"
-      - "pyproject.toml"
-      - "poetry.lock"
+  pull_request:
 
 jobs:
-  build:
-    name: Run Unit Tests via Pytest
+  changes:
+    name: Pytest Changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - '**.py'
+              - 'pyproject.toml'
+              - 'poetry.lock'
 
+  tests:
+    name: Run Pytest
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,13 +41,10 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        run: |
-          poetry install --with dev
+        run: poetry install --with dev
 
       - name: Test with pytest
-        run: |
-          poetry run coverage run -m pytest  -v -s
+        run: poetry run coverage run -m pytest -v -s
 
       - name: Generate Coverage Report
-        run: |
-          poetry run coverage report -m
+        run: poetry run coverage report -m
