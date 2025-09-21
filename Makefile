@@ -10,7 +10,7 @@ shell:
 	@devcontainer exec --workspace-folder . zsh
 
 backend:
-	cd portal-backend-python && uvicorn server:app --reload
+	cd portal-backend-python && PYTHONPATH=/workspaces/portal.hackduke.org uvicorn server:app --reload
 
 frontend:
 	cd portal-frontend && npm start
