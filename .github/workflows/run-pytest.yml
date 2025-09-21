@@ -4,17 +4,12 @@ on:
   pull_request:
 
 jobs:
-  build:
-    name: Run Unit Tests via Pytest
-
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11"]
-
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
     steps:
       - uses: actions/checkout@v3
-
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -23,6 +18,18 @@ jobs:
               - '**.py'
               - 'pyproject.toml'
               - 'poetry.lock'
+
+  tests:
+    name: Run Unit Tests via Pytest (3.11)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Install poetry
         run: pipx install poetry
@@ -33,13 +40,10 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        run: |
-          poetry install --with dev
+        run: poetry install --with dev
 
       - name: Test with pytest
-        run: |
-          poetry run coverage run -m pytest  -v -s
+        run: poetry run coverage run -m pytest -v -s
 
       - name: Generate Coverage Report
-        run: |
-          poetry run coverage report -m
+        run: poetry run coverage report -m
