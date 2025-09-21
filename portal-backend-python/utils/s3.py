@@ -19,20 +19,15 @@ def get_s3_client():
 
 
 async def upload_file_to_s3(file: UploadFile, s3_key: str) -> Optional[str]:
-    try:
-        s3_client = get_s3_client()
+    s3_client = get_s3_client()
 
-        file_content = await file.read()
+    file_content = await file.read()
 
-        s3_client.put_object(
-            Bucket=AWS_BUCKET_NAME,
-            Key=s3_key,
-            Body=file_content,
-            ContentType=file.content_type,
-        )
+    s3_client.put_object(
+        Bucket=AWS_BUCKET_NAME,
+        Key=s3_key,
+        Body=file_content,
+        ContentType=file.content_type,
+    )
 
-        return s3_key
-
-    except Exception as e:
-        print(f"Error uploading file to S3: {e}")
-        return None
+    return s3_key

@@ -40,12 +40,15 @@ async def submit_application(
         db.flush()
 
     existing_application = (
-        db.query(Application).filter(Application.user_id == user.id).first()
+        db.query(Application)
+        .filter(Application.user_id == user.id, Application.form_key == form_key)
+        .first()
     )
 
     if existing_application:
         raise HTTPException(
-            status_code=400, detail="Application already exists for this user"
+            status_code=400,
+            detail="Application already exists for this user for this form",
         )
 
     try:
@@ -76,40 +79,40 @@ async def submit_application(
             .first()
         )
 
-        if question:
-            if question.question_type == QuestionType.FILE:
-                if question_key in file_map:
-                    file = file_map[question_key]
+        if not question:
+            continue
 
-                    s3_key = (
-                        f"{user.id}/{application.id}/{question_key}/{file.filename}"
-                    )
-                    await upload_file_to_s3(
-                        file,
-                        s3_key,
-                    )
+        if question.question_type == QuestionType.FILE:
+            filename = str(field_value) if field_value else None
+            if filename and filename in file_map:
+                file = file_map[filename]
 
-                    if s3_key:
-                        response = Response(
-                            user_id=user.id,
-                            question_id=question.id,
-                            application_id=application.id,
-                            file_s3_key=s3_key,
-                        )
-                        db.add(response)
+                s3_key = f"{form_key}/{application.id}/{question_key}/{file.filename}"
+                await upload_file_to_s3(
+                    file,
+                    s3_key,
+                )
 
-                        valid_form_data[question_key] = s3_key
-            else:
                 response = Response(
                     user_id=user.id,
                     question_id=question.id,
                     application_id=application.id,
-                    text_answer=str(field_value) if field_value is not None else None,
-                    bool_answer=field_value if isinstance(field_value, bool) else None,
+                    file_s3_key=s3_key,
                 )
                 db.add(response)
 
-                valid_form_data[question_key] = field_value
+                valid_form_data[question_key] = s3_key
+        else:
+            response = Response(
+                user_id=user.id,
+                question_id=question.id,
+                application_id=application.id,
+                text_answer=str(field_value) if field_value is not None else None,
+                bool_answer=field_value if isinstance(field_value, bool) else None,
+            )
+            db.add(response)
+
+            valid_form_data[question_key] = field_value
 
     application.submission_json = valid_form_data
 
