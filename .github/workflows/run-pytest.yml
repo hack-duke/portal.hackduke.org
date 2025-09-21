@@ -2,7 +2,6 @@ name: Run Unit Tests via Pytest
 
 on:
   pull_request:
-  push:
 
 jobs:
   build:
