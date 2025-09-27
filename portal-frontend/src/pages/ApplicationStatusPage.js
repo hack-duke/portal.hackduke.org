@@ -13,6 +13,8 @@ import Button from "../components/Button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+const FORM_KEY = "2025-cfg-application";
+
 const StatusList = ({ statusItems }) => {
   return (
     <div className="status-grid">
@@ -70,7 +72,7 @@ const ApplicationStatusPage = () => {
         setLoading(true);
         const token = await getAccessTokenSilently();
         const response = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=2025-cfg-application`,
+          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=${FORM_KEY}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
