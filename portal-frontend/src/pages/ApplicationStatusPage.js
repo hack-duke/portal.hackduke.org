@@ -43,7 +43,8 @@ const formatApplication = (application) => {
   ret.push({ label: "major", value: form_data["major"] });
   ret.push({
     label: "submitted",
-    value: formatDistanceToNow(new Date(application["created_at"]), {
+    value: formatDistanceToNow(new Date(application["created_at"] + "Z"), {
+      // Convert from UTC to local time
       addSuffix: true,
     }),
   });
