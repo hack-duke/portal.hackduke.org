@@ -114,6 +114,10 @@ async def submit_application(
 
             valid_form_data[question_key] = field_value
 
+    user.first_name = valid_form_data.get("first_name")
+    user.last_name = valid_form_data.get("last_name")
+    user.email = valid_form_data.get("email")
+
     application.submission_json = valid_form_data
 
     db.commit()
