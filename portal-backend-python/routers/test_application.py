@@ -68,7 +68,7 @@ class TestGetApplication:
         sample_user,
         sample_application,
     ):
-        response = client.get("/")
+        response = client.get("/", params={"form_key": "test_form"})
 
         assert response.status_code == 200
         data = GetApplicationResponse(**response.json())
@@ -78,7 +78,7 @@ class TestGetApplication:
 
     # TODO: make these tests actually test something
     def test_get_application_user_not_found(self, setup_dependency_overrides):
-        response = client.get("/")
+        response = client.get("/", params={"form_key": "test_form"})
 
         assert response.status_code == 404
 
@@ -87,7 +87,7 @@ class TestGetApplication:
         setup_dependency_overrides,
         sample_user,
     ):
-        response = client.get("/")
+        response = client.get("/", params={"form_key": "test_form"})
 
         assert response.status_code == 404
 

@@ -15,15 +15,11 @@ export const Question = forwardRef(
       firstTry,
       isValid = (value) => !required || (value && value.trim() !== ""),
     },
-    ref,
+    ref
   ) => {
-    // Default validation function
-
     useImperativeHandle(ref, () => ({
       isValid: () => isValid(formData[name]),
     }));
-
-    console.log(isValid(formData[name]));
 
     return (
       <div className="question-container">
@@ -45,5 +41,5 @@ export const Question = forwardRef(
         />
       </div>
     );
-  },
+  }
 );
