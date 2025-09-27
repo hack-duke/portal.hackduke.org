@@ -67,9 +67,6 @@ jobs:
 
           # Deploy on EC2
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
-            echo "FRONTEND_URL=${FRONTEND_URL}" > portal-backend-python/.env
-            echo "SENTRY_DSN=${SENTRY_DSN}" >> portal-backend-python/.env
-
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
             docker-compose up -d
