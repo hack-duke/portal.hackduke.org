@@ -88,7 +88,7 @@ const ApplicationPage = () => {
       try {
         const token = await getAccessTokenSilently();
         await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=2025-cfg-application`,
+          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=${FORM_KEY}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
