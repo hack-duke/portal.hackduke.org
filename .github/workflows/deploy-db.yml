@@ -39,13 +39,12 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no -r postgres $EC2_USER@$EC2_IP:~/
 
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+            cd ~/postgres
 
-          cd ~/postgres
+            echo "POSTGRES_USER=${POSTGRES_USER}" > .env
+            echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
+            echo "POSTGRES_DB=${POSTGRES_DB}" >> .env
 
-          echo "POSTGRES_USER=${POSTGRES_USER}" > .env
-          echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
-          echo "POSTGRES_DB=${POSTGRES_DB}" >> .env
-
-          docker-compose pull
-          docker-compose up -d
+            docker-compose pull
+            docker-compose up -d
           EOF
