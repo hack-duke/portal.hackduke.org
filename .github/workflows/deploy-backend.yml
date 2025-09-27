@@ -49,7 +49,7 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
 
-      - name: SSH into EC2 and restart
+      - name: Deploy to EC2
         env:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_USER: ec2-user
@@ -58,6 +58,12 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > key.pem
           chmod 600 key.pem
+
+          # Copy compose files to EC2
+          scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/compose.yml $EC2_USER@$EC2_IP:~/
+          scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/Caddyfile $EC2_USER@$EC2_IP:~/
+
+          # Deploy on EC2
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
