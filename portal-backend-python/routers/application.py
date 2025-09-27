@@ -123,7 +123,9 @@ async def submit_application(
 
 @router.get("/application", response_model=GetApplicationResponse)
 async def get_application(
-    auth_payload: Dict[str, Any] = Security(auth.verify), db: Session = Depends(get_db)
+    form_key: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
 ):
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
@@ -133,7 +135,11 @@ async def get_application(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    application = db.query(Application).filter(Application.user_id == user.id).first()
+    application = (
+        db.query(Application)
+        .filter(Application.user_id == user.id, Application.form_key == form_key)
+        .first()
+    )
 
     if not application:
         raise HTTPException(
@@ -145,6 +151,7 @@ async def get_application(
     return GetApplicationResponse(
         id=application.id,
         status=application.status,
+        created_at=application.created_at,
         form_data=form_data,
     )
 

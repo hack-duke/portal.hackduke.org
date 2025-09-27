@@ -10,6 +10,8 @@ import Confetti from "react-confetti";
 import { useLocation } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import Button from "../components/Button";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -25,25 +27,27 @@ const StatusList = ({ statusItems }) => {
 };
 
 const formatApplication = (application) => {
+  const form_data = application["form_data"];
   var ret = [];
   ret.push({
     label: "name",
     value:
-      (application["prefName"] || application["firstName"]) +
+      (form_data["pref_name"] || form_data["first_name"]) +
       " " +
-      application["lastName"],
+      form_data["last_name"],
   });
-  ret.push({ label: "email", value: application["email"] });
+  ret.push({ label: "email", value: form_data["email"] });
   ret.push({ label: "status", value: application["status"] });
-  ret.push({ label: "grad year", value: application["graduationYear"] });
-  ret.push({ label: "university", value: application["university"] });
-  ret.push({ label: "major", value: application["major"] });
+  ret.push({ label: "grad year", value: form_data["graduation_year"] });
+  ret.push({ label: "university", value: form_data["university"] });
+  ret.push({ label: "major", value: form_data["major"] });
   ret.push({
     label: "submitted",
-    value: formatDistanceToNow(new Date(application["submissionDate"]), {
+    value: formatDistanceToNow(new Date(application["created_at"]), {
       addSuffix: true,
     }),
   });
+  ret.push({ label: "phone", value: form_data["phone"] });
 
   return ret;
 };
@@ -56,35 +60,36 @@ const ApplicationStatusPage = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const { width, height } = useWindowSize();
   const location = useLocation();
+  const navigate = useNavigate();
   const { firstTime } = location.state || {};
 
   useEffect(() => {
     const checkIfSubmitted = async () => {
-      setLoading(true);
-      const token = await getAccessTokenSilently();
-      const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/applications/application`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (response.status !== 200) {
-        const js = await response.json();
-        setError(js.error);
-      } else {
-        const json = await response.json();
-        setApplication(formatApplication(json));
+      try {
+        setLoading(true);
+        const token = await getAccessTokenSilently();
+        const response = await axios.get(
+          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=2025-cfg-application`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setApplication(formatApplication(response.data));
+      } catch (error) {
+        if (error.response?.status === 404) {
+          navigate("/application");
+        } else {
+          setError(error.response?.data?.error);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkIfSubmitted();
-  }, [getAccessTokenSilently]);
-
-  console.log();
+  }, [getAccessTokenSilently, navigate]);
 
   return (
     <>
