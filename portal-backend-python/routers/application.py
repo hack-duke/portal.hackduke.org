@@ -121,7 +121,7 @@ async def submit_application(
     return SubmitApplicationResponse(applicationId=application.id)
 
 
-@router.get("/application", response_model=GetApplicationResponse)
+@router.get("/", response_model=GetApplicationResponse)
 async def get_application(
     auth_payload: Dict[str, Any] = Security(auth.verify), db: Session = Depends(get_db)
 ):
@@ -139,26 +139,6 @@ async def get_application(
         raise HTTPException(
             status_code=404, detail="Application not found with this authentication"
         )
-
-    form_data = application.submission_json or {}
-
-    return GetApplicationResponse(
-        id=application.id,
-        status=application.status,
-        form_data=form_data,
-    )
-
-
-@router.get("/application/{id}", response_model=GetApplicationResponse)
-async def get_application_by_id(
-    id: UUID,
-    _: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
-):
-    application = db.query(Application).filter(Application.id == id).first()
-
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
 
     form_data = application.submission_json or {}
 
