@@ -20,7 +20,7 @@ sentry_sdk.init(
 app = FastAPI()
 auth = VerifyToken()
 
-app.include_router(prefix="/api", router=application.router)
+app.include_router(prefix="/application", router=application.router)
 
 app.add_middleware(
     CORSMiddleware,
