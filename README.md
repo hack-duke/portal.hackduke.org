@@ -1,6 +1,7 @@
 [![Netlify Status](https://api.netlify.com/api/v1/badges/54be151e-1377-4bcf-a6c4-03f9c87c2546/deploy-status)](https://app.netlify.com/sites/hackduke-portal/deploys)
 
 # portal
+hi!
 
 ## Docs
 
