@@ -72,10 +72,13 @@ const ApplicationStatusPage = () => {
         setLoading(true);
         const token = await getAccessTokenSilently();
         const response = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=${FORM_KEY}`,
+          `${process.env.REACT_APP_BACKEND_URL}/application`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
+            },
+            params: {
+              form_key: FORM_KEY,
             },
           }
         );
