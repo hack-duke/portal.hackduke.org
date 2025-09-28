@@ -9,6 +9,8 @@ import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
 
+// check
+
 function App() {
   const { isLoading } = useAuth0();
   if (isLoading) {
