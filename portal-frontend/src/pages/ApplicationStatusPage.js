@@ -79,7 +79,7 @@ const ApplicationStatusPage = () => {
             },
           }
         );
-        setApplication(formatApplication(response.data));
+        setApplication(response.data);
       } catch (error) {
         if (error.response?.status === 404) {
           navigate("/application");
@@ -114,11 +114,11 @@ const ApplicationStatusPage = () => {
 
       {application && (
         <div className="status-container">
-          <StatusList statusItems={application} />
+          <StatusList statusItems={formatApplication(application)} />
         </div>
       )}
 
-      {application && application[2]["value"].includes("confirmed") && (
+      {application && application["status"] === "confirmed" && (
         <>
           <Button
             variant="secondary"
@@ -132,6 +132,7 @@ const ApplicationStatusPage = () => {
               className="qr-modal-overlay"
               onClick={() => setShowQRModal(false)}
             >
+              {/* TODO: Componentize this */}
               <div className="qr-modal-content">
                 <QRCodeSVG
                   value={user.sub}
