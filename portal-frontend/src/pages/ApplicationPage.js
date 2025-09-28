@@ -87,14 +87,14 @@ const ApplicationPage = () => {
     const checkIfSubmitted = async () => {
       try {
         const token = await getAccessTokenSilently();
-        await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/application?form_key=${FORM_KEY}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        await axios.get(`${process.env.REACT_APP_BACKEND_URL}/application`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: {
+            form_key: FORM_KEY,
+          },
+        });
         navigate("/status");
       } catch (error) {
         if (error.response?.status !== 404) {
