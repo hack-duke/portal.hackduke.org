@@ -30,7 +30,6 @@
 }
 
 @media (max-width: 600px) {
-  /* Adjust the max-width to your desired breakpoint */
   .status-container {
     margin-top: 0.5rem;
   }
