@@ -23,15 +23,11 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      # Should probably use Tailscale SSH instead
       - name: Deploy over SSH
         env:
           EC2_USER: ubuntu
           EC2_IP: ${{ secrets.DB_EC2_IP }}
           PRIVATE_KEY: ${{ secrets.DB_EC2_SSH_KEY }}
-          POSTGRES_USER: ${{ secrets.DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASS }}
-          POSTGRES_DB: ${{ secrets.DB_NAME }}
         run: |
           echo "$PRIVATE_KEY" > key.pem
           chmod 600 key.pem 
@@ -40,11 +36,6 @@ jobs:
 
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             cd ~/postgres
-
-            echo "POSTGRES_USER=${POSTGRES_USER}" > .env
-            echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
-            echo "POSTGRES_DB=${POSTGRES_DB}" >> .env
-
             docker-compose pull
             docker-compose up -d
           EOF
