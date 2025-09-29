@@ -20,8 +20,6 @@ sentry_sdk.init(
 app = FastAPI()
 auth = VerifyToken()
 
-app.include_router(prefix="/application", router=application.router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[frontend_url],
@@ -29,6 +27,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(prefix="/application", router=application.router)
 
 
 @app.get("/health")
