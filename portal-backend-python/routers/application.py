@@ -125,7 +125,7 @@ async def submit_application(
     return SubmitApplicationResponse(applicationId=application.id)
 
 
-@router.get("/", response_model=GetApplicationResponse)
+@router.get("", response_model=GetApplicationResponse)
 async def get_application(
     form_key: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
