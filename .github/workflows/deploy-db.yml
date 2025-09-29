@@ -38,4 +38,5 @@ jobs:
             cd ~/postgres
             docker-compose pull
             docker-compose up -d
+            docker container prune -f
           EOF
