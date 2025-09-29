@@ -12,7 +12,7 @@ from routers.application import auth
 from routers.schema import GetApplicationResponse
 
 app = FastAPI()
-app.include_router(router)
+app.include_router(prefix="/application", router=router)
 client = TestClient(app)
 
 
@@ -68,7 +68,7 @@ class TestGetApplication:
         sample_user,
         sample_application,
     ):
-        response = client.get("", params={"form_key": "test_form"})
+        response = client.get("application", params={"form_key": "test_form"})
 
         assert response.status_code == 200
         data = GetApplicationResponse(**response.json())
@@ -78,7 +78,7 @@ class TestGetApplication:
 
     # TODO: make these tests actually test something
     def test_get_application_user_not_found(self, setup_dependency_overrides):
-        response = client.get("", params={"form_key": "test_form"})
+        response = client.get("application", params={"form_key": "test_form"})
 
         assert response.status_code == 404
 
@@ -87,7 +87,7 @@ class TestGetApplication:
         setup_dependency_overrides,
         sample_user,
     ):
-        response = client.get("", params={"form_key": "test_form"})
+        response = client.get("application", params={"form_key": "test_form"})
 
         assert response.status_code == 404
 
