@@ -9,6 +9,7 @@ on:
       - "models/**"
       - "pyproject.toml"
       - "poetry.lock"
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-2
