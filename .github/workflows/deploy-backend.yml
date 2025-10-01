@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "portal-backend-python/**"
+      - "models/**"
+      - "pyproject.toml"
+      - "poetry.lock"
 
 env:
   AWS_REGION: us-east-2
