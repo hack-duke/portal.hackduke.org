@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - "postgres/docker-compose.yml"
+  workflow_dispatch:
 
 jobs:
   deploy:
