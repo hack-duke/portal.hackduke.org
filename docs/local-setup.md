@@ -40,8 +40,7 @@ make backend
 Or manually:
 
 ```bash
-cd portal-backend-python
-PYTHONPATH=/workspaces/portal.hackduke.org uvicorn server:app --reload
+cd portal-backend-python && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run uvicorn server:app --reload
 ```
 
 The backend API will be available at `http://localhost:8000`
@@ -87,7 +86,8 @@ make test
 Or manually:
 
 ```bash
-pytest
+poetry install # Run once unless dependencies change
+poetry run pytest
 ```
 
 ## Troubleshooting
