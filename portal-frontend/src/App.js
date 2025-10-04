@@ -19,7 +19,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/your-new-page" element={<YourNewPage />} />
+        <Route path="/Shaine" element={<YourNewPage />} />
         <Route path="/" element={<LoginPage />} />
         <Route
           path="/application"
