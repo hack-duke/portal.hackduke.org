@@ -5,8 +5,10 @@ import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ApplicationPage from "./pages/ApplicationPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
+import KellyPage from "./pages/KellyPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
+import { Navbar } from "./components/Navbar";
 import NotFound from "./components/404page";
 
 function App() {
@@ -17,6 +19,7 @@ function App() {
 
   return (
     <Router>
+      <Navbar />
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route
@@ -33,6 +36,13 @@ function App() {
             <ProtectedRoute>
               <ApplicationStatusPage />
             </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/kelly"
+          element={
+              <KellyPage />
           }
         />
 
