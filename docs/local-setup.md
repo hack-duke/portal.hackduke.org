@@ -2,21 +2,20 @@
 
 This guide walks you through setting up the HackDuke Portal on your local machine for development.
 
-## Prerequisites
-
-- Docker
-- VS Code or Cursor with the Dev Containers extension
-- Node.js and npm (for running frontend outside container)
-
 ## 1. Development Environment Setup
 
 This project uses Dev Containers for a consistent development environment. Follow the [Development Environment guide](./devcontainer.md) to set up your container.
 
 ## 2. Environment Variables
 
-You will need a `.env` file in the project root for the application to run.
+You will need two separate `.env` files for the application to run:
 
-> **Important:** Request the `.env` file from a team member. This file contains sensitive configuration including Auth0 credentials, AWS credentials, and database connection details.
+1. **Backend `.env`** - Place in the `backend/` folder
+2. **Frontend `.env`** - Place in the `frontend/` folder
+
+> **Important:** Request both `.env` files from a team member. These files contain sensitive configuration including Auth0 credentials, AWS credentials, and database connection details.
+
+> **Note:** Verify that frontend `.env` has `BACKEND_URL=localhost:3000` and backend `.env` has `FRONTEND_URL=localhost:8000` for local development.
 
 ## 3. Database Setup
 
@@ -24,7 +23,7 @@ For accessing the production/staging database:
 
 1. Install and configure Tailscale - see [Networking guide](./networking.md#installing-tailscale)
 2. Get database credentials from a team member
-3. Update your `.env` file with the remote `DB_HOST` IP address
+3. Verify the backend `.env` file (in `backend/` folder) has the correct `DB_HOST` IP address
 4. Verify connection using the [PostgreSQL guide](./postgres.md)
 
 ## 4. Running the Application
@@ -37,14 +36,15 @@ From the project root:
 make backend
 ```
 
-Or manually:
+The backend API will be available at `http://localhost:8000`
+
+You can test if the backend is successfully up with this command
 
 ```bash
-cd portal-backend-python
-PYTHONPATH=/workspaces/portal.hackduke.org uvicorn server:app --reload
+curl http://localhost:8000/health
 ```
 
-The backend API will be available at `http://localhost:8000`
+If you get : "{"message":"OK"}" then your backend is up and running.
 
 ### Frontend
 
@@ -54,15 +54,7 @@ From the project root:
 make frontend
 ```
 
-Or manually:
-
-```bash
-cd portal-frontend
-npm install  # first time only
-npm start
-```
-
-The frontend will be available at `http://localhost:3000`
+The frontend will be available at `http://localhost:3000`. You can go to `http://localhost:3000` in your browser and be able to see the local instance of the website
 
 ## 5. Verify Setup
 
@@ -84,11 +76,7 @@ The frontend will be available at `http://localhost:3000`
 make test
 ```
 
-Or manually:
-
-```bash
-pytest
-```
+> **Note:** Tests run automatically as a GitHub Action on every branch and must pass before merging a PR into main.
 
 ## Troubleshooting
 
