@@ -56,21 +56,7 @@ make frontend
 
 The frontend will be available at `http://localhost:3000`. You can go to `http://localhost:3000` in your browser and be able to see the local instance of the website
 
-## 5. Verify Setup
-
-1. **Check backend health:**
-
-   ```bash
-   curl http://localhost:8000/health
-   ```
-
-   Should return: `{"message": "OK"}`
-
-2. **Check frontend:** Navigate to `http://localhost:3000` in your browser
-
-3. **Test authentication:** See the [Auth guide](./auth.md#testing-authenticated-endpoints) for testing authenticated endpoints
-
-## 6. Running Tests
+## 5. Running Tests
 
 ```bash
 make test
