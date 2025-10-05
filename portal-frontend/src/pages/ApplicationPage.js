@@ -115,7 +115,7 @@ const ApplicationPage = () => {
       <WhiteBackground />
       {loading && <FullPageLoadingSpinner />}
       <Modal isOpen={isModalOpen} onClose={closeModal}>
-        <ModalHeader>Application Submission Error</ModalHeader>
+        <ModalHeader>Application Error</ModalHeader>
         <p>{error}</p>
         <p>
           If this error continues to occur, please reach out to{" "}
