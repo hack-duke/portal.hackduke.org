@@ -202,14 +202,39 @@ function YourNewPage() {
   return (
     <div className="new-page-container">
       <div className="new-page-content">
-        <h1>Your New Page</h1>
-        <p>Welcome to your new page! This is a basic React component.</p>       
+        <h1>hi guys im shaine?</h1>
         <div className="info-section">
-          <h2>About This Page</h2>
+          <h2>about me</h2>
           <p>
-            This page was created with minimal imports and is ready to be
-            customized.
+            WHERE IM FROM: i was born in beijing, china but i moved to ithaca,
+            ny when i was 3<br></br>
+            <br></br>
+            HOBBIES: listening to music, swimming, skiing, rock climbing,
+            pickle, dilly dallying, frolicking around
           </p>
+        </div>
+      </div>
+      <div className="new-page-content">
+        <div className="photo-grid">
+          <figure>
+            <img src="/images/shaineborgor.jpeg" alt="" />
+            <figcaption>here's me eating a borgor</figcaption>
+          </figure>
+
+          <figure>
+            <img src="/images/shainethinkingmonkey.jpeg" alt="" />
+            <figcaption>thinking monkey sticker</figcaption>
+          </figure>
+
+          <figure>
+            <img src="/images/takenoutbyhotpot.jpeg" alt="" />
+            <figcaption>when hotpot beat me to a pulp</figcaption>
+          </figure>
+
+          <figure>
+            <img src="/images/takenoutbysushi.jpeg" alt="" />
+            <figcaption>when ayce sushi beat me to a pulp</figcaption>
+          </figure>
         </div>
       </div>
     </div>

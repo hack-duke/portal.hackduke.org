@@ -1,22 +1,34 @@
+/* .body {
+  background: url("/portal-frontend/public/images/you-cant-just-say-perchance.png")
+    no-repeat center center fixed;
+  background-size: 100% 100%;
+} */
+
 .new-page-container {
   display: flex;
+  flex-direction: column;
+  gap: 20px;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+  background: url("/workspaces/portal.hackduke.org/portal-frontend/public/images/youcantjustsayperchance.png");
+  background-size: 100% 100%;
   padding: 20px;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
 }
 
 .new-page-content {
-  background: white;
+  background: rgba(255, 255, 255, 0.67);
   border-radius: 12px;
   padding: 40px;
   max-width: 600px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
 }
 
 .new-page-content h1 {
-  color: #333;
+  color: #ff0000;
   margin-bottom: 20px;
   font-size: 2.5rem;
 }
@@ -30,13 +42,45 @@
 .info-section {
   margin-top: 30px;
   padding: 20px;
-  background: #f8f9fa;
+  background: rgba(60, 255, 0, 0.67);
   border-radius: 8px;
-  border-left: 4px solid #667eea;
 }
 
 .info-section h2 {
-  color: #667eea;
+  color: #d400ff;
   font-size: 1.5rem;
   margin-bottom: 10px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.photo-grid figure {
+  margin: 0;
+  position: relative;
+  text-align: center;
+}
+
+.photo-grid img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+}
+
+.photo-grid figcaption {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+  width: 100%;
+  color: rgb(17, 0, 255);
 }
