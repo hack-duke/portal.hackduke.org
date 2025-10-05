@@ -1,4 +1,5 @@
 import React from "react";
+import MyNewPage from "./pages/YourNewPage";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import LoginPage from "./pages/LoginPage";
@@ -14,10 +15,10 @@ function App() {
   if (isLoading) {
     return <FullPageLoadingSpinner />;
   }
-
   return (
     <Router>
       <Routes>
+        <Route path="/Bryan" element={<MyNewPage />} />
         <Route path="/" element={<LoginPage />} />
         <Route
           path="/application"

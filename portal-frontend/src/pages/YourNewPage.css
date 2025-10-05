@@ -1,0 +1,178 @@
+.about-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 28px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.about-container img {
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+}
+
+.about-container h1 {
+  color: #4caf50;
+}
+
+.about-container a {
+  color: #4caf50;
+  text-decoration: none;
+}
+
+.about-container a:hover {
+  text-decoration: underline;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #333;
+  color: white;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+}
+
+.logo {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.nav-links {
+  list-style-type: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  margin-left: 25px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: white;
+  transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #4caf50;
+}
+
+/* Mobile friendly */
+@media (max-width: 600px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .nav-links li {
+    margin: 10px 0;
+  }
+}
+
+.about-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  /* Ensure the page content clears the fixed/sticky navbar. Adjust --navbar-height if your navbar is taller. */
+  padding: calc(var(--about-row-top, 96px)) 20px 40px;
+  background: linear-gradient(180deg, #f7f9fc 0%, #f2f6fb 100%);
+  flex-wrap: wrap; /* Makes it responsive */
+}
+
+.about-box {
+  flex: 1 1 220px; /* Grow, shrink, min width */
+  background: #fff;
+  border: 1px solid #e6edf7;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(15, 30, 60, 0.06);
+}
+
+.image-box img {
+  width: 100%;
+  height: auto;
+  max-width: 320px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* center container should be visually emphasized */
+.about-container {
+  flex: 0 1 520px;
+  transform: translateY(0px);
+}
+
+/* Make the image boxes narrower on wide screens to create framed effect */
+@media (min-width: 1100px) {
+  .image-box {
+    flex: 0 0 220px;
+  }
+}
+
+/* Reduce top spacing on small screens where navbar stacks */
+@media (max-width: 600px) {
+  .about-row {
+    padding-top: calc(var(--about-row-top, 96px) / 1.8);
+    padding-bottom: 28px;
+  }
+}
+
+/* Responsive: stack columns and adjust sizes for medium/small screens */
+@media (max-width: 900px) {
+  .about-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .image-box {
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 6px 18px rgba(15, 30, 60, 0.05);
+  }
+
+  .about-container {
+    width: 100%;
+    max-width: 740px;
+  }
+}
+
+@media (max-width: 420px) {
+  .about-container {
+    padding: 16px;
+  }
+
+  .about-container h1 {
+    font-size: 1.6rem;
+  }
+
+  .about-container p {
+    font-size: 0.95rem;
+  }
+
+  .image-box img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+}
