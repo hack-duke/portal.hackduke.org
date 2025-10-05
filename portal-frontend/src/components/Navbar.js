@@ -13,6 +13,9 @@ export const Navbar = () => {
         <Link to="/" className="nav-button">
           application
         </Link>
+        <Link to="/tristan" className="nav-button">
+          tristan
+        </Link>
         <a
           href="https://2025.hackduke.org/"
           className="nav-button"

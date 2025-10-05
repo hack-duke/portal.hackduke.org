@@ -8,6 +8,7 @@ import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
+import AboutMe from "./pages/TristanDarnell";
 
 function App() {
   const { isLoading } = useAuth0();
@@ -35,6 +36,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/tristan" element={<AboutMe />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
