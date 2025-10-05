@@ -8,6 +8,7 @@ import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
+import HumamPage from "./pages/HumamPage";
 
 // check
 
@@ -29,6 +30,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/humam" element={<HumamPage />} />
         <Route
           path="/status"
           element={
