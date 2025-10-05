@@ -10,10 +10,10 @@ shell:
 	@devcontainer exec --workspace-folder . zsh
 
 backend:
-	cd portal-backend-python && PYTHONPATH=/workspaces/portal.hackduke.org uvicorn server:app --reload
+	cd portal-backend-python && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run uvicorn server:app --reload
 
 frontend:
-	cd portal-frontend && npm start
+	cd portal-frontend && npm install && npm start
 
 test:
-	pytest
+	export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run pytest
