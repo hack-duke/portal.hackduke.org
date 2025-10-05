@@ -21,15 +21,12 @@ app.include_router(prefix="/application", router=router)
 client = TestClient(app)
 
 
-@pytest.fixture
-def setup_dependency_overrides(test_session):
-    def override_get_db():
-        yield test_session
-
+@pytest.fixture(autouse=True)
+def setup_dependency_overrides(
+    test_session,
+):  # override fastapi dependency injections (https://fastapi.tiangolo.com/advanced/testing-dependencies/)
     app.dependency_overrides[auth.verify] = lambda: {"sub": "auth0|test_user_123"}
-    app.dependency_overrides[get_db] = override_get_db
-    yield
-    app.dependency_overrides.clear()
+    app.dependency_overrides[get_db] = lambda: (yield test_session)
 
 
 @pytest.fixture
@@ -70,7 +67,6 @@ def sample_user(test_session):
 class TestApplication:
     def test_get_application_success(
         self,
-        setup_dependency_overrides,
         sample_user,
         sample_form,
         test_session,
@@ -95,7 +91,6 @@ class TestApplication:
     @mock_aws
     def test_submit_application_success(
         self,
-        setup_dependency_overrides,
         monkeypatch,
         sample_user,
         sample_form,
