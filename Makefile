@@ -16,4 +16,4 @@ frontend:
 	cd portal-frontend && npm start
 
 test:
-	pytest
+	poetry run pytest
