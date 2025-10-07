@@ -5,17 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from routers import application
 import sentry_sdk
+from config import Env
 
 dotenv.load_dotenv()
 
 frontend_url = os.getenv("FRONTEND_URL")
 sentry_dsn = os.getenv("SENTRY_DSN")
+env = os.getenv("ENV")
 
-sentry_sdk.init(
-    dsn=sentry_dsn,
-    send_default_pii=True,
-)
-
+if env == Env.PROD:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        send_default_pii=True,
+    )
 
 app = FastAPI()
 auth = VerifyToken()
