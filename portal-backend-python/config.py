@@ -1,3 +1,3 @@
 class Env:
-    PROD = "PROD"
-    DEV = "DEV"
+    PROD = "production"
+    DEV = "development"
