@@ -56,7 +56,10 @@ function WelcomeCard() {
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <p>⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this placeholder!</p>
+      <p>
+        ⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this
+        placeholder!
+      </p>
     </div>
   );
 }
@@ -113,11 +116,21 @@ function Counter() {
 //
 // Write your component below:
 
-function ProductCard(/* YOUR CODE HERE */) {
-  // TODO: Implement this component
+function ProductCard({ name, price, inStock, image }) {
+  const formattedPrice = `$${Number(price).toFixed(2)}`;
+
   return (
     <div className="product-card">
-      <p>TODO: Implement ProductCard</p>
+      <img src={image} alt={name} className="product-image" />
+      <h3 className="product-name">{name}</h3>
+      <p className="product-price">{formattedPrice}</p>
+      <button
+        className="product-button"
+        onClick={() => inStock && console.log(`Added ${name} to cart`)}
+        disabled={!inStock}
+      >
+        {inStock ? "Add to Cart" : "Out of Stock"}
+      </button>
     </div>
   );
 }
