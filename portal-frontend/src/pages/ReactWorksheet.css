@@ -454,20 +454,33 @@
 /* TODO: Add styles for the hamburger menu button */
 .menu-toggle {
   /* Students need to add styles here to make the hamburger button work */
-  display: none; /* Placeholder - students should modify this */
+  display: block; /* Placeholder - students should modify this */
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 /* TODO: Fix the nav-links to be responsive */
 .nav-links {
-  display: flex;
-  gap: var(--space-lg);
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-md);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-200);
+  /* list-style: none; */
+  padding: var(--space-md);
+  border-radius: var(--border-radius-md);
+  /* margin: 0; */
 }
 
 .nav-links.open {
   /* Students need to add styles here for when menu is open on mobile */
+  display: flex;
 }
 
 .nav-links li {
@@ -487,6 +500,20 @@
 
 /* TODO: Add media query for desktop (>= 768px) */
 /* Students add this */
+@media (min-width: 768px) {
+  .menu-toggle {
+    display: none;
+  }
+
+  .nav-links {
+    display: flex;
+    flex-direction: row;
+    position: static;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+}
 
 /* ==================== EXERCISE 8: Responsive Button ==================== */
 /* TODO: Fix this button to be responsive! */
@@ -502,17 +529,38 @@
 /* TODO: Students need to fix this! */
 .responsive-btn {
   /* Current (BAD) styles - students should fix these */
-  padding: 5px 10px;
-  font-size: 10px;
+  /* padding: 5px 10px; */
+  /* font-size: 10px; */
   background: var(--primary);
   color: white;
   border: none;
   border-radius: var(--border-radius-sm);
   cursor: pointer;
   /* TODO: Add proper touch target size (min-height: 44px) */
+  min-height: 44px;
   /* TODO: Add better padding */
+  padding: 0.75rem 1.5rem;
   /* TODO: Add responsive font size */
+  font-size: 1rem;
   /* TODO: Add hover effects */
+  transition: background-color 0.2s, trasnform 0.1s;
+}
+
+.responsive-btn:hover {
+  background-color: var(--primary-dark);
+  transform: scale(1.03);
+}
+
+.responsive-btn:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .responsive-btn {
+    font-size: 0.9rem;
+    padding: 0.65rem 1.25rem;
+  }
 }
 
 /* ==================== EXERCISE 9: Responsive Grid ==================== */
@@ -533,6 +581,7 @@
   /* Tablet (>= 640px): 2 columns */
   /* Desktop (>= 1024px): 3 columns */
   gap: var(--space-md);
+  grid-template-columns: 1fr;
 }
 
 .card-grid-item {
@@ -554,6 +603,17 @@
 }
 
 /* TODO: Add media queries here */
+@media (min-width: 640px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 
 /* ==================== EXERCISE 10: Todo List ==================== */
 .todo-exercise {

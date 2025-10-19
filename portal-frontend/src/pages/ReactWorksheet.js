@@ -37,38 +37,38 @@ import "./ReactWorksheet.css";
 //
 // After fixing all 4 errors, save the file and the website should render!
 
-/* UNCOMMENT THIS CODE AND FIX THE 4 ERRORS:
+/* UNCOMMENT THIS CODE AND FIX THE 4 ERRORS: */
 
-function WelcomeCard() {
-  return (
-    <div class="welcome-card">
-      <h2>Welcome to React!
-      <p>This is your first exercise.</p>
-      <button onclick={() => alert('Hello')}>Click Me</button>
-      <img src="https://via.placeholder.com/150" alt="Placeholder">
-    </div>
-  );
-}
-
-*/
-
-// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <p>⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this placeholder!</p>
+      <h2>Welcome to React!</h2>
+      <p>This is your first exercise.</p>
+      <button onClick={() => alert('Hello')}>Click Me</button>
+      <img src="https://via.placeholder.com/150" alt="Placeholder"/>
     </div>
   );
 }
+
+
+
+// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
+// function WelcomeCard() {
+//   return (
+//     <div className="welcome-card">
+//       <p>⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this placeholder!</p>
+//     </div>
+//   );
+// }
 
 //==================== EXERCISE 2: Add Props ====================
 //</h2> TODO: This component should accept 'title' and 'author' props and display them
 // Currently it shows hardcoded values - make it use props instead!
-function BookCard() {
+function BookCard(props) {
   return (
     <div className="book-card">
-      <h3>Hardcoded Title</h3>
-      <p className="author">Hardcoded Author</p>
+      <h3>{props.title}</h3>
+      <p className="author">{props.author}</p>
       <button>Read More</button>
     </div>
   );
@@ -89,9 +89,9 @@ function Counter() {
       <div className="counter-buttons">
         <button onClick={() => setCount(count + 1)}>+</button>
         {/* TODO: Fix the decrement button */}
-        <button onClick={() => setCount(count)}>-</button>
+        <button onClick={() => setCount(count > 0 ? count - 1 : 0)}>-</button>
         {/* TODO: Fix the reset button */}
-        <button>Reset</button>
+        <button onClick={() => setCount(0)}>Reset</button>
       </div>
     </div>
   );
@@ -113,11 +113,14 @@ function Counter() {
 //
 // Write your component below:
 
-function ProductCard(/* YOUR CODE HERE */) {
+function ProductCard(name, price, inStock, image) {
   // TODO: Implement this component
   return (
     <div className="product-card">
-      <p>TODO: Implement ProductCard</p>
+      <img src="{image}"/>
+      <h3>{name}</h3>
+      <p>${price.toFixed(2)}</p>
+      <button disabled={!inStock}> {inStock ? "Add to Cart" : "Out of Stock"} </button>
     </div>
   );
 }
@@ -130,12 +133,14 @@ function ProductCard(/* YOUR CODE HERE */) {
 // - When visible, show a div with some text content
 function ToggleContent() {
   // TODO: Add state here
+  const [isVisible, setIsVisible] = useState(false);
 
   return (
     <div className="toggle-exercise">
       <h3>Product Information</h3>
-      {/* TODO: Add toggle button */}
-      {/* TODO: Conditionally render content based on state */}
+      
+      {<button onClick={() => setIsVisible(!isVisible)}> {isVisible ? "Hide Details" : "Show Details"} </button>}
+      {isVisible && (<p>This is a high-quality product.</p>)}
     </div>
   );
 }
@@ -149,18 +154,22 @@ function ToggleContent() {
 // - Clear the input when form is submitted
 function GreetingForm() {
   // TODO: Add state for the name
-
+  const [name, setName] = useState("");
+  const [submittedName, setSubmittedName] = useState("");
   // TODO: Add handleSubmit function
-
+  function handSubmit(x) {
+    x.preventDefault();
+    setSubmittedNmae(name);
+    setName("");
+  }
   return (
     <div className="form-exercise">
       <h3>Enter Your Name</h3>
-      <form>
-        {/* TODO: Make this a controlled input */}
-        <input type="text" placeholder="Your name..." />
+      <form onSubmit={handleSubmit}>
+        {<input type="text" placeholder="Your name..." value={name} onChange={(x) => setName(x.target.value)}/>}
         <button type="submit">Submit</button>
       </form>
-      {/* TODO: Display greeting if name is entered */}
+      {submittedName && <p>{submittedName}</p>}
     </div>
   );
 }
@@ -176,15 +185,16 @@ function GreetingForm() {
 // - On mobile, links should show vertically when menu is open
 function ResponsiveNavbar() {
   // TODO: Add state to track if menu is open
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <nav className="worksheet-navbar">
       <div className="nav-brand">MyApp</div>
 
       {/* TODO: Add hamburger menu button */}
-
+      <button onClick={() => setMenuOpen(!menuOpen)}>0</button>
       {/* TODO: Add className to conditionally show 'open' state */}
-      <ul className="nav-links">
+      <ul className={`nav-links ${menuOpen ? "open" : ""}`}>
         <li>
           <a href="#home">Home</a>
         </li>
@@ -271,6 +281,12 @@ function TodoList() {
     <div className="todo-exercise">
       <h3>Todo List</h3>
       <ul className="todo-list">
+        {todos.map((todo) => (
+          <li key={todo.id} className={todo.completed ? "completed" : ""}>
+            <input type="checkbox" checked={todo.completed} readOnly/>
+            <span>{todo.text}</span>
+          </li>
+        ))}
         {/* TODO: Use .map() to render each todo with proper keys */}
         {/* Show a checkbox and the text for each todo */}
         {/* Bonus: apply 'completed' class if todo.completed is true */}
@@ -316,9 +332,9 @@ function ReactWorksheet() {
           </div>
           <div className="book-grid">
             {/* TODO: Pass props to BookCard */}
-            <BookCard />
-            <BookCard />
-            <BookCard />
+            <BookCard title="Harry Potter and the Sorcerer's Stone" author="J.K. Rowling"/>
+            <BookCard title="Normal People" author="Sally Rooney"/>
+            <BookCard title="Call Me by Your Name" author="André Aciman"/>
           </div>
         </section>
 
