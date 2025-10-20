@@ -42,15 +42,13 @@ import "./ReactWorksheet.css";
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <h2>Welcome to React!</h2>
+      <h2>Welcome to Reacts!</h2>
       <p>This is your first exercise.</p>
-      <button onClick={() => alert('Hello')}>Click Me</button>
-      <img src="https://via.placeholder.com/150" alt="Placeholder"/>
+      <button onClick={() => alert("Hello")}>Click Me</button>
+      {/* <img src="https://via.placeholder.com/150" alt="Placeholder" /> */}
     </div>
   );
 }
-
-
 
 // TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
 // function WelcomeCard() {
@@ -113,14 +111,17 @@ function Counter() {
 //
 // Write your component below:
 
-function ProductCard(name, price, inStock, image) {
+function ProductCard(props) {
   // TODO: Implement this component
   return (
     <div className="product-card">
-      <img src="{image}"/>
-      <h3>{name}</h3>
-      <p>${price.toFixed(2)}</p>
-      <button disabled={!inStock}> {inStock ? "Add to Cart" : "Out of Stock"} </button>
+      <img src={props.image} alt="" />
+      <h3>{props.name}</h3>
+      <p>${Number(props.price).toFixed(2)}</p>
+      <button disabled={!props.inStock}>
+        {" "}
+        {props.inStock ? "Add to Cart" : "Out of Stock"}{" "}
+      </button>
     </div>
   );
 }
@@ -138,9 +139,14 @@ function ToggleContent() {
   return (
     <div className="toggle-exercise">
       <h3>Product Information</h3>
-      
-      {<button onClick={() => setIsVisible(!isVisible)}> {isVisible ? "Hide Details" : "Show Details"} </button>}
-      {isVisible && (<p>This is a high-quality product.</p>)}
+
+      {
+        <button onClick={() => setIsVisible(!isVisible)}>
+          {" "}
+          {isVisible ? "Hide Details" : "Show Details"}{" "}
+        </button>
+      }
+      {isVisible && <p>This is a high-quality product.</p>}
     </div>
   );
 }
@@ -157,16 +163,23 @@ function GreetingForm() {
   const [name, setName] = useState("");
   const [submittedName, setSubmittedName] = useState("");
   // TODO: Add handleSubmit function
-  function handSubmit(x) {
+  function handleSubmit(x) {
     x.preventDefault();
-    setSubmittedNmae(name);
+    setSubmittedName(name);
     setName("");
   }
   return (
     <div className="form-exercise">
       <h3>Enter Your Name</h3>
       <form onSubmit={handleSubmit}>
-        {<input type="text" placeholder="Your name..." value={name} onChange={(x) => setName(x.target.value)}/>}
+        {
+          <input
+            type="text"
+            placeholder="Your name..."
+            value={name}
+            onChange={(x) => setName(x.target.value)}
+          />
+        }
         <button type="submit">Submit</button>
       </form>
       {submittedName && <p>{submittedName}</p>}
@@ -283,7 +296,7 @@ function TodoList() {
       <ul className="todo-list">
         {todos.map((todo) => (
           <li key={todo.id} className={todo.completed ? "completed" : ""}>
-            <input type="checkbox" checked={todo.completed} readOnly/>
+            <input type="checkbox" checked={todo.completed} readOnly />
             <span>{todo.text}</span>
           </li>
         ))}
@@ -332,9 +345,12 @@ function ReactWorksheet() {
           </div>
           <div className="book-grid">
             {/* TODO: Pass props to BookCard */}
-            <BookCard title="Harry Potter and the Sorcerer's Stone" author="J.K. Rowling"/>
-            <BookCard title="Normal People" author="Sally Rooney"/>
-            <BookCard title="Call Me by Your Name" author="André Aciman"/>
+            <BookCard
+              title="Harry Potter and the Sorcerer's Stone"
+              author="J.K. Rowling"
+            />
+            <BookCard title="Normal People" author="Sally Rooney" />
+            <BookCard title="Call Me by Your Name" author="André Aciman" />
           </div>
         </section>
 
