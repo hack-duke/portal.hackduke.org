@@ -638,11 +638,23 @@
 /* TODO: Students need to fix this grid! */
 .card-grid {
   display: grid;
-  /* TODO: Add responsive grid-template-columns */
   /* Mobile (default): 1 column */
-  /* Tablet (>= 640px): 2 columns */
-  /* Desktop (>= 1024px): 3 columns */
+  grid-template-columns: 1fr;
   gap: var(--space-md);
+}
+
+/* Tablet: 2 columns (>= 640px) */
+@media (min-width: 640px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop: 3 columns (>= 1024px) */
+@media (min-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .card-grid-item {

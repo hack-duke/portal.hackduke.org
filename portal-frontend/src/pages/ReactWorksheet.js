@@ -293,8 +293,12 @@ function CardGrid() {
     <div className="grid-exercise">
       <h3>Responsive Grid Exercise</h3>
       <div className="card-grid">
-        {/* TODO: Use .map() to render each card with a unique key */}
-        {/* Each card should show the title and text */}
+        {cards.map((card) => (
+          <div className="card-grid-item" key={card.id}>
+            <h4>{card.title}</h4>
+            <p>{card.text}</p>
+          </div>
+        ))}
       </div>
       <p className="hint">
         Fix the .card-grid CSS to be responsive, and use .map() to render the
@@ -311,20 +315,36 @@ function CardGrid() {
 // - Each item needs a unique key prop
 // - Show the todo text and a checkbox
 function TodoList() {
-  const todos = [
+  const [todos, setTodos] = useState([
     { id: 1, text: "Learn React components", completed: false },
     { id: 2, text: "Understand JSX", completed: true },
     { id: 3, text: "Master useState", completed: false },
     { id: 4, text: "Build responsive layouts", completed: false },
-  ];
+  ]);
+
+  const toggle = (id) => {
+    // update state immutably
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
+  };
 
   return (
     <div className="todo-exercise">
       <h3>Todo List</h3>
       <ul className="todo-list">
-        {/* TODO: Use .map() to render each todo with proper keys */}
-        {/* Show a checkbox and the text for each todo */}
-        {/* Bonus: apply 'completed' class if todo.completed is true */}
+        {todos.map((todo) => (
+          <li key={todo.id} className={todo.completed ? "completed" : ""}>
+            <label>
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => toggle(todo.id)}
+              />
+              <span>{todo.text}</span>
+            </label>
+          </li>
+        ))}
       </ul>
     </div>
   );
