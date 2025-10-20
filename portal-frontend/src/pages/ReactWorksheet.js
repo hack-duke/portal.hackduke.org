@@ -37,41 +37,37 @@ import "./ReactWorksheet.css";
 //
 // After fixing all 4 errors, save the file and the website should render!
 
-/* UNCOMMENT THIS CODE AND FIX THE 4 ERRORS:
-
-function WelcomeCard() {
-  return (
-    <div class="welcome-card">
-      <h2>Welcome to React!
-      <p>This is your first exercise.</p>
-      <button onclick={() => alert('Hello')}>Click Me</button>
-      <img src="https://via.placeholder.com/150" alt="Placeholder">
-    </div>
-  );
-}
-
-*/
-
-// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <p>
-        ⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this
-        placeholder!
-      </p>
+      <h2>Welcome to React! </h2>
+      <p>This is your first exercise.</p>
+      <button onClick={() => alert("Hello")}>Click Me</button>
+      <img src="https://via.placeholder.com/150" alt="Placeholder"></img>
     </div>
   );
 }
+
+// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
+// function WelcomeCard() {
+//   return (
+//     <div className="welcome-card">
+//       <p>
+//         ⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this
+//         placeholder!
+//       </p>
+//     </div>
+//   );
+// }
 
 //==================== EXERCISE 2: Add Props ====================
 //</h2> TODO: This component should accept 'title' and 'author' props and display them
 // Currently it shows hardcoded values - make it use props instead!
-function BookCard() {
+function BookCard(props) {
   return (
     <div className="book-card">
-      <h3>Hardcoded Title</h3>
-      <p className="author">Hardcoded Author</p>
+      <h3>{props.title}</h3>
+      <p className="author">{props.author}</p>
       <button>Read More</button>
     </div>
   );
@@ -92,9 +88,9 @@ function Counter() {
       <div className="counter-buttons">
         <button onClick={() => setCount(count + 1)}>+</button>
         {/* TODO: Fix the decrement button */}
-        <button onClick={() => setCount(count)}>-</button>
+        <button onClick={() => setCount(count - 1)}>-</button>
         {/* TODO: Fix the reset button */}
-        <button>Reset</button>
+        <button onClick={() => setCount(0)}>Reset</button>
       </div>
     </div>
   );
@@ -142,11 +138,19 @@ function ProductCard({ name, price, inStock, image }) {
 // - Show a button that says "Show Details" when hidden, "Hide Details" when shown
 // - When visible, show a div with some text content
 function ToggleContent() {
-  // TODO: Add state here
+  const [visible, setVisible] = useState(false);
 
   return (
     <div className="toggle-exercise">
       <h3>Product Information</h3>
+      <button onClick={() => setVisible((v) => !v)}>
+        {visible ? "Hide Details" : "Show Details"}
+      </button>
+      {visible && (
+        <div className="details">
+          <p>Product Information Detailed</p>
+        </div>
+      )}
       {/* TODO: Add toggle button */}
       {/* TODO: Conditionally render content based on state */}
     </div>
@@ -161,19 +165,34 @@ function ToggleContent() {
 // - Show the entered name below the form
 // - Clear the input when form is submitted
 function GreetingForm() {
-  // TODO: Add state for the name
+  // state for the controlled input
+  const [name, setName] = useState("");
+  // state to hold the submitted name for display
+  const [submittedName, setSubmittedName] = useState("");
 
-  // TODO: Add handleSubmit function
+  // handle form submission: prevent page reload, store name, and clear input
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (name.trim() === "") return;
+    setSubmittedName(name.trim());
+    setName("");
+  };
 
   return (
     <div className="form-exercise">
       <h3>Enter Your Name</h3>
-      <form>
-        {/* TODO: Make this a controlled input */}
-        <input type="text" placeholder="Your name..." />
+      <form onSubmit={handleSubmit}>
+        {/* controlled input */}
+        <input
+          type="text"
+          value={name}
+          placeholder="Your name..."
+          onChange={(e) => setName(e.target.value)}
+        />
         <button type="submit">Submit</button>
       </form>
-      {/* TODO: Display greeting if name is entered */}
+      {/* display greeting if name was submitted */}
+      {submittedName && <p className="greeting">Hello, {submittedName}!</p>}
     </div>
   );
 }
@@ -188,27 +207,46 @@ function GreetingForm() {
 // - On desktop, links should show horizontally
 // - On mobile, links should show vertically when menu is open
 function ResponsiveNavbar() {
-  // TODO: Add state to track if menu is open
+  const [open, setOpen] = useState(false);
 
   return (
     <nav className="worksheet-navbar">
       <div className="nav-brand">MyApp</div>
 
-      {/* TODO: Add hamburger menu button */}
+      <button
+        className="hamburger"
+        aria-label="Toggle menu"
+        aria-expanded={open}
+        aria-controls="primary-navigation"
+        onClick={() => setOpen((o) => !o)}
+      >
+        0
+      </button>
 
-      {/* TODO: Add className to conditionally show 'open' state */}
-      <ul className="nav-links">
+      <ul
+        id="primary-navigation"
+        className={`nav-links ${open ? "open" : ""}`}
+        role="navigation"
+      >
         <li>
-          <a href="#home">Home</a>
+          <a href="#home" onClick={() => setOpen(false)}>
+            Home
+          </a>
         </li>
         <li>
-          <a href="#about">About</a>
+          <a href="#about" onClick={() => setOpen(false)}>
+            About
+          </a>
         </li>
         <li>
-          <a href="#services">Services</a>
+          <a href="#services" onClick={() => setOpen(false)}>
+            Services
+          </a>
         </li>
         <li>
-          <a href="#contact">Contact</a>
+          <a href="#contact" onClick={() => setOpen(false)}>
+            Contact
+          </a>
         </li>
       </ul>
     </nav>
@@ -329,9 +367,9 @@ function ReactWorksheet() {
           </div>
           <div className="book-grid">
             {/* TODO: Pass props to BookCard */}
-            <BookCard />
-            <BookCard />
-            <BookCard />
+            <BookCard title="title" author="author" />
+            <BookCard title="title" author="author" />
+            <BookCard title="title" author="author" />
           </div>
         </section>
 

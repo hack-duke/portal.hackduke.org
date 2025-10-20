@@ -190,7 +190,9 @@
   border-radius: var(--border-radius-md);
   padding: var(--space-lg);
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .book-card:hover {
@@ -253,7 +255,9 @@
   font-size: var(--font-size-lg);
   font-weight: 600;
   min-width: 60px;
-  transition: background 0.2s, transform 0.1s;
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
 
 .counter-buttons button:hover {
@@ -289,7 +293,9 @@
   border: 2px solid var(--gray-200);
   border-radius: var(--border-radius-lg);
   padding: var(--space-lg);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .product-card:hover {
@@ -452,9 +458,16 @@
 }
 
 /* TODO: Add styles for the hamburger menu button */
-.menu-toggle {
-  /* Students need to add styles here to make the hamburger button work */
-  display: none; /* Placeholder - students should modify this */
+/* Replaced placeholder .menu-toggle with .hamburger and added responsive rules */
+.hamburger {
+  display: none; /* hidden by default (desktop) */
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: var(--border-radius-sm);
+  color: var(--gray-700);
 }
 
 /* TODO: Fix the nav-links to be responsive */
@@ -464,12 +477,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  align-items: center;
 }
 
+/* state when open (desktop keeps same; mobile will override to show) */
 .nav-links.open {
-  /* Students need to add styles here for when menu is open on mobile */
+  /* mobile-specific styles applied in media query */
 }
 
+/* small shared adjustments for links */
 .nav-links li {
   padding: 0;
 }
@@ -479,14 +495,73 @@
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
 }
 
 .nav-links a:hover {
   color: var(--primary);
 }
 
-/* TODO: Add media query for desktop (>= 768px) */
-/* Students add this */
+/* Desktop: ensure horizontal layout and hide hamburger */
+@media (min-width: 768px) {
+  .hamburger {
+    display: none;
+  }
+
+  .nav-links {
+    display: flex;
+    flex-direction: row;
+    position: static;
+    width: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .nav-links.open {
+    /* no change needed on desktop */
+  }
+}
+
+/* Mobile: hide nav-links by default, show hamburger; when .open show vertical panel */
+@media (max-width: 767px) {
+  .hamburger {
+    display: block;
+  }
+
+  /* hide the nav by default on mobile */
+  .nav-links {
+    display: none;
+  }
+
+  /* when open, show as a vertical stacked menu */
+  .nav-links.open {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    position: absolute;
+    top: calc(100% + var(--space-sm));
+    left: 0;
+    right: 0;
+    background: white;
+    padding: var(--space-md);
+    border: 2px solid var(--gray-200);
+    border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+  }
+
+  .nav-links.open li + li {
+    border-top: 1px solid var(--gray-100);
+    padding-top: var(--space-sm);
+  }
+
+  .nav-links a {
+    padding: var(--space-sm) 0;
+    width: 100%;
+  }
+}
 
 /* ==================== EXERCISE 8: Responsive Button ==================== */
 /* TODO: Fix this button to be responsive! */
@@ -501,18 +576,53 @@
 
 /* TODO: Students need to fix this! */
 .responsive-btn {
-  /* Current (BAD) styles - students should fix these */
-  padding: 5px 10px;
-  font-size: 10px;
-  background: var(--primary);
-  color: white;
+  /* Minimum touch target */
+  min-height: 44px;
+  min-width: 44px;
+
+  /* Responsive padding and font-size */
+  padding: clamp(0.4rem, 1.5vw, 0.75rem) clamp(0.6rem, 2.5vw, 1rem);
+  font-size: clamp(14px, 2.2vw, 18px);
+
+  /* Center text and align for accessible tap targets */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+
+  /* Visual styles */
   border: none;
-  border-radius: var(--border-radius-sm);
+  border-radius: 8px;
+  background: var(--primary-color, #007bff);
+  color: #fff;
   cursor: pointer;
-  /* TODO: Add proper touch target size (min-height: 44px) */
-  /* TODO: Add better padding */
-  /* TODO: Add responsive font size */
-  /* TODO: Add hover effects */
+  text-align: center;
+
+  /* Mobile touch behavior */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  /* Small interaction polish */
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.responsive-btn:focus {
+  outline: 3px solid rgba(0, 123, 255, 0.2);
+  outline-offset: 2px;
+}
+
+.responsive-btn:active {
+  transform: translateY(1px);
+}
+
+/* Optional: slightly larger touch target on small screens */
+@media (max-width: 480px) {
+  .responsive-btn {
+    padding: 0.6rem 1rem;
+    font-size: 16px;
+  }
 }
 
 /* ==================== EXERCISE 9: Responsive Grid ==================== */
