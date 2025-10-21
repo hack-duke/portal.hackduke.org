@@ -205,7 +205,9 @@ function ResponsiveNavbar() {
       <div className="nav-brand">MyApp</div>
 
       {/* TODO: Add hamburger menu button */}
-      <button onClick={() => setMenuOpen(!menuOpen)}>0</button>
+      <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+        ☰
+      </button>
       {/* TODO: Add className to conditionally show 'open' state */}
       <ul className={`nav-links ${menuOpen ? "open" : ""}`}>
         <li>
@@ -266,12 +268,18 @@ function CardGrid() {
       <h3>Responsive Grid Exercise</h3>
       <div className="card-grid">
         {/* TODO: Use .map() to render each card with a unique key */}
+        {cards.map((card) => (
+          <div key={card.id} className="card-grid-item">
+            <h4>{card.title}</h4>
+            <p>{card.text}</p>
+          </div>
+        ))}
         {/* Each card should show the title and text */}
       </div>
-      <p className="hint">
+      {/* <p className="hint">
         Fix the .card-grid CSS to be responsive, and use .map() to render the
         cards!
-      </p>
+      </p> */}
     </div>
   );
 }
@@ -294,13 +302,13 @@ function TodoList() {
     <div className="todo-exercise">
       <h3>Todo List</h3>
       <ul className="todo-list">
+        {/* TODO: Use .map() to render each todo with proper keys */}
         {todos.map((todo) => (
           <li key={todo.id} className={todo.completed ? "completed" : ""}>
             <input type="checkbox" checked={todo.completed} readOnly />
             <span>{todo.text}</span>
           </li>
         ))}
-        {/* TODO: Use .map() to render each todo with proper keys */}
         {/* Show a checkbox and the text for each todo */}
         {/* Bonus: apply 'completed' class if todo.completed is true */}
       </ul>
