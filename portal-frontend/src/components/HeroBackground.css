@@ -79,6 +79,12 @@
   width: 600px;
 }
 
+@media (max-width: 600px) {
+  #hero-bg-blob {
+    display: none;
+  }
+}
+
 #hero-bg-plus {
   animation: spin 2.5s ease-in-out infinite reverse;
 }
