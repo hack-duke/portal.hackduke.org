@@ -190,7 +190,9 @@
   border-radius: var(--border-radius-md);
   padding: var(--space-lg);
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .book-card:hover {
@@ -253,7 +255,9 @@
   font-size: var(--font-size-lg);
   font-weight: 600;
   min-width: 60px;
-  transition: background 0.2s, transform 0.1s;
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
 
 .counter-buttons button:hover {
@@ -289,7 +293,9 @@
   border: 2px solid var(--gray-200);
   border-radius: var(--border-radius-lg);
   padding: var(--space-lg);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .product-card:hover {
@@ -454,24 +460,38 @@
 /* TODO: Add styles for the hamburger menu button */
 .menu-toggle {
   /* Students need to add styles here to make the hamburger button work */
-  display: none; /* Placeholder - students should modify this */
+  display: block;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: var(--space-sm);
+  color: var(--gray-700);
 }
 
-/* TODO: Fix the nav-links to be responsive */
+/* Nav links - vertical stack on mobile */
 .nav-links {
-  display: flex;
-  gap: var(--space-lg);
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  display: none; /* Hidden by default on mobile */
+  flex-direction: column; /* Stack vertically */
+  position: absolute; /* Float over content */
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius-md);
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
+  box-shadow: var(--shadow-lg);
 }
 
+/* Show nav when hamburger is clicked */
 .nav-links.open {
-  /* Students need to add styles here for when menu is open on mobile */
+  display: flex;
 }
 
 .nav-links li {
-  padding: 0;
+  padding: var(--space-sm) 0;
 }
 
 .nav-links a {
@@ -479,6 +499,8 @@
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
+  display: block;
+  padding: var(--space-sm);
 }
 
 .nav-links a:hover {
@@ -487,6 +509,26 @@
 
 /* TODO: Add media query for desktop (>= 768px) */
 /* Students add this */
+@media (min-width: 768px) {
+  .menu-toggle {
+    display: none; /* Hide hamburger on desktop */
+  }
+
+  .nav-links {
+    display: flex; /* Always show on desktop */
+    flex-direction: row; /* Horizontal layout */
+    position: static; /* Normal flow */
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    gap: var(--space-lg);
+  }
+
+  .nav-links li {
+    padding: 0;
+  }
+}
 
 /* ==================== EXERCISE 8: Responsive Button ==================== */
 /* TODO: Fix this button to be responsive! */
@@ -502,17 +544,20 @@
 /* TODO: Students need to fix this! */
 .responsive-btn {
   /* Current (BAD) styles - students should fix these */
-  padding: 5px 10px;
-  font-size: 10px;
+  max-width: 100%;
+  flex: 1;
   background: var(--primary);
   color: white;
   border: none;
   border-radius: var(--border-radius-sm);
   cursor: pointer;
-  /* TODO: Add proper touch target size (min-height: 44px) */
-  /* TODO: Add better padding */
-  /* TODO: Add responsive font size */
-  /* TODO: Add hover effects */
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  font-size: clamp(0.95rem, 2vw, 1.125);
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.05s;
 }
 
 /* ==================== EXERCISE 9: Responsive Grid ==================== */
@@ -528,10 +573,13 @@
 /* TODO: Students need to fix this grid! */
 .card-grid {
   display: grid;
-  /* TODO: Add responsive grid-template-columns */
-  /* Mobile (default): 1 column */
-  /* Tablet (>= 640px): 2 columns */
-  /* Desktop (>= 1024px): 3 columns */
+  grid-template-columns: 1fr;
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
   gap: var(--space-md);
 }
 

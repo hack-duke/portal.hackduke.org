@@ -37,26 +37,14 @@ import "./ReactWorksheet.css";
 //
 // After fixing all 4 errors, save the file and the website should render!
 
-/* UNCOMMENT THIS CODE AND FIX THE 4 ERRORS:
+//UNCOMMENT THIS CODE AND FIX THE 4 ERRORS:
 
-function WelcomeCard() {
-  return (
-    <div class="welcome-card">
-      <h2>Welcome to React!
-      <p>This is your first exercise.</p>
-      <button onclick={() => alert('Hello')}>Click Me</button>
-      <img src="https://via.placeholder.com/150" alt="Placeholder">
-    </div>
-  );
-}
-
-*/
-
-// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <p>⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this placeholder!</p>
+      <h2>Welcome</h2>
+      <button onClick={() => alert("Hello!")}>Say hi</button>
+      <img src="https://via.placeholder.com/300x180" alt="placeholder" />
     </div>
   );
 }
@@ -64,11 +52,11 @@ function WelcomeCard() {
 //==================== EXERCISE 2: Add Props ====================
 //</h2> TODO: This component should accept 'title' and 'author' props and display them
 // Currently it shows hardcoded values - make it use props instead!
-function BookCard() {
+function BookCard({ title, author }) {
   return (
     <div className="book-card">
-      <h3>Hardcoded Title</h3>
-      <p className="author">Hardcoded Author</p>
+      <h3>{title}</h3>
+      <p className="author">{author}</p>
       <button>Read More</button>
     </div>
   );
@@ -83,15 +71,23 @@ function BookCard() {
 function Counter() {
   const [count, setCount] = useState(0);
 
+  const inc = () => setCount((c) => c + 1);
+  const dec = () => setCount((c) => Math.max(0, c - 1));
+  const reset = () => setCount(0);
+
   return (
     <div className="counter-exercise">
       <h3>Counter: {count}</h3>
       <div className="counter-buttons">
-        <button onClick={() => setCount(count + 1)}>+</button>
-        {/* TODO: Fix the decrement button */}
-        <button onClick={() => setCount(count)}>-</button>
-        {/* TODO: Fix the reset button */}
-        <button>Reset</button>
+        <button onClick={inc} aria_label="Increment">
+          +
+        </button>
+        <button onClick={dec} aria_label="Decrement">
+          -
+        </button>
+        <button onClick={reset} aria-label="Reset">
+          Reset
+        </button>
       </div>
     </div>
   );
@@ -113,11 +109,16 @@ function Counter() {
 //
 // Write your component below:
 
-function ProductCard(/* YOUR CODE HERE */) {
-  // TODO: Implement this component
+function ProductCard({ name, price, inStock, image }) {
+  const formatted = `$${Number(price).toFixed(2)}`;
   return (
-    <div className="product-card">
-      <p>TODO: Implement ProductCard</p>
+    <div className={`product-card ${!inStock ? "out" : ""}`}>
+      <img className="product-image" src={image} alt={name} />
+      <h3>{name}</h3>
+      <p className="price">{formatted}</p>
+      <button disabled={!inStock}>
+        {inStock ? "Add to Cart" : "Out of Stock"}
+      </button>
     </div>
   );
 }
@@ -129,13 +130,21 @@ function ProductCard(/* YOUR CODE HERE */) {
 // - Show a button that says "Show Details" when hidden, "Hide Details" when shown
 // - When visible, show a div with some text content
 function ToggleContent() {
-  // TODO: Add state here
-
+  const [open, setOpen] = useState(false);
   return (
     <div className="toggle-exercise">
       <h3>Product Information</h3>
-      {/* TODO: Add toggle button */}
-      {/* TODO: Conditionally render content based on state */}
+      <button onClick={() => setOpen((o) => !o)}>
+        {open ? "Hide Details" : "Show Details"}
+      </button>
+      {open && (
+        <div className="details">
+          <p>
+            These headphones feature active noise cancellation, 30-hour battery
+            life, and quick charge.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -148,19 +157,28 @@ function ToggleContent() {
 // - Show the entered name below the form
 // - Clear the input when form is submitted
 function GreetingForm() {
-  // TODO: Add state for the name
+  const [name, setName] = useState("");
+  const [submittedName, setSubmittedName] = useState("");
 
-  // TODO: Add handleSubmit function
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSubmittedName(name.trim());
+    setName("");
+  };
 
   return (
     <div className="form-exercise">
       <h3>Enter Your Name</h3>
-      <form>
-        {/* TODO: Make this a controlled input */}
-        <input type="text" placeholder="Your name..." />
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Your name..."
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <button type="submit">Submit</button>
       </form>
-      {/* TODO: Display greeting if name is entered */}
+      {submittedName && <p className="greeting">Hello, {submittedName}!</p>}
     </div>
   );
 }
@@ -175,16 +193,21 @@ function GreetingForm() {
 // - On desktop, links should show horizontally
 // - On mobile, links should show vertically when menu is open
 function ResponsiveNavbar() {
-  // TODO: Add state to track if menu is open
-
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <nav className="worksheet-navbar">
       <div className="nav-brand">MyApp</div>
 
-      {/* TODO: Add hamburger menu button */}
+      <button
+        className="menu-toggle"
+        aria-label="Toggle menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((v) => !v)}
+      >
+        0
+      </button>
 
-      {/* TODO: Add className to conditionally show 'open' state */}
-      <ul className="nav-links">
+      <ul className={`nav-links ${isOpen ? "open" : ""}`}>
         <li>
           <a href="#home">Home</a>
         </li>
@@ -242,8 +265,12 @@ function CardGrid() {
     <div className="grid-exercise">
       <h3>Responsive Grid Exercise</h3>
       <div className="card-grid">
-        {/* TODO: Use .map() to render each card with a unique key */}
-        {/* Each card should show the title and text */}
+        {cards.map((c) => (
+          <article key={c.id} className="card">
+            <h4>{c.title}</h4>
+            <p>{c.text}</p>
+          </article>
+        ))}
       </div>
       <p className="hint">
         Fix the .card-grid CSS to be responsive, and use .map() to render the
@@ -271,9 +298,13 @@ function TodoList() {
     <div className="todo-exercise">
       <h3>Todo List</h3>
       <ul className="todo-list">
-        {/* TODO: Use .map() to render each todo with proper keys */}
-        {/* Show a checkbox and the text for each todo */}
-        {/* Bonus: apply 'completed' class if todo.completed is true */}
+        {todos.map((t) => (
+          <li key={t.id} className={t.completed ? "completed" : ""}>
+            <label>
+              <input type="checkbox" defaultChecked={t.completed} /> {t.text}
+            </label>
+          </li>
+        ))}
       </ul>
     </div>
   );

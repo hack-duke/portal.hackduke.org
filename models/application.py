@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy import Column, ForeignKey, String, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from models.base import Base
+from models.base import Base, TimestampMixin
 import enum
 from sqlalchemy import func
 
@@ -13,7 +13,7 @@ class ApplicationStatus(enum.Enum):
     CONFIRMED = "confirmed"
 
 
-class Application(Base):
+class Application(TimestampMixin, Base):
     __tablename__ = "application"
 
     id = Column(

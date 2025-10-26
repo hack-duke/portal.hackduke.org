@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy import Column, String, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from models.base import Base
+from models.base import Base, TimestampMixin
 from sqlalchemy import Enum
 import enum
 
@@ -14,7 +14,7 @@ class QuestionType(enum.Enum):
     FLOAT = "float"
 
 
-class Question(Base):
+class Question(TimestampMixin, Base):
     __tablename__ = "question"
 
     id = Column(

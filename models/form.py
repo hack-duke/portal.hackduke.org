@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String
-from models.base import Base
+from models.base import Base, TimestampMixin
 
 
-class Form(Base):
+class Form(TimestampMixin, Base):
     __tablename__ = "form"
 
     form_key = Column(String, primary_key=True)

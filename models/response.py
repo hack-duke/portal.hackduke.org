@@ -1,11 +1,11 @@
 from sqlalchemy import text
 from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
-from models.base import Base
+from models.base import Base, TimestampMixin
 from sqlalchemy import String
 
 
-class Response(Base):
+class Response(TimestampMixin, Base):
     __tablename__ = "response"
 
     id = Column(
