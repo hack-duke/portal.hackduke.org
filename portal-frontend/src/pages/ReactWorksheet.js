@@ -137,7 +137,7 @@ function ToggleContent() {
           </p>
         </div>
       )}
-      </div>
+    </div>
   );
 }
 
@@ -149,19 +149,27 @@ function ToggleContent() {
 // - Show the entered name below the form
 // - Clear the input when form is submitted
 function GreetingForm() {
-  // TODO: Add state for the name
+  const [name, setName] = useState("");
+  const [submittedName, setSubmittedName] = useState("");
 
-  // TODO: Add handleSubmit function
+  function handleSubmit(e) {
+    e.preventDefault();
+    setSubmittedName(name);
+    setName("");
+  }
 
   return (
     <div className="form-exercise">
       <h3>Enter Your Name</h3>
-      <form>
-        {/* TODO: Make this a controlled input */}
-        <input type="text" placeholder="Your name..." />
+      <form onSubmit={handleSubmit}>
+        <input type="text" placeholder="Your name..." value={name} onChange={(e) => setName(e.target.value)} />
         <button type="submit">Submit</button>
       </form>
-      {/* TODO: Display greeting if name is entered */}
+      {submittedName && (
+        <div className="greeting-display">
+          Hello, {submittedName}! 👋
+        </div>
+      )}
     </div>
   );
 }
@@ -176,16 +184,18 @@ function GreetingForm() {
 // - On desktop, links should show horizontally
 // - On mobile, links should show vertically when menu is open
 function ResponsiveNavbar() {
-  // TODO: Add state to track if menu is open
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <nav className="worksheet-navbar">
       <div className="nav-brand">MyApp</div>
 
-      {/* TODO: Add hamburger menu button */}
+      <button className="menu-toggle" onClick={() => setIsOpen(!isOpen)}>
+        0
+      </button>
 
       {/* TODO: Add className to conditionally show 'open' state */}
-      <ul className="nav-links">
+      <ul className={`nav-links ${isOpen ? "open" : ""}`}>
         <li>
           <a href="#home">Home</a>
         </li>

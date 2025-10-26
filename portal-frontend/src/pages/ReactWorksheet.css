@@ -457,6 +457,12 @@
   display: none; /* Placeholder - students should modify this */
 }
 
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+}
+
 /* TODO: Fix the nav-links to be responsive */
 .nav-links {
   display: flex;
