@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import LoginPage from "./pages/LoginPage";
 import ReactOverview from "./pages/ReactOverview";
 import ReactWorksheetSolution from "./pages/ReactWorksheetSolution";
+import ReactWorksheet from "./pages/ReactWorksheet";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ApplicationPage from "./pages/ApplicationPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
@@ -22,7 +23,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/react" element={<ReactOverview />} />
-        <Route path="/worksheet" element={<ReactWorksheetSolution />} />
+        <Route path="/worksheet" element={<ReactWorksheet />} />
 
         <Route
           path="/application"

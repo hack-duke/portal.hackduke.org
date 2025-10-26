@@ -37,38 +37,28 @@ import "./ReactWorksheet.css";
 //
 // After fixing all 4 errors, save the file and the website should render!
 
-/* UNCOMMENT THIS CODE AND FIX THE 4 ERRORS:
 
-function WelcomeCard() {
-  return (
-    <div class="welcome-card">
-      <h2>Welcome to React!
-      <p>This is your first exercise.</p>
-      <button onclick={() => alert('Hello')}>Click Me</button>
-      <img src="https://via.placeholder.com/150" alt="Placeholder">
-    </div>
-  );
-}
 
-*/
-
-// TODO: Once you fix the errors above, delete this placeholder and use your fixed version!
 function WelcomeCard() {
   return (
     <div className="welcome-card">
-      <p>⬆️ Uncomment the code above, fix the 4 syntax errors, then replace this placeholder!</p>
+      <h2>Welcome to React!</h2>
+      <p>This is your first exercise.</p>
+      <button onClick={() => alert('Hello')}>Click Me</button>
+      <img src="https://via.placeholder.com/150" alt="Placeholder" />
     </div>
   );
 }
+
 
 //==================== EXERCISE 2: Add Props ====================
 //</h2> TODO: This component should accept 'title' and 'author' props and display them
 // Currently it shows hardcoded values - make it use props instead!
-function BookCard() {
+function BookCard({ title, author }) {
   return (
     <div className="book-card">
-      <h3>Hardcoded Title</h3>
-      <p className="author">Hardcoded Author</p>
+      <h3>{title}</h3>
+      <p className="author">{author}</p>
       <button>Read More</button>
     </div>
   );
@@ -88,10 +78,8 @@ function Counter() {
       <h3>Counter: {count}</h3>
       <div className="counter-buttons">
         <button onClick={() => setCount(count + 1)}>+</button>
-        {/* TODO: Fix the decrement button */}
-        <button onClick={() => setCount(count)}>-</button>
-        {/* TODO: Fix the reset button */}
-        <button>Reset</button>
+        <button onClick={() => setCount(Math.max(0, count - 1))}>-</button>
+        <button onClick={() => setCount(0)}>Reset</button>
       </div>
     </div>
   );
@@ -113,11 +101,16 @@ function Counter() {
 //
 // Write your component below:
 
-function ProductCard(/* YOUR CODE HERE */) {
+function ProductCard({ name, price, inStock, image }) {
   // TODO: Implement this component
   return (
     <div className="product-card">
-      <p>TODO: Implement ProductCard</p>
+      <img src={image} alt="Placeholder" />
+      <h3>{name}</h3>
+      <h3>${price}</h3>
+      <button disabled={!inStock}>
+        {inStock ? "Add to Cart" : "Out of Stock"}
+      </button>
     </div>
   );
 }
@@ -129,14 +122,22 @@ function ProductCard(/* YOUR CODE HERE */) {
 // - Show a button that says "Show Details" when hidden, "Hide Details" when shown
 // - When visible, show a div with some text content
 function ToggleContent() {
-  // TODO: Add state here
+  const [visible, setVisibility] = useState(true);
 
   return (
     <div className="toggle-exercise">
       <h3>Product Information</h3>
-      {/* TODO: Add toggle button */}
-      {/* TODO: Conditionally render content based on state */}
-    </div>
+      <button onClick={() => setVisibility(!visible)}>
+        {visible ? "Hide Details" : "Show Details"}
+      </button>
+      {visible && (
+        <div>
+          <p>
+            What's up gangster
+          </p>
+        </div>
+      )}
+      </div>
   );
 }
 
