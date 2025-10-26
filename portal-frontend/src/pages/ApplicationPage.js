@@ -18,8 +18,6 @@ import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
 import PhoneQuestion from "../components/form/PhoneQuestion";
 
-import { modalClasses } from "@mui/material";
-
 const FORM_KEY = "2025-cfg-application";
 
 
@@ -32,6 +30,9 @@ const ApplicationPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  // RENAMED: was isOpen
+  const [isFormOpen, setIsFormOpen] = useState(null);
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -90,6 +91,30 @@ const ApplicationPage = () => {
   useEffect(() => {
     const checkIfSubmitted = async () => {
       try {
+        setLoading(true);
+
+        // First check if the form is open
+        const tokenForStatus = await getAccessTokenSilently();
+        const statusRes = await axios.get(
+          `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
+          {
+            headers: {
+              Authorization: `Bearer ${tokenForStatus}`,
+            },
+            params: {
+              form_key: FORM_KEY,
+            },
+          }
+        );
+
+        const open = Boolean(statusRes.data?.is_open);
+        setIsFormOpen(open);
+
+        if (!open) {
+          return;
+        }
+
+        // Existing behavior: if open, check if user already submitted
         const token = await getAccessTokenSilently();
         await axios.get(`${process.env.REACT_APP_BACKEND_URL}/application`, {
           headers: {
@@ -127,6 +152,7 @@ const ApplicationPage = () => {
           will help resolve your issue promptly.
         </p>
       </Modal>
+<<<<<<< HEAD
       {/* <div className="notice-container">
         <h1>Applications Closed.</h1>
         <p>
@@ -166,12 +192,62 @@ const ApplicationPage = () => {
               required
             />
             <PhoneQuestion
+=======
+
+      {/* SHOW when form is CLOSED */}
+      {isFormOpen === false && (
+        <div className="notice-container">
+          <h1>Applications Closed.</h1>
+          <p>
+            Thank you for your interest in HackDuke Code for Good. The
+            application window has now officially closed.{" "}
+          </p>
+          <p>
+            If you believe there was an error with your application, please
+            reach out to{" "}
+            <a href="mailto:hackers@hackduke.org">hackers@hackduke.org.</a>
+          </p>
+          <p>Stay tuned for future opportunities!</p>
+        </div>
+      )}
+
+      {/* SHOW when form is OPEN */}
+      {isFormOpen !== false && (
+        <div className="form-container">
+          <MultiPageForm onSubmit={onSubmit}>
+            <Page title="General Information">
+              <Question name="first_name" label="First Name" required />
+              <Question name="last_name" label="Last Name" required />
+              <Question name="pref_name" label="Preferred Name" />
+              <Question name="email" label="Email" required />
+              <Question name="age" type="number" label="Age" required />
+              <FileUploadQuestion
+                name="resume"
+                label="Upload Resume (PDF only)"
+                accept="application/pdf"
+                required
+              />
+            </Page>
+            <Page title="Education">
+              <Question name="country" label="Country of Residence" required />
+              <Question name="university" label="University Name" required />
+              <Question name="major" label="Major" required />
+              <Question
+                name="graduation_year"
+                label="Graduation Year"
+                type="number"
+                placeholder="20XX"
+                required
+              />
+              <Question
+>>>>>>> 64f0143 (call to API and render when open vs closed)
                 name="phone"
                 label="Phone Number"
                 type="tel"
                 placeholder="123-456-7890"
                 required
               />
+<<<<<<< HEAD
           </Page>
           <Page title="About You">
             <LongQuestion
@@ -239,6 +315,76 @@ const ApplicationPage = () => {
           </Page>
         </MultiPageForm>
       </div>
+=======
+            </Page>
+            <Page title="About You">
+              <LongQuestion
+                name="why_hackduke"
+                label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?"
+                rows={5}
+                required
+              />
+              <LongQuestion
+                name="why_track"
+                label="Which of our four tracks excites you the most? Why?"
+                rows={2}
+                required
+              />
+            </Page>
+            <Page title="Agreements">
+              <CheckQuestion name="community_agr" required>
+                I have read and agree to abide by the{" "}
+                <a href="https://dukecommunitystandard.students.duke.edu/">
+                  Duke Community Standard
+                </a>{" "}
+                during the event.
+              </CheckQuestion>
+              <CheckQuestion name="photo_agr" required>
+                I hereby grant permission for HackDuke and all official sponsors
+                to use my photograph and or video in marketing, promotional
+                materials, and publications, both online and in print, without
+                compensation.
+              </CheckQuestion>
+              <CheckQuestion name="waiver_agr" required>
+                I acknowledge and assume all risks associated with
+                participation, releasing the organizers from any liability for
+                injury, loss, or damage.
+              </CheckQuestion>
+            </Page>
+            <Page title="Agreements (MLH)">
+              <CheckQuestion name="mlh1" required>
+                I have read and agree to the{" "}
+                <a href="https://github.com/MLH/mlh-policies/blob/main/code-of-conduct.md">
+                  MLH Code of Conduct
+                </a>
+                .
+              </CheckQuestion>
+              <CheckQuestion name="mlh2" required>
+                I authorize you to share my application/registration information
+                with Major League Hacking for event administration, ranking, and
+                MLH administration in-line with the{" "}
+                <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">
+                  MLH Privacy Policy
+                </a>
+                . I further agree to the terms of both the{" "}
+                <a href="https://github.com/MLH/mlh-policies/blob/main/contest-terms.md">
+                  MLH Contest Terms and Conditions
+                </a>{" "}
+                and the{" "}
+                <a href="https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md">
+                  MLH Privacy Policy
+                </a>
+                .
+              </CheckQuestion>
+              <CheckQuestion name="mlh_email_permission">
+                I authorize MLH to send me occasional emails about relevant
+                events, career opportunities, and community announcements.
+              </CheckQuestion>
+            </Page>
+          </MultiPageForm>
+        </div>
+      )}
+>>>>>>> 64f0143 (call to API and render when open vs closed)
     </>
   );
 };
