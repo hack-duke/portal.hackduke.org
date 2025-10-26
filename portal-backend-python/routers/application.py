@@ -11,6 +11,7 @@ from models.user import User
 from .schema import (
     SubmitApplicationResponse,
     GetApplicationResponse,
+    FormStatusResponse
 )
 from utils.s3 import upload_file_to_s3
 import json
@@ -158,3 +159,19 @@ async def get_application(
         created_at=application.created_at,
         form_data=form_data,
     )
+
+@router.get("/form-status", response_model=FormStatusResponse)
+async def form_status(
+    form_key: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),  # keep auth consistent
+    db: Session = Depends(get_db),
+):
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    form = db.query(Form).filter(Form.form_key == form_key).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    return FormStatusResponse(form_key=form_key, is_open=bool(form.is_open))
