@@ -22,7 +22,7 @@ const FORM_KEY = "2025-cfg-application";
 const ApplicationPage = () => {
   const { getAccessTokenSilently } = useAuth0();
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,8 +135,9 @@ const ApplicationPage = () => {
         </p>
         <p>Stay tuned for future opportunities!</p>
       </div> */}
-      <div className="form-container">
-        <MultiPageForm onSubmit={onSubmit}>
+      {!loading && (
+        <div className="form-container">
+          <MultiPageForm onSubmit={onSubmit}>
           <Page title="General Information">
             <Question name="first_name" label="First Name" required />
             <Question name="last_name" label="Last Name" required />
@@ -235,6 +236,7 @@ const ApplicationPage = () => {
           </Page>
         </MultiPageForm>
       </div>
+      )}
     </>
   );
 };
