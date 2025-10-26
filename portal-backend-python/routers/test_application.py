@@ -31,7 +31,7 @@ def setup_dependency_overrides(
 
 @pytest.fixture
 def sample_form(test_session):
-    form = Form(form_key="test_form", year=2024)
+    form = Form(form_key="test_form", year=2025, is_open=True)
     test_session.add(form)
     test_session.flush()
 
