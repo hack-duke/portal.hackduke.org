@@ -19,3 +19,7 @@ class GetApplicationResponse(BaseModel):
     status: ApplicationStatus
     form_data: Dict[str, Any]
     created_at: datetime.datetime
+    
+class FormStatusResponse(BaseModel):
+    form_key: str
+    is_open: bool
