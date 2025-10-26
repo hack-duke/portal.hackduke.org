@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Security, Form as FastAPIForm, File, UploadFile
 from uuid import UUID
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
@@ -8,21 +8,45 @@ from models.application import Application, ApplicationStatus
 from models.response import Response
 from models.question import Question, QuestionType
 from models.user import User
+from models.form import Form as FormModel  # <-- ORM model alias
 from .schema import (
     SubmitApplicationResponse,
     GetApplicationResponse,
 )
 from utils.s3 import upload_file_to_s3
+from pydantic import BaseModel
 import json
 
 router = APIRouter()
 auth = VerifyToken()
 
 
+class FormStatusResponse(BaseModel):
+    form_key: str
+    is_open: bool
+
+
+@router.get("/form-status", response_model=FormStatusResponse)
+async def form_status(
+    form_key: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    return FormStatusResponse(form_key=form_key, is_open=bool(form.is_open))
+
+
 @router.post("/submit", response_model=SubmitApplicationResponse)
 async def submit_application(
-    form_key: str = Form(...),
-    form_data: str = Form(...),
+    form_key: str = FastAPIForm(...),   # <-- use FastAPIForm (not ORM model)
+    form_data: str = FastAPIForm(...),
     files: List[UploadFile] = File(default=[]),
     auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
@@ -30,6 +54,13 @@ async def submit_application(
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    # Ensure form exists and is open
+    form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    if not form.is_open:
+        raise HTTPException(status_code=403, detail="Form is closed")
 
     user = (
         db.query(User).filter(User.auth0_id == auth0_id).first()
