@@ -17,6 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
 
+import { modalClasses } from "@mui/material";
+
 const FORM_KEY = "2025-cfg-application";
 
 const ApplicationPage = () => {
