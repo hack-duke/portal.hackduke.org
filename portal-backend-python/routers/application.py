@@ -175,3 +175,5 @@ async def form_status(
         raise HTTPException(status_code=404, detail="Form not found")
 
     return FormStatusResponse(form_key=form_key, is_open=bool(form.is_open))
+
+
