@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from sqlalchemy import Column, String, Text, ForeignKey
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from models.base import Base
 from sqlalchemy import Enum
@@ -26,3 +26,7 @@ class Question(Base):
     question_key = Column(String, nullable=False)  # must be unique within the form
     # question_text = Column(Text, nullable=False) # not used for now, add back if we want to pull questions from db and render frontend with them
     question_type = Column(Enum(QuestionType), nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
