@@ -16,4 +16,4 @@ frontend:
 	cd portal-frontend && npm install && npm start
 
 test:
-	export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run pytest
+	cd portal-backend-python && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run pytest
