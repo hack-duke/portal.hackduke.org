@@ -6,9 +6,6 @@ on:
       - master
     paths:
       - "portal-backend-python/**"
-      - "models/**"
-      - "pyproject.toml"
-      - "poetry.lock"
   workflow_dispatch:
 
 env:
@@ -47,8 +44,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./portal-backend-python/Dockerfile
+          context: ./portal-backend-python
+          file: Dockerfile
           platforms: linux/arm64
           push: true
           tags: |
