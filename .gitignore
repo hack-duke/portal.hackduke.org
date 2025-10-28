@@ -17,6 +17,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.vault_token
 
 # Editor-specific files
 .vscode/
