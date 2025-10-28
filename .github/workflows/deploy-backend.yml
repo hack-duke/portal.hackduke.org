@@ -45,7 +45,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./portal-backend-python
-          file: Dockerfile
+          file: ./portal-backend-python/Dockerfile
           platforms: linux/arm64
           push: true
           tags: |
