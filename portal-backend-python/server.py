@@ -1,13 +1,11 @@
 from fastapi import FastAPI, Security
 from auth import VerifyToken
-import dotenv
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from routers import application
 import sentry_sdk
 from config import Env
 
-dotenv.load_dotenv()
 
 frontend_url = os.getenv("FRONTEND_URL")
 sentry_dsn = os.getenv("SENTRY_DSN")

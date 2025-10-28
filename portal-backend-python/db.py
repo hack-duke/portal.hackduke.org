@@ -1,9 +1,6 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # TODO: eliminate redundancy between this and alembic/env.py
 db_host = os.getenv("DB_HOST")

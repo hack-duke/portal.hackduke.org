@@ -5,6 +5,7 @@
   "remoteUser": "vscode",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000],
+  "runArgs": ["--network=host"],
   "customizations": {
     "vscode": {
       "extensions": [
