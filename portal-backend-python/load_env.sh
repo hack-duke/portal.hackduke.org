@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Script to authenticate with Vault and load environment variables for backend
+
 VAULT_ADDR="http://db:8200"
 TOKEN_FILE="./.vault_token"
 KV_PATH="secrets/backend"
@@ -56,12 +58,6 @@ if [[ -z "${saved_token:-}" ]]; then
   fi
 fi
 
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "Error: jq is required to parse Vault JSON output. Install jq and re-run."
-  exit 1
-fi
-
 echo "Fetching secrets from Vault ($KV_PATH) and exporting into environment..."
 
 while IFS= read -r line; do
@@ -69,7 +65,6 @@ while IFS= read -r line; do
   key="${line%%=*}"
   value="${line#*=}"
   export "$key=$value"
-  # todo remvove this
   printf "exported %s\n" "$key"
 done < <(vault kv get -format=json "$KV_PATH" | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"')
 
