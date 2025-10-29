@@ -7,10 +7,7 @@ from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
 )
-import dotenv
 import os
-
-dotenv.load_dotenv()
 
 auth0_domain = os.getenv("AUTH0_DOMAIN")
 auth0_api_audience = os.getenv("AUTH0_API_AUDIENCE")
