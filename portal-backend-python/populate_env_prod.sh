@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Script to authenticate using AWS IAM role and populate .env -- PROD USE ONLY
 
 export VAULT_ADDR="http://db:8200"
 

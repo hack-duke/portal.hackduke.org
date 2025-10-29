@@ -7,6 +7,7 @@ RUN apt-get update && \
         curl \
         unzip \
         vim \
+        jq \
         nano \
         htop \
         zsh \
