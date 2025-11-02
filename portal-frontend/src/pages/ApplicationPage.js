@@ -16,8 +16,10 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
+import PhoneQuestion from "../components/form/PhoneQuestion";
 
 const FORM_KEY = "2025-cfg-application";
+
 
 const ApplicationPage = () => {
   const { getAccessTokenSilently } = useAuth0();
@@ -161,13 +163,13 @@ const ApplicationPage = () => {
               placeholder="20XX"
               required
             />
-            <Question
-              name="phone"
-              label="Phone Number"
-              type="tel"
-              placeholder="123-456-7890"
-              required
-            />
+            <PhoneQuestion
+                name="phone"
+                label="Phone Number"
+                type="tel"
+                placeholder="123-456-7890"
+                required
+              />
           </Page>
           <Page title="About You">
             <LongQuestion

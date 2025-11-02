@@ -1,0 +1,55 @@
+import React, { useState, forwardRef } from "react";
+
+export const PhoneQuestion = forwardRef(({
+    name,
+    label,
+    type = "text",
+    formData,
+    required = false,
+    placeholder,
+    firstTry,
+    isValid = (value) => !required || (value && value.trim() !== ""),
+}, ref) => {
+    const [phone, setPhone] = useState("");
+
+    const handleChange = (e) => {
+        let value = e.target.value.replace(/\D/g, ""); // Remove non-numeric chars
+
+        // Limit to 10 digits
+        if (value.length > 10) {
+            value = value.slice(0, 10);
+        }
+
+        // Format as ###-###-####
+        if (value.length > 6) {
+            value = `${value.slice(0, 3)}-${value.slice(3, 6)}-${value.slice(6)}`;
+        } else if (value.length > 3) {
+            value = `${value.slice(0, 3)}-${value.slice(3)}`;
+        }
+
+        setPhone(value);
+    };
+
+    return (
+        <div className="question-container">
+            <label className="question-label" htmlFor={name}>
+                {label}
+                {required && "*"}
+            </label>
+            <input
+                className={classNames("question-input", {
+                    "invalid-border": !firstTry && !isValid(formData[name]),
+                })}
+                type={type}
+                id={name}
+                name={name}
+                value={phone}
+                onChange={handleChange}
+                placeholder={placeholder}
+                required
+            />
+        </div>
+    );
+});
+
+export default PhoneQuestion;
