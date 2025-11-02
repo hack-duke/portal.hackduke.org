@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
 import PhoneQuestion from "../components/form/PhoneQuestion";
+import PhoneQuestion from "../components/form/PhoneQuestion";
 
 const FORM_KEY = "2025-cfg-application";
 
@@ -239,8 +240,7 @@ const ApplicationPage = () => {
                 placeholder="20XX"
                 required
               />
-              <Question
->>>>>>> 64f0143 (call to API and render when open vs closed)
+              <PhoneQuestion
                 name="phone"
                 label="Phone Number"
                 type="tel"
