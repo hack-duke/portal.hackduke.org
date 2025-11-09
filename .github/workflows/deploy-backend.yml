@@ -6,9 +6,6 @@ on:
       - master
     paths:
       - "portal-backend-python/**"
-      - "models/**"
-      - "pyproject.toml"
-      - "poetry.lock"
   workflow_dispatch:
 
 env:
@@ -47,7 +44,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./portal-backend-python
           file: ./portal-backend-python/Dockerfile
           platforms: linux/arm64
           push: true
@@ -65,14 +62,16 @@ jobs:
           echo "$PRIVATE_KEY" > key.pem
           chmod 600 key.pem
 
-          # Copy compose files to EC2
+          # Copy compose/vault files to EC2
           scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/compose.yml $EC2_USER@$EC2_IP:~/
           scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/Caddyfile $EC2_USER@$EC2_IP:~/
+          scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/populate_env_prod.sh $EC2_USER@$EC2_IP:~/
 
           # Deploy on EC2
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            ./populate_env_prod.sh
             docker-compose up -d
             docker image prune -f
           EOF

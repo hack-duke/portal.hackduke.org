@@ -16,15 +16,20 @@ jobs:
         with:
           filters: |
             python:
-              - '**.py'
-              - 'pyproject.toml'
-              - 'poetry.lock'
+              - 'portal-backend-python/**/*.py'
+              - 'portal-backend-python/pyproject.toml'
+              - 'portal-backend-python/poetry.lock'
+              - 'portal-backend-python/tests/**'
 
   tests:
     name: Run Pytest
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: portal-backend-python
 
     steps:
       - uses: actions/checkout@v3
