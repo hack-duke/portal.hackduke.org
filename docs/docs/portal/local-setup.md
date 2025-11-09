@@ -44,7 +44,7 @@ You can test if the backend is successfully up with this command
 curl http://localhost:8000/health
 ```
 
-If you get : "{"message":"OK"}" then your backend is up and running.
+If you get : `"{"message":"OK"}"` then your backend is up and running.
 
 ### Frontend
 
