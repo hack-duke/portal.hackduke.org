@@ -44,7 +44,7 @@ const ApplicationPage = () => {
           // TODO: investigate this error
           openModal();
           setError(
-            "Session expired. Please try logging out and logging back in."
+            "Session expired. Please try logging out and logging back in.",
           );
           return;
         }
@@ -75,7 +75,7 @@ const ApplicationPage = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       navigate("/status", { state: { firstTime: true } });
@@ -102,7 +102,7 @@ const ApplicationPage = () => {
             params: {
               form_key: FORM_KEY,
             },
-          }
+          },
         );
 
         const open = Boolean(statusRes.data?.is_open);

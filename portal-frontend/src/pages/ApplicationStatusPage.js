@@ -80,7 +80,7 @@ const ApplicationStatusPage = () => {
             params: {
               form_key: FORM_KEY,
             },
-          }
+          },
         );
         setApplication(response.data);
       } catch (error) {
