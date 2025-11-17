@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import FormPage from "./pages/FormPage";
+import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
@@ -34,7 +35,7 @@ function App() {
           path="/application"
           element={
             <ProtectedRoute>
-              <FormPage formKey="2025-cfg-application" />
+              <FormsLandingPage />
             </ProtectedRoute>
           }
         />

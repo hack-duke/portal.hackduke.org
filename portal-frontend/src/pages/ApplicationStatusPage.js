@@ -13,7 +13,8 @@ import Button from "../components/Button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const FORM_KEY = "2025-cfg-application";
+// defaulting this, but will accept formkey
+const DEFAULT_FORM_KEY = "2025-cfg-application";
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -66,6 +67,10 @@ const ApplicationStatusPage = () => {
   const navigate = useNavigate();
   const { firstTime } = location.state || {};
 
+  // todo use acc form key
+  const searchParams = new URLSearchParams(location.search);
+  const formKey = searchParams.get("formKey") || DEFAULT_FORM_KEY;
+
   useEffect(() => {
     const checkIfSubmitted = async () => {
       try {
@@ -78,7 +83,7 @@ const ApplicationStatusPage = () => {
               Authorization: `Bearer ${token}`,
             },
             params: {
-              form_key: FORM_KEY,
+              form_key: formKey,
             },
           }
         );
@@ -95,7 +100,7 @@ const ApplicationStatusPage = () => {
     };
 
     checkIfSubmitted();
-  }, [getAccessTokenSilently, navigate]);
+  }, [getAccessTokenSilently, navigate, formKey]);
 
   return (
     <>
