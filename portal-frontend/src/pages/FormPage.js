@@ -70,7 +70,7 @@ const FormPage = ({ formKey }) => {
         }
       );
 
-      navigate("/status", { state: { firstTime: true } });
+      navigate(`/status?formKey=${formKey}`, { state: { firstTime: true } });
     } catch (error) {
       openModal();
       setError(error.response?.data?.error);
@@ -114,7 +114,7 @@ const FormPage = ({ formKey }) => {
             form_key: formKey,
           },
         });
-        navigate("/status");
+        navigate(`/status?formKey=${formKey}`);
       } catch (error) {
         if (error.response?.status !== 404) {
           openModal();
