@@ -19,8 +19,8 @@
 .button.secondary {
   background-color: rgba(0, 0, 0, 0);
   border: solid;
-  border-color: rgb(16, 49, 151);
-  color: rgb(16, 49, 151);
+  border-color: white(16, 49, 151);
+  color: white;
 }
 
 .button.tertiary {
