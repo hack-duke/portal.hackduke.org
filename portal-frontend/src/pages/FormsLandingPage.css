@@ -119,6 +119,11 @@
   min-width: 140px;
 }
 
+.form-card-actions .button.secondary {
+  border-color: rgb(16, 49, 151);
+  color: rgb(16, 49, 151);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .forms-landing-title {
