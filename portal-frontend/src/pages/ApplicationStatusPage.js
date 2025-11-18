@@ -13,7 +13,8 @@ import Button from "../components/Button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const FORM_KEY = "2025-cfg-application";
+// defaulting this, but only shd happen if page is navigated to directly (no query args)
+const DEFAULT_FORM_KEY = "2025-cfg-application";
 
 const StatusList = ({ statusItems }) => {
   return (
@@ -30,27 +31,40 @@ const StatusList = ({ statusItems }) => {
 
 const formatApplication = (application) => {
   const form_data = application["form_data"];
-  var ret = [];
+  const ret = [];
+
+  ret.push({ label: "Status", value: application["status"] });
+
   ret.push({
-    label: "name",
-    value:
-      (form_data["pref_name"] || form_data["first_name"]) +
-      " " +
-      form_data["last_name"],
-  });
-  ret.push({ label: "email", value: form_data["email"] });
-  ret.push({ label: "status", value: application["status"] });
-  ret.push({ label: "grad year", value: form_data["graduation_year"] });
-  ret.push({ label: "university", value: form_data["university"] });
-  ret.push({ label: "major", value: form_data["major"] });
-  ret.push({
-    label: "submitted",
+    label: "Submitted",
     value: formatDistanceToNow(new Date(application["created_at"] + "Z"), {
-      // Convert from UTC to local time
       addSuffix: true,
     }),
   });
-  ret.push({ label: "phone", value: form_data["phone"] });
+
+  if (form_data) {
+    Object.entries(form_data).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === "") {
+        return;
+      }
+
+      if (typeof value === "string" && value.length > 100) {
+        return;
+      }
+
+      const label = key
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+
+      let displayValue = value;
+      if (typeof value === "boolean") {
+        displayValue = value ? "Yes" : "No";
+      }
+
+      ret.push({ label, value: displayValue });
+    });
+  }
 
   return ret;
 };
@@ -66,6 +80,9 @@ const ApplicationStatusPage = () => {
   const navigate = useNavigate();
   const { firstTime } = location.state || {};
 
+  const searchParams = new URLSearchParams(location.search);
+  const formKey = searchParams.get("formKey") || DEFAULT_FORM_KEY;
+
   useEffect(() => {
     const checkIfSubmitted = async () => {
       try {
@@ -78,7 +95,7 @@ const ApplicationStatusPage = () => {
               Authorization: `Bearer ${token}`,
             },
             params: {
-              form_key: FORM_KEY,
+              form_key: formKey,
             },
           }
         );
@@ -95,7 +112,7 @@ const ApplicationStatusPage = () => {
     };
 
     checkIfSubmitted();
-  }, [getAccessTokenSilently, navigate]);
+  }, [getAccessTokenSilently, navigate, formKey]);
 
   return (
     <>
@@ -112,7 +129,7 @@ const ApplicationStatusPage = () => {
           />
         </div>
       )}
-      <h1 className="status-title">Applicant Status</h1>
+      <h1 className="status-title">Form Status</h1>
       {error && <p>{error}</p>}
 
       {application && (
