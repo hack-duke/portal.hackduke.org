@@ -3,11 +3,23 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ApplicationPage from "./pages/ApplicationPage";
+import FormPage from "./pages/FormPage";
+import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
+
+const DynamicFormPage = () => {
+  const params = new URLSearchParams(window.location.search);
+  const formKey = params.get("formKey");
+
+  if (!formKey) {
+    return <NotFound />;
+  }
+
+  return <FormPage formKey={formKey} />;
+};
 
 function App() {
   const { isLoading } = useAuth0();
@@ -23,7 +35,15 @@ function App() {
           path="/application"
           element={
             <ProtectedRoute>
-              <ApplicationPage />
+              <FormsLandingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/form"
+          element={
+            <ProtectedRoute>
+              <DynamicFormPage />
             </ProtectedRoute>
           }
         />

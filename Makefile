@@ -18,3 +18,6 @@ frontend:
 
 test:
 	cd portal-backend-python && source ./load_env.sh && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run pytest
+
+env:
+	cd portal-backend-python && source ./load_env.sh
