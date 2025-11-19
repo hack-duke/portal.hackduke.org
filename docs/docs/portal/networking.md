@@ -1,13 +1,14 @@
 # Networking
 
-We use [Tailscale](https://tailscale.com/) for secure networking across our infrastructure. Tailscale allows us to configure a private network (called a "tailnet") that allows our servers, services, and machines to communicate without exposing public ports. 
+We use [Tailscale](https://tailscale.com/) for secure networking across our infrastructure. Tailscale allows us to configure a private network (called a "tailnet") that allows our servers, services, and machines to communicate without exposing public ports.
 
 This document provides an overview of the networking infrastructure used for our private network.
 
 ## Installing Tailscale
+
 Install Tailscale on your machine using this [link](https://tailscale.com/kb/1347/installation).
 
-Launch the app and add your device to our tailnet by logging in with the HackDuke email. We are on the Tailscale starter plan (3 users, 100 devices per user), so it's better to add additional devices rather than users to our network. 
+Launch the app and add your device to our tailnet by logging in with the HackDuke email. We are on the Tailscale starter plan (3 users, 100 devices per user), so it's better to add additional devices rather than users to our network.
 
 You should see a screen like the following. Verify your device details and click `Connect`.
 
@@ -30,6 +31,7 @@ Make sure to periodically cleanse old and unused devices from the network. This 
 ## Usage
 
 To SSH into a private EC2 instance, make sure you are connected to the Tailscale network and run:
+
 ```
 ssh -i "your_key_file.pem" <username>@<ec2_private_ip>
 ```
@@ -44,11 +46,12 @@ An Amazon **Virtual Private Cloud (VPC)** is your logically isolated private net
   <img width="800" alt="image" src="https://github.com/user-attachments/assets/22e44ca1-7aa1-4320-959b-e4666833c2e2" />
 </div>
 
-Each VPC is defined by a **CIDR block**, which specifies the private IP address range available to resources inside it. Within a VPC, you create **subnets** that divide this IP space into smaller segments. 
+Each VPC is defined by a **CIDR block**, which specifies the private IP address range available to resources inside it. Within a VPC, you create **subnets** that divide this IP space into smaller segments.
 
-Subnets can be designated as **public** (accessible from the internet through an Internet Gateway) or **private** (isolated from direct internet access, usually connected outward through a NAT Gateway). In our case, we place our PostgreSQL database instance inside a private subnet within the VPC rather than exposing it to the public.  This approach simplifies access management—developers can connect with standard database credentials—while reducing the attack surface by keeping the network closed to external threats.
+Subnets can be designated as **public** (accessible from the internet through an Internet Gateway) or **private** (isolated from direct internet access, usually connected outward through a NAT Gateway). In our case, we place our PostgreSQL database instance inside a private subnet within the VPC rather than exposing it to the public. This approach simplifies access management—developers can connect with standard database credentials—while reducing the attack surface by keeping the network closed to external threats.
 
 ### Subnet Configuration (TODO)
+
 - Route table
 - CIDR ranges
 - NAT gateway
@@ -65,7 +68,7 @@ The way we do this is with a **subnet router**. This runs on a lightweight EC2 i
   <img width="800" alt="image" src="https://github.com/user-attachments/assets/96675017-fff6-41ea-b5d1-061386131e49" />
 </div>
 
-The setup is relatively straightforward and discussed at length [here](https://tailscale.com/kb/1021/install-aws#step-7-verify-your-connection). 
+The setup is relatively straightforward and discussed at length [here](https://tailscale.com/kb/1021/install-aws#step-7-verify-your-connection).
 
 Notice that we created a new **security group** (`tailscale-subnet-router`). This defines which inbound and outbound traffic is permitted through our router.
 
@@ -76,9 +79,10 @@ Looking at this in AWS console, we see two inbound rules defined:
 1. Allows PostgreSQL connection over port 5432. Allows us to connect to the postgres database using psql or Postico from our local machines. Traffic is then forwarded over the desired port to our self-hosted postgres container.
 2. Allows SSH over port 22. Allows for SSH directly into our subnet router. Useful for debugging.
 
-We also needed to disable key expiry on the subnet router to prevent Tailscale periodically from prompting our server for re-authentication. 
+We also needed to disable key expiry on the subnet router to prevent Tailscale periodically from prompting our server for re-authentication.
 
-Once our subnet router is up and running, we advertise the desired routes for our subnets. This declares which subnets our router can forward to—in our case the IPs corresponding to our self-hosted DB. 
+Once our subnet router is up and running, we advertise the desired routes for our subnets. This declares which subnets our router can forward to—in our case the IPs corresponding to our self-hosted DB.
+
 ```
 sudo tailscale set --advertise-routes=10.0.0.0/24,10.0.1.0/24
 ```
@@ -88,11 +92,13 @@ Upon advertising, there is an additional verification step in the Tailscale cons
 <img width="617" height="216" alt="Screenshot 2025-09-09 at 2 40 41 AM" src="https://github.com/user-attachments/assets/2e3261f7-b850-46af-9ef3-634d3fc27e12" />
 
 ### CI/CD with Tailscale
+
 Our GitHub Actions runners use ephemeral Tailscale auth keys to join the tailnet, so CI jobs can reach our private DB without exposing secrets over the public internet. Ephemeral keys are single-use, short-lived (e.g. minutes). Once the GitHub job finishes, the key (and runner node) disappears. [Official Tailscale Github Action Docs](https://tailscale.com/kb/1276/tailscale-github-action).
 
-A good example of this can be found in our deployment workflow in `.github/deploy-db.yml`. 
+A good example of this can be found in our deployment workflow in `.github/deploy-db.yml`.
 
 We connect to the tailnet using the Tailscale Github Action.
+
 ```
 - name: Connect to Tailnet
         uses: tailscale/github-action@v3
@@ -104,5 +110,4 @@ We connect to the tailnet using the Tailscale Github Action.
 
 The `tag:ci` is required to grant access permissions to the ephemeral node created by our workflow, since our action is not associated with any Tailscale user.
 
-Once we're connected to the tailnet, we can use [Tailscale SSH](https://tailscale.com/kb/1193/tailscale-ssh) to connect into our EC2 instances. 
-
+Once we're connected to the tailnet, we can use [Tailscale SSH](https://tailscale.com/kb/1193/tailscale-ssh) to connect into our EC2 instances.

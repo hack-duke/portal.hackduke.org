@@ -1,3 +1,7 @@
+---
+sidebar_position: 2
+---
+
 # Portal Backend - Auth
 
 ## Testing Authenticated Endpoints
