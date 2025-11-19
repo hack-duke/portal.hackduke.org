@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import axios from "axios";
 import { MultiPageForm } from "../components/form/Form";
@@ -17,108 +17,136 @@ const FormPage = ({ formKey }) => {
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+  const openModal = useCallback(() => setIsModalOpen(true), []);
+  const closeModal = useCallback(() => setIsModalOpen(false), []);
 
   const [isFormOpen, setIsFormOpen] = useState(null);
 
   const formDefinition = getFormByKey(formKey);
 
+  const getAuthToken = async () => {
+    try {
+      return await getAccessTokenSilently();
+    } catch (tokenError) {
+      if (tokenError.message.includes("Missing Refresh Token")) {
+        openModal();
+        setError(
+          "Session expired. Please try logging out and logging back in."
+        );
+        return null;
+      }
+      throw tokenError;
+    }
+  };
+
+  const prepareFormData = (data) => {
+    const formData = new FormData();
+    formData.append("form_key", formKey);
+
+    const formDataJson = {};
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value instanceof File) {
+        formData.append("files", value);
+        formDataJson[key] = value.name;
+      } else {
+        formDataJson[key] = value;
+      }
+    }
+
+    formData.append("form_data", JSON.stringify(formDataJson));
+    return formData;
+  };
+
+  const submitFormData = async (formData, token) => {
+    await axios.post(
+      `${process.env.REACT_APP_BACKEND_URL}/application/submit`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+  };
+
   const onSubmit = async (data) => {
     setLoading(true);
     setError(null);
+
     try {
-      let token;
-      try {
-        token = await getAccessTokenSilently();
-      } catch (tokenError) {
-        if (tokenError.message.includes("Missing Refresh Token")) {
-          // TODO: investigate this error
-          openModal();
-          setError(
-            "Session expired. Please try logging out and logging back in."
-          );
-          return;
-        }
-        throw tokenError;
+      const token = await getAuthToken();
+      if (!token) {
+        return;
       }
 
-      const formData = new FormData();
-      formData.append("form_key", formKey);
-
-      const formDataJson = {};
-
-      for (const [key, value] of Object.entries(data)) {
-        if (value instanceof File) {
-          formData.append("files", value);
-          formDataJson[key] = value.name;
-        } else {
-          formDataJson[key] = value;
-        }
-      }
-
-      formData.append("form_data", JSON.stringify(formDataJson));
-
-      await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/application/submit`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const formData = prepareFormData(data);
+      await submitFormData(formData, token);
 
       navigate(`/status?formKey=${formKey}`, { state: { firstTime: true } });
-    } catch (error) {
+    } catch (err) {
       openModal();
-      setError(error.response?.data?.error);
+      setError(err.response?.data?.error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  useEffect(() => {
-    const checkIfSubmitted = async () => {
-      try {
-        setLoading(true);
-
-        // First check if the form is open
-        const tokenForStatus = await getAccessTokenSilently();
-        const statusRes = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
-          {
-            headers: {
-              Authorization: `Bearer ${tokenForStatus}`,
-            },
-            params: {
-              form_key: formKey,
-            },
-          }
-        );
-
-        const open = Boolean(statusRes.data?.is_open);
-        setIsFormOpen(open);
-
-        if (!open) {
-          return;
-        }
-
-        // Existing behavior: if open, check if user already submitted
-        const token = await getAccessTokenSilently();
-        await axios.get(`${process.env.REACT_APP_BACKEND_URL}/application`, {
+  const checkFormStatus = useCallback(
+    async (token) => {
+      const statusRes = await axios.get(
+        `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
+        {
           headers: {
             Authorization: `Bearer ${token}`,
           },
           params: {
             form_key: formKey,
           },
-        });
+        }
+      );
+
+      return Boolean(statusRes.data?.is_open);
+    },
+    [formKey]
+  );
+
+  const checkExistingSubmission = useCallback(
+    async (token) => {
+      await axios.get(`${process.env.REACT_APP_BACKEND_URL}/application`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          form_key: formKey,
+        },
+      });
+      return true;
+    },
+    [formKey]
+  );
+
+  useEffect(() => {
+    const checkIfSubmitted = async () => {
+      try {
+        setLoading(true);
+
+        const token = await getAccessTokenSilently();
+        const isOpen = await checkFormStatus(token);
+        setIsFormOpen(isOpen);
+
+        if (!isOpen) {
+          return;
+        }
+
+        await checkExistingSubmission(token);
+
         navigate(`/status?formKey=${formKey}`);
-      } catch (error) {
-        if (error.response?.status !== 404) {
+      } catch (err) {
+        if (err.response?.status !== 404) {
           openModal();
-          setError(error.response?.data?.error);
+          setError(err.response?.data?.error);
         }
       } finally {
         setLoading(false);
@@ -126,9 +154,16 @@ const FormPage = ({ formKey }) => {
     };
 
     checkIfSubmitted();
-  }, [getAccessTokenSilently, navigate, formKey]);
+  }, [
+    getAccessTokenSilently,
+    navigate,
+    formKey,
+    checkFormStatus,
+    checkExistingSubmission,
+    openModal,
+    setError,
+  ]);
 
-  // If form doesn't exist, show error
   if (!formDefinition) {
     return (
       <>
@@ -161,20 +196,18 @@ const FormPage = ({ formKey }) => {
         </p>
       </Modal>
 
-      {/* SHOW when form is CLOSED */}
-      {isFormOpen === false && (
-        <div className="notice-container">
-          <h1>{formDefinition.closedMessage.title}</h1>
-          {formDefinition.closedMessage.body}
-        </div>
-      )}
-
-      {/* SHOW when form is OPEN */}
-      {isFormOpen !== false && (
+      {isFormOpen && (
         <div className="form-container">
           <MultiPageForm onSubmit={onSubmit}>
             {formDefinition.renderForm()}
           </MultiPageForm>
+        </div>
+      )}
+
+      {isFormOpen === false && (
+        <div className="notice-container">
+          <h1>{formDefinition.closedMessage.title}</h1>
+          {formDefinition.closedMessage.body}
         </div>
       )}
     </>
