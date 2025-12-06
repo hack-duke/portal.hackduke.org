@@ -86,6 +86,10 @@ export const CFG_APPLICATION_2026 = {
         my photograph and or video in marketing, promotional materials, and
         publications, both online and in print, without compensation.
       </CheckQuestion>
+      <CheckQuestion name="sponsor_agr" required>
+        I hereby grant permission for HackDuke to share resumes and other
+        hackathon submission/registration data with all official sponsors.
+      </CheckQuestion>
       <CheckQuestion name="waiver_agr" required>
         I acknowledge and assume all risks associated with participation,
         releasing the organizers from any liability for injury, loss, or damage.
