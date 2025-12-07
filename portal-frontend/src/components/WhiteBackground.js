@@ -29,7 +29,7 @@ export const WhiteBackground = () => {
   });
 
   return (
-    <div class="white-bg-frame">
+    <div className="white-bg-frame">
       <img
         className="white-bg-full"
         id="white-bg-full"
