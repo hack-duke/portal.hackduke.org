@@ -1,0 +1,43 @@
+.multiple-choice-container {
+  margin-bottom: 24px;
+}
+
+.mc-label {
+  display: block;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.mc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mc-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.mc-option input[type="radio"] {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: rgb(16, 49, 151);
+}
+
+.mc-option span {
+  user-select: none;
+}
+
+.error-message {
+  color: #dc2222;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}

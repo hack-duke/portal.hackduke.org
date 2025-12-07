@@ -17,6 +17,7 @@ import { Page } from "./Page";
 import { MultiPageForm } from "./MultiPageForm";
 import { LongQuestion } from "./LongQuestion";
 import { CheckQuestion } from "./CheckQuestion";
+import { MultipleChoiceQuestion } from "./MultipleChoiceQuestion";
 
 export {
   MultiPageForm,
@@ -25,4 +26,5 @@ export {
   LongQuestion,
   FileUploadQuestion,
   CheckQuestion,
+  MultipleChoiceQuestion,
 };
