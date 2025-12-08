@@ -36,7 +36,7 @@ const LoginPage = () => {
             className="mentor-button"
             variant="secondary"
             onClick={() =>
-              window.open("https://forms.gle/gtWwViqvjWqsXBo5A", "_blank")
+              window.open("https://forms.gle/iE2HH3dAPe3ubKwdA", "_blank")
             }
           >
             Mentor/Judge
