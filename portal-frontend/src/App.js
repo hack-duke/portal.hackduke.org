@@ -9,6 +9,7 @@ import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
+import { useInitializeAuth } from "./utils/authUtils";
 
 const DynamicFormPage = () => {
   const params = new URLSearchParams(window.location.search);
@@ -23,6 +24,8 @@ const DynamicFormPage = () => {
 
 function App() {
   const { isLoading } = useAuth0();
+  useInitializeAuth();
+
   if (isLoading) {
     return <FullPageLoadingSpinner />;
   }

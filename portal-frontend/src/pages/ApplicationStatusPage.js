@@ -12,6 +12,7 @@ import { QRCodeSVG } from "qrcode.react";
 import Button from "../components/Button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { createGetAuthToken } from "../utils/authUtils";
 
 // defaulting this, but only shd happen if page is navigated to directly (no query args)
 const DEFAULT_FORM_KEY = "2025-cfg-application";
@@ -87,7 +88,11 @@ const ApplicationStatusPage = () => {
     const checkIfSubmitted = async () => {
       try {
         setLoading(true);
-        const token = await getAccessTokenSilently();
+        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+        const token = await getAuthToken();
+        if (!token) {
+          return;
+        }
         const response = await axios.get(
           `${process.env.REACT_APP_BACKEND_URL}/application`,
           {

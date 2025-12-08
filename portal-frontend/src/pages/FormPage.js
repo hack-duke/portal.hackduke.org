@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
 import { getFormByKey } from "../forms/forms";
+import { createGetAuthToken } from "../utils/authUtils";
 
 const FormPage = ({ formKey }) => {
   const { getAccessTokenSilently } = useAuth0();
@@ -23,21 +24,6 @@ const FormPage = ({ formKey }) => {
   const [isFormOpen, setIsFormOpen] = useState(null);
 
   const formDefinition = getFormByKey(formKey);
-
-  const getAuthToken = async () => {
-    try {
-      return await getAccessTokenSilently();
-    } catch (tokenError) {
-      if (tokenError.message.includes("Missing Refresh Token")) {
-        openModal();
-        setError(
-          "Session expired. Please try logging out and logging back in."
-        );
-        return null;
-      }
-      throw tokenError;
-    }
-  };
 
   const prepareFormData = (data) => {
     const formData = new FormData();
@@ -76,6 +62,7 @@ const FormPage = ({ formKey }) => {
     setError(null);
 
     try {
+      const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
       const token = await getAuthToken();
       if (!token) {
         return;
@@ -132,7 +119,14 @@ const FormPage = ({ formKey }) => {
       try {
         setLoading(true);
 
-        const token = await getAccessTokenSilently();
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError
+        );
+        const token = await getAuthToken();
+        if (!token) {
+          return;
+        }
         const isOpen = await checkFormStatus(token);
         setIsFormOpen(isOpen);
 
