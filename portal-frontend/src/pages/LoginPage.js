@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Navigate } from "react-router-dom";
 import { HeroBackground } from "../components/HeroBackground";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Button from "../components/Button";
 import "./LoginPage.css";
 import Countdown from "react-countdown";
@@ -10,6 +10,7 @@ import CountdownRenderer from "../components/CountdownRenderer";
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
+  const [priorityCompleted, setPriorityCompleted] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -42,12 +43,36 @@ const LoginPage = () => {
             Mentor/Judge
           </Button>
         </div>
+        {!priorityCompleted && (
+          <Countdown
+            date={new Date("2025-12-31T23:59:59Z")}
+            onComplete={() => setPriorityCompleted(true)}
+            renderer={({ days, hours, minutes, seconds }) => (
+              <CountdownRenderer
+                days={days}
+                hours={hours}
+                minutes={minutes}
+                seconds={seconds}
+                deadlineType="Priority applications"
+              />
+            )}
+          />
+        )}
 
-        <Countdown
-          date={new Date("2025-02-01T04:59:00Z")}
-          renderer={CountdownRenderer}
-        />
-        <p className="priority-text">Applications are closed.</p>
+        {priorityCompleted && (
+          <Countdown
+            date={new Date("2026-01-15T23:59:59Z")}
+            renderer={({ days, hours, minutes, seconds }) => (
+              <CountdownRenderer
+                days={days}
+                hours={hours}
+                minutes={minutes}
+                seconds={seconds}
+                deadlineType="Regular applications"
+              />
+            )}
+          />
+        )}
       </div>
     </>
   );
