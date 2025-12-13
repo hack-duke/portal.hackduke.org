@@ -123,6 +123,40 @@
   font-weight: 500;
 }
 
+.lock-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #FFF8E1;
+  border: 2px solid #FFC107;
+  border-radius: 8px;
+  color: #856404;
+  padding: 16px;
+  margin-bottom: 32px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.lock-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #FFC107;
+}
+
+.disabled-locked {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background-color: #e0e0e0 !important;
+  border-color: #ccc !important;
+  color: #888 !important;
+}
+
+.disabled-locked:hover {
+  background-color: #e0e0e0 !important;
+  transform: none !important;
+}
+
 /* Two-Column Layout for Application Content */
 .application-content {
   margin-bottom: 40px;

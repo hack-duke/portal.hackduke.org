@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Security, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Dict, Any, Optional
@@ -76,6 +76,21 @@ class ApplicationListItem(BaseModel):
 class ApplicationListResponse(BaseModel):
     applications: list[ApplicationListItem]
     total: int
+
+
+class SingleApplicationResponse(BaseModel):
+    id: str
+    user_id: str
+    form_key: str
+    status: str
+    submission_json: Optional[Dict[str, Any]]
+    created_at: str
+    resume_url: Optional[str] = None
+    is_locked_by_other: bool = False
+    locked_by_email: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 def _is_lock_expired(locked_at: Optional[datetime]) -> bool:
@@ -500,6 +515,136 @@ async def list_applications(
     )
 
 
+@router.get("/application/{app_id}", response_model=SingleApplicationResponse)
+async def get_application(
+    app_id: str,
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """
+    Get a specific application by ID.
+    Attempts to acquire lock if available, otherwise returns read-only view.
+    """
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = (
+        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    )
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="User is not an admin")
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    # Get application
+    try:
+        app_uuid = UUID(app_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid application ID")
+
+    app = db.query(Application).filter(Application.id == app_uuid).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Release expired locks first
+    _release_expired_locks(db)
+
+    # Check lock status
+    is_locked_by_other = False
+    locked_by_email = None
+
+    if app.locked_by and app.locked_by != user.id:
+        # Someone else has the lock and it's not expired
+        is_locked_by_other = True
+        locked_by_email = "another admin"
+    else:
+        # Lock is available or already ours - acquire it
+        app.locked_by = user.id
+        app.locked_at = datetime.now(timezone.utc)
+        db.commit()
+
+    # Fetch resume URL if available
+    resume_url = None
+    resume_response = (
+        db.query(Response)
+        .filter(Response.application_id == app.id)
+        .filter(Response.question_id == UUID(RESUME_QUESTION_ID))
+        .first()
+    )
+    if resume_response and resume_response.file_s3_key:
+        resume_url = RESUME_S3_BASE_URL + resume_response.file_s3_key
+
+    return SingleApplicationResponse(
+        id=str(app.id),
+        user_id=str(app.user_id),
+        form_key=app.form_key,
+        status=app.status.value,
+        submission_json=app.submission_json,
+        created_at=app.created_at.isoformat(),
+        resume_url=resume_url,
+        is_locked_by_other=is_locked_by_other,
+        locked_by_email=locked_by_email,
+    )
+
+
+@router.post("/application/{app_id}/release-lock")
+async def release_application_lock(
+    app_id: str,
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """
+    Release the lock on a specific application.
+    Used when returning to the applicants table.
+    """
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = (
+        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    )
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="User is not an admin")
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    # Get application
+    try:
+        app_uuid = UUID(app_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid application ID")
+
+    app = db.query(Application).filter(Application.id == app_uuid).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Only release if we own the lock
+    if app.locked_by == user.id:
+        app.locked_by = None
+        app.locked_at = None
+        db.commit()
+
+    return {"status": "released"}
+
+
 @router.get("/ping")
 async def ping(
     session_id: str,
@@ -524,6 +669,47 @@ async def ping(
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     return {"status": "ok"}
+
+
+@router.post("/release-locks-beacon")
+async def release_locks_beacon(
+    session_id: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Release all locks for a session when the browser tab/window is closed.
+    Used with navigator.sendBeacon() which cannot send auth headers.
+    Authenticates via session_id only.
+    """
+    if not session_id:
+        return {"status": "no session"}
+
+    # Find the admin user with this active session
+    admin_user = (
+        db.query(AdminUser)
+        .filter(AdminUser.current_session_id == session_id)
+        .first()
+    )
+
+    if not admin_user:
+        # Session is invalid or already replaced by another tab
+        return {"status": "invalid session"}
+
+    # Release all locks held by this user
+    locked_apps = (
+        db.query(Application)
+        .filter(Application.locked_by == admin_user.user_id)
+        .all()
+    )
+
+    for app in locked_apps:
+        app.locked_by = None
+        app.locked_at = None
+
+    if locked_apps:
+        db.commit()
+
+    return {"status": "released", "count": len(locked_apps)}
 
 
 @router.post("/logout")

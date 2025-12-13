@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { Navbar } from "../components/Navbar";
 import { WhiteBackground } from "../components/WhiteBackground";
@@ -11,10 +11,11 @@ import { createGetAuthToken } from "../utils/authUtils";
 import { useAdminLockRelease } from "../hooks/useAdminLockRelease";
 import "./AdminJudgePage.css";
 
-const AdminJudgePage = () => {
+const AdminApplicationViewPage = () => {
   const { getAccessTokenSilently } = useAuth0();
   const navigate = useNavigate();
   const location = useLocation();
+  const { appId } = useParams();
   const sessionId = location.state?.sessionId;
   const hasInitialized = useRef(false);
 
@@ -23,33 +24,31 @@ const AdminJudgePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+  const [isLockedByOther, setIsLockedByOther] = useState(false);
+  const [lockedByEmail, setLockedByEmail] = useState(null);
   const [stats, setStats] = useState(null);
 
   // Release locks when tab/window is closed (only if session is still valid)
   useAdminLockRelease(sessionId, showTimeoutModal);
 
   useEffect(() => {
-    // Redirect if no session
     if (!sessionId) {
       navigate("/admin", { replace: true });
       return;
     }
 
-    // Prevent double execution in React StrictMode
     if (hasInitialized.current) {
       return;
     }
     hasInitialized.current = true;
 
-    fetchNextApplication();
+    fetchApplication();
     fetchStats();
-  }, [sessionId, navigate]);
+  }, [sessionId, navigate, appId]);
 
-  // Listen for session changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "adminSessionId" && sessionId && e.newValue !== sessionId) {
-        // Another tab got a new session, invalidate this one
         setShowTimeoutModal(true);
       }
     };
@@ -58,7 +57,7 @@ const AdminJudgePage = () => {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [sessionId]);
 
-  const fetchNextApplication = async () => {
+  const fetchApplication = async () => {
     try {
       setLoading(true);
       const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
@@ -69,7 +68,7 @@ const AdminJudgePage = () => {
       }
 
       const response = await axios.get(
-        `${process.env.REACT_APP_BACKEND_URL}/admin/next-application`,
+        `${process.env.REACT_APP_BACKEND_URL}/admin/application/${appId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sessionId },
@@ -77,12 +76,13 @@ const AdminJudgePage = () => {
       );
 
       setCurrentApp(response.data);
+      setIsLockedByOther(response.data.is_locked_by_other);
+      setLockedByEmail(response.data.locked_by_email);
       setError(null);
       setLoading(false);
     } catch (err) {
       if (err.response?.status === 404) {
-        setCurrentApp(null);
-        setError("No more pending applications!");
+        setError("Application not found.");
       } else if (err.response?.status === 403) {
         setShowTimeoutModal(true);
       } else {
@@ -112,7 +112,7 @@ const AdminJudgePage = () => {
   };
 
   const submitDecision = async (decision) => {
-    if (!currentApp) return;
+    if (!currentApp || isLockedByOther) return;
 
     try {
       setSubmitting(true);
@@ -133,9 +133,18 @@ const AdminJudgePage = () => {
       );
 
       setSubmitting(false);
-      // Fetch next application and update stats
-      fetchNextApplication();
-      fetchStats();
+
+      if (decision === "pending") {
+        // Skip = return to table
+        navigate("/admin/applicants", { state: { sessionId } });
+      } else {
+        // Accept/Reject = stay on view, update the displayed status
+        setCurrentApp((prev) => ({
+          ...prev,
+          status: decision === "accept" ? "ACCEPTED" : "REJECTED",
+        }));
+        fetchStats();
+      }
     } catch (err) {
       if (err.response?.status === 403) {
         setShowTimeoutModal(true);
@@ -146,30 +155,42 @@ const AdminJudgePage = () => {
     }
   };
 
-  const handleExit = async () => {
+  const handleBack = async () => {
+    // Release the lock before going back
     try {
       const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
       const token = await getAuthToken();
-      if (token) {
+      if (token && currentApp && !isLockedByOther) {
         await axios.post(
-          `${process.env.REACT_APP_BACKEND_URL}/admin/logout`,
+          `${process.env.REACT_APP_BACKEND_URL}/admin/application/${currentApp.id}/release-lock`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
+            params: { session_id: sessionId },
           }
         );
       }
     } catch (err) {
-      console.error("Error logging out:", err);
+      console.error("Error releasing lock:", err);
     }
-    navigate("/admin");
+    navigate("/admin/applicants", { state: { sessionId } });
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toUpperCase()) {
+      case "ACCEPTED":
+        return "accepted";
+      case "REJECTED":
+        return "rejected";
+      default:
+        return "pending";
+    }
   };
 
   if (loading) {
     return <FullPageLoadingSpinner />;
   }
 
-  // Render loading while redirecting if no session
   if (!sessionId) {
     return <FullPageLoadingSpinner />;
   }
@@ -180,10 +201,10 @@ const AdminJudgePage = () => {
         <Navbar />
         <WhiteBackground />
         <div className="judge-container judge-empty">
-          <h2>All Done!</h2>
-          <p>There are no more pending applications to review.</p>
-          <Button onClick={handleExit} style={{ marginTop: "32px" }}>
-            Back to Dashboard
+          <h2>Application Not Found</h2>
+          <p>{error || "The application could not be loaded."}</p>
+          <Button onClick={handleBack} style={{ marginTop: "32px" }}>
+            Return to Applicants
           </Button>
         </div>
       </>
@@ -198,10 +219,10 @@ const AdminJudgePage = () => {
         <div className="judge-top-bar">
           <button
             className="judge-back-btn"
-            onClick={handleExit}
-            title="Exit judging"
+            onClick={handleBack}
+            title="Return to applicants table"
           >
-            ← Back
+            ← Return to Applicants
           </button>
 
           {stats && (
@@ -224,13 +245,45 @@ const AdminJudgePage = () => {
 
         <div className="judge-card">
           <div className="judge-header">
-            <h1 className="judge-title">Reviewing Application</h1>
+            <h1 className="judge-title">Viewing Application</h1>
             <div className="judge-status-badges">
-              <span className="status-badge pending">PENDING</span>
+              <span className={`status-badge ${getStatusBadgeClass(currentApp.status)}`}>
+                {currentApp.status}
+              </span>
             </div>
           </div>
 
           {error && <div className="judge-error">{error}</div>}
+
+          {isLockedByOther && (
+            <div className="lock-warning">
+              <svg
+                className="lock-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M19 11H5C3.89543 11 3 11.8954 3 13V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V13C21 11.8954 20.1046 11 19 11Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>
+                Application is currently being judged by {lockedByEmail || "another admin"}.
+                You can view but not make changes.
+              </span>
+            </div>
+          )}
 
           <div
             className={`application-content ${currentApp.resume_url ? "has-resume" : ""}`}
@@ -331,20 +384,22 @@ const AdminJudgePage = () => {
             <Button
               variant="error"
               onClick={() => submitDecision("reject")}
-              disabled={submitting}
+              disabled={submitting || isLockedByOther}
+              className={isLockedByOther ? "disabled-locked" : ""}
             >
               Reject
             </Button>
             <Button
-              className="skip-btn"
+              className={`skip-btn ${isLockedByOther ? "disabled-locked" : ""}`}
               onClick={() => submitDecision("pending")}
-              disabled={submitting}
+              disabled={submitting || isLockedByOther}
             >
-              Skip (Keep Pending)
+              Skip (Return to Table)
             </Button>
             <Button
               onClick={() => submitDecision("accept")}
-              disabled={submitting}
+              disabled={submitting || isLockedByOther}
+              className={isLockedByOther ? "disabled-locked" : ""}
             >
               Accept
             </Button>
@@ -367,4 +422,4 @@ const AdminJudgePage = () => {
   );
 };
 
-export default AdminJudgePage;
+export default AdminApplicationViewPage;

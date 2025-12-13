@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Skill(frontend-design:frontend-design)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

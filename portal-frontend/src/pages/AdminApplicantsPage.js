@@ -8,6 +8,7 @@ import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
 import { createGetAuthToken } from "../utils/authUtils";
+import { useAdminLockRelease } from "../hooks/useAdminLockRelease";
 import "./AdminApplicantsPage.css";
 
 const AdminApplicantsPage = () => {
@@ -22,6 +23,9 @@ const AdminApplicantsPage = () => {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+
+  // Release locks when tab/window is closed (only if session is still valid)
+  useAdminLockRelease(sessionId, showTimeoutModal);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -109,6 +113,10 @@ const AdminApplicantsPage = () => {
     navigate("/admin", { state: { sessionId } });
   };
 
+  const handleViewApplication = (appId) => {
+    navigate(`/admin/application/${appId}`, { state: { sessionId } });
+  };
+
   const getStatusClass = (status) => {
     switch (status.toLowerCase()) {
       case "accepted":
@@ -133,8 +141,12 @@ const AdminApplicantsPage = () => {
           <button className="back-btn" onClick={handleBack}>
             ← Back to Dashboard
           </button>
-          <h1 className="applicants-title">All Applicants</h1>
-          <p className="applicants-count">{total} applicants found</p>
+          <div className="header-card">
+            <div className="header-card-content">
+              <h1 className="applicants-title">All Applicants</h1>
+              <p className="applicants-count">{total} applicants found</p>
+            </div>
+          </div>
         </div>
 
         <div className="filters-bar">
@@ -203,7 +215,11 @@ const AdminApplicantsPage = () => {
                   </tr>
                 ) : (
                   applications.map((app) => (
-                    <tr key={app.id}>
+                    <tr
+                      key={app.id}
+                      onClick={() => handleViewApplication(app.id)}
+                      className="clickable-row"
+                    >
                       <td className="name-cell">
                         {app.pref_name || app.first_name} {app.last_name}
                       </td>

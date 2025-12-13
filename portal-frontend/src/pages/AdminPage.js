@@ -8,6 +8,7 @@ import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
 import { createGetAuthToken } from "../utils/authUtils";
+import { useAdminLockRelease } from "../hooks/useAdminLockRelease";
 import "./AdminPage.css";
 
 const AdminPage = () => {
@@ -26,6 +27,9 @@ const AdminPage = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [showMultiTabModal, setShowMultiTabModal] = useState(false);
+
+  // Release locks when tab/window is closed (only if session is still valid)
+  useAdminLockRelease(sessionId, showMultiTabModal);
 
   console.log("Auth0 state:", {
     authLoading,
@@ -163,6 +167,10 @@ const AdminPage = () => {
     navigate("/admin/judge", { state: { sessionId } });
   };
 
+  const handleViewApplicants = () => {
+    navigate("/admin/applicants", { state: { sessionId } });
+  };
+
   // Show spinner while Auth0 is loading or while we're checking admin status
   if (authLoading || loading) {
     console.log("Still loading, showing spinner...", { authLoading, loading });
@@ -240,9 +248,14 @@ const AdminPage = () => {
           <Button
             onClick={handleStartJudging}
             className="start-judging-btn"
-            style={{ marginRight: "12px" }}
           >
             Start Judging
+          </Button>
+          <Button
+            onClick={handleViewApplicants}
+            className="view-applicants-btn"
+          >
+            View All Applicants
           </Button>
         </div>
 

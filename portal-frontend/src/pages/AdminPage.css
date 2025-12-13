@@ -97,6 +97,22 @@
   box-shadow: 0 6px 20px rgba(16, 49, 151, 0.4);
 }
 
+.view-applicants-btn {
+  min-width: 240px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: transparent;
+  border: 2px solid #1031d0;
+  color: #1031d0;
+  transition: all 0.3s ease;
+}
+
+.view-applicants-btn:hover {
+  background: #1031d0;
+  color: white;
+  transform: translateY(-2px);
+}
+
 .logout-btn {
   background-color: transparent;
   border: 2px solid rgb(16, 49, 151);
@@ -134,8 +150,9 @@
     flex-direction: column;
   }
 
-  .start-judging-btn {
+  .start-judging-btn,
+  .view-applicants-btn {
     min-width: auto;
-    margin-right: 0 !important;
+    width: 100%;
   }
 }
