@@ -47,6 +47,8 @@ def test_session(test_sessionmaker):
     any changes and closes the session to ensure test isolation.
     """
     session = test_sessionmaker()
+    # Start a savepoint to ensure we can rollback even with explicit flushes
+    session.begin_nested()
     try:
         yield session
     finally:

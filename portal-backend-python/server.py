@@ -2,7 +2,7 @@ from fastapi import FastAPI, Security
 from auth import VerifyToken
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from routers import application
+from routers import application, admin
 import sentry_sdk
 from config import Env
 
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(prefix="/application", router=application.router)
+app.include_router(prefix="/admin", router=admin.router)
 
 
 @app.get("/health")
