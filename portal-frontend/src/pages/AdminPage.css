@@ -1,0 +1,141 @@
+.admin-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 20px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.admin-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #1031d0 0%, #103f8f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.admin-subtitle {
+  font-size: 1.2rem;
+  color: #666;
+  margin: 0;
+}
+
+.admin-error {
+  background-color: #ffebee;
+  border: 2px solid #ff5252;
+  border-radius: 8px;
+  color: #c62828;
+  padding: 16px;
+  margin-bottom: 32px;
+  font-weight: 500;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  text-align: center;
+}
+
+.stat-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #1031d0;
+  transform: translateY(-4px);
+}
+
+.stat-number {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #1031d0;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 48px;
+}
+
+.start-judging-btn {
+  min-width: 240px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #1031d0 0%, #103f8f 100%);
+  box-shadow: 0 4px 15px rgba(16, 49, 151, 0.3);
+  transition: all 0.3s ease;
+}
+
+.start-judging-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 49, 151, 0.4);
+}
+
+.logout-btn {
+  background-color: transparent;
+  border: 2px solid rgb(16, 49, 151);
+  color: rgb(255, 255, 255);
+}
+
+.modal-button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .admin-container {
+    padding: 60px 16px 32px;
+  }
+
+  .admin-title {
+    font-size: 2rem;
+  }
+
+  .admin-subtitle {
+    font-size: 1rem;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+  }
+
+  .admin-actions {
+    flex-direction: column;
+  }
+
+  .start-judging-btn {
+    min-width: auto;
+    margin-right: 0 !important;
+  }
+}

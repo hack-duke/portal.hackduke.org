@@ -1,0 +1,423 @@
+.judge-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 80px 20px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.judge-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.judge-back-btn {
+  background: none;
+  border: none;
+  color: #1031D0;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.3s ease;
+}
+
+.judge-back-btn:hover {
+  color: #103F8F;
+}
+
+.judge-stats-bar {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.judge-stats-bar .stat-item {
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: #f5f5f5;
+}
+
+.judge-stats-bar .stat-item.pending {
+  background: #FFF3CD;
+  color: #856404;
+}
+
+.judge-stats-bar .stat-item.accepted {
+  background: #D4EDDA;
+  color: #155724;
+}
+
+.judge-stats-bar .stat-item.rejected {
+  background: #F8D7DA;
+  color: #721C24;
+}
+
+.judge-stats-bar .stat-item.yours {
+  background: #E3F2FD;
+  color: #1031D0;
+}
+
+.judge-card {
+  background: white;
+  border-radius: 16px;
+  padding: 48px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E8E8E8;
+}
+
+.judge-header {
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.judge-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.judge-status-badges {
+  display: flex;
+  gap: 12px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.pending {
+  background-color: #FFF3CD;
+  color: #856404;
+}
+
+.status-badge.accepted {
+  background-color: #D4EDDA;
+  color: #155724;
+}
+
+.status-badge.rejected {
+  background-color: #F8D7DA;
+  color: #721C24;
+}
+
+.judge-error {
+  background-color: #FFEBEE;
+  border: 2px solid #FF5252;
+  border-radius: 8px;
+  color: #C62828;
+  padding: 16px;
+  margin-bottom: 32px;
+  font-weight: 500;
+}
+
+/* Two-Column Layout for Application Content */
+.application-content {
+  margin-bottom: 40px;
+}
+
+.application-content.has-resume {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.application-responses {
+  min-width: 0;
+}
+
+/* Resume Column */
+.resume-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.resume-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #E8E8E8;
+}
+
+.resume-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resume-new-tab {
+  font-size: 0.85rem;
+  color: #1031D0;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.resume-new-tab:hover {
+  opacity: 0.7;
+}
+
+.resume-embed-container {
+  flex: 1;
+  min-height: 600px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.resume-embed {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  border: none;
+}
+
+.application-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Applicant Header */
+.applicant-header {
+  padding-bottom: 16px;
+  border-bottom: 2px solid #1031D0;
+}
+
+.applicant-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.applicant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.meta-divider {
+  color: #ccc;
+}
+
+/* Education Row */
+.education-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.edu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edu-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.edu-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+/* Essays */
+.essays-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.essay {
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.essay-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1031D0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.essay-text {
+  font-size: 0.95rem;
+  color: #333;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.judge-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  padding-top: 32px;
+  border-top: 2px solid #E8E8E8;
+}
+
+.judge-actions button {
+  min-width: 140px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.judge-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.judge-actions .skip-btn {
+  background-color: transparent;
+  border: 2px solid rgb(16, 49, 151);
+  color: rgb(16, 49, 151);
+}
+
+.judge-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.judge-empty h2 {
+  font-size: 2.5rem;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.judge-empty p {
+  font-size: 1.1rem;
+  color: #666;
+  margin: 0;
+}
+
+.modal-button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .judge-container {
+    padding: 60px 16px 32px;
+  }
+
+  .judge-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .judge-stats-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+
+  .judge-stats-bar .stat-item {
+    padding: 4px 10px;
+  }
+
+  .application-content.has-resume {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-column {
+    order: -1;
+  }
+
+  .resume-embed-container {
+    min-height: 400px;
+  }
+
+  .resume-embed {
+    min-height: 400px;
+  }
+
+  .applicant-name {
+    font-size: 1.25rem;
+  }
+
+  .applicant-meta {
+    font-size: 0.8rem;
+  }
+
+  .education-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .essay {
+    padding: 12px 14px;
+  }
+
+  .essay-text {
+    font-size: 0.9rem;
+  }
+
+  .judge-card {
+    padding: 32px 20px;
+  }
+
+  .judge-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .judge-title {
+    font-size: 1.5rem;
+  }
+
+  .judge-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .judge-actions button {
+    width: 100%;
+  }
+
+  .field-value {
+    font-size: 1rem;
+  }
+}

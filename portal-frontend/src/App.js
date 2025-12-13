@@ -6,6 +6,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import FormPage from "./pages/FormPage";
 import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
+import AdminPage from "./pages/AdminPage";
+import AdminJudgePage from "./pages/AdminJudgePage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -55,6 +57,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ApplicationStatusPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/judge"
+          element={
+            <ProtectedRoute>
+              <AdminJudgePage />
             </ProtectedRoute>
           }
         />
