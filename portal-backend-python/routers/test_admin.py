@@ -68,12 +68,12 @@ def test_non_admin_user(test_session):
 @pytest.fixture
 def test_form(test_session):
     """Create a test form."""
-    form_key = "test_form"
+    form_key = "2026-cfg-application"  # Must match CURRENT_FORM_KEY in admin.py
     # Delete any existing form with this key from previous test runs
     test_session.query(Form).filter(Form.form_key == form_key).delete()
     test_session.flush()
-    
-    form = Form(form_key=form_key, year=2025, is_open=True)
+
+    form = Form(form_key=form_key, year=2026, is_open=True)
     test_session.add(form)
     test_session.flush()
     return form
