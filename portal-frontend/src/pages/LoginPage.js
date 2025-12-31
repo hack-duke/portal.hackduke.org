@@ -45,7 +45,7 @@ const LoginPage = () => {
         </div>
         {!priorityCompleted && (
           <Countdown
-            date={new Date("2025-12-31T23:59:59Z")}
+            date={new Date("2025-12-31T23:59:59-05:00")}
             onComplete={() => setPriorityCompleted(true)}
             renderer={({ days, hours, minutes, seconds }) => (
               <CountdownRenderer
@@ -61,7 +61,7 @@ const LoginPage = () => {
 
         {priorityCompleted && (
           <Countdown
-            date={new Date("2026-01-15T23:59:59Z")}
+            date={new Date("2026-01-15T23:59:59-05:00")}
             renderer={({ days, hours, minutes, seconds }) => (
               <CountdownRenderer
                 days={days}
