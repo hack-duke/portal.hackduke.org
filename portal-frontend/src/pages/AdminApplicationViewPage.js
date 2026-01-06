@@ -17,6 +17,8 @@ const AdminApplicationViewPage = () => {
   const location = useLocation();
   const { appId } = useParams();
   const sessionId = location.state?.sessionId;
+  const searchQuery = location.state?.searchQuery;
+  const statusFilter = location.state?.statusFilter;
   const hasInitialized = useRef(false);
 
   const [loading, setLoading] = useState(true);
@@ -134,17 +136,13 @@ const AdminApplicationViewPage = () => {
 
       setSubmitting(false);
 
-      if (decision === "pending") {
-        // Skip = return to table
-        navigate("/admin/applicants", { state: { sessionId } });
-      } else {
-        // Accept/Reject = stay on view, update the displayed status
-        setCurrentApp((prev) => ({
-          ...prev,
-          status: decision === "accept" ? "ACCEPTED" : "REJECTED",
-        }));
-        fetchStats();
-      }
+      // Stay on view and update the displayed status
+      const newStatus = decision === "accept" ? "ACCEPTED" : decision === "reject" ? "REJECTED" : "PENDING";
+      setCurrentApp((prev) => ({
+        ...prev,
+        status: newStatus,
+      }));
+      fetchStats();
     } catch (err) {
       if (err.response?.status === 403) {
         setShowTimeoutModal(true);
@@ -173,7 +171,7 @@ const AdminApplicationViewPage = () => {
     } catch (err) {
       console.error("Error releasing lock:", err);
     }
-    navigate("/admin/applicants", { state: { sessionId } });
+    navigate("/admin/applicants", { state: { sessionId, searchQuery, statusFilter } });
   };
 
   const getStatusBadgeClass = (status) => {
@@ -394,7 +392,7 @@ const AdminApplicationViewPage = () => {
               onClick={() => submitDecision("pending")}
               disabled={submitting || isLockedByOther}
             >
-              Skip (Return to Table)
+              Set to Pending
             </Button>
             <Button
               onClick={() => submitDecision("accept")}

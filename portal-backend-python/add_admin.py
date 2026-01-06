@@ -16,9 +16,11 @@ def add_admin(auth0_id: str):
         # Get or create the user
         user = db.query(User).filter(User.auth0_id == auth0_id).first()
         if not user:
-            print(f"User with auth0_id '{auth0_id}' not found.")
-            print("Please submit an application first to create your user account.")
-            return False
+            # Create user entry (same logic as application submission)
+            user = User(auth0_id=auth0_id)
+            db.add(user)
+            db.flush()
+            print(f"Created new user entry for auth0_id '{auth0_id}'")
         
         # Check if already an admin
         admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()

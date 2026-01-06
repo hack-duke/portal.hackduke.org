@@ -27,10 +27,10 @@ const AdminApplicantsPage = () => {
   // Release locks when tab/window is closed (only if session is still valid)
   useAdminLockRelease(sessionId, showTimeoutModal);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Filters - restore from navigation state if returning from application view
+  const [searchQuery, setSearchQuery] = useState(location.state?.searchQuery || "");
+  const [statusFilter, setStatusFilter] = useState(location.state?.statusFilter || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(location.state?.searchQuery || "");
 
   useEffect(() => {
     if (!sessionId) {
@@ -114,7 +114,9 @@ const AdminApplicantsPage = () => {
   };
 
   const handleViewApplication = (appId) => {
-    navigate(`/admin/application/${appId}`, { state: { sessionId } });
+    navigate(`/admin/application/${appId}`, {
+      state: { sessionId, searchQuery, statusFilter }
+    });
   };
 
   const getStatusClass = (status) => {
