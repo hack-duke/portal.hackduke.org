@@ -27,6 +27,8 @@ const AdminPage = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [showMultiTabModal, setShowMultiTabModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState(null);
 
   // Release locks when tab/window is closed (only if session is still valid)
   useAdminLockRelease(sessionId, showMultiTabModal);
@@ -171,6 +173,43 @@ const AdminPage = () => {
     navigate("/admin/applicants", { state: { sessionId } });
   };
 
+  const handleExportToSheets = async () => {
+    try {
+      setExporting(true);
+      setExportResult(null);
+      setError(null);
+
+      const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+      const token = await getAuthToken();
+      if (!token) {
+        setExporting(false);
+        return;
+      }
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/admin/export-to-sheets`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { session_id: sessionId },
+        }
+      );
+
+      setExportResult(response.data);
+      setExporting(false);
+
+      // Open the Google Sheet in a new tab
+      window.open(
+        "https://docs.google.com/spreadsheets/d/1Q7aS2iA2rDywbJX7EaVLMXJj_wxAcslD4qLKcDaQWkE/edit",
+        "_blank"
+      );
+    } catch (err) {
+      console.error("Error exporting to sheets:", err);
+      setError(err.response?.data?.detail || "Failed to export to Google Sheets.");
+      setExporting(false);
+    }
+  };
+
   // Show spinner while Auth0 is loading or while we're checking admin status
   if (authLoading || loading) {
     console.log("Still loading, showing spinner...", { authLoading, loading });
@@ -257,6 +296,26 @@ const AdminPage = () => {
           >
             View All Applicants
           </Button>
+        </div>
+
+        <div className="admin-export-section">
+          <h2 className="export-title">Export to Google Sheets</h2>
+          <p className="export-description">
+            Export current accepted and rejected applicants to the mail merge spreadsheet.
+          </p>
+          <Button
+            onClick={handleExportToSheets}
+            disabled={exporting}
+            className="export-btn"
+          >
+            {exporting ? "Exporting..." : "Export to Sheets"}
+          </Button>
+          {exportResult && (
+            <div className="export-result">
+              <p>Export complete!</p>
+              <p>Created tabs: "{exportResult.accepted_tab}" ({exportResult.accepted_count} accepted), "{exportResult.rejected_tab}" ({exportResult.rejected_count} rejected)</p>
+            </div>
+          )}
         </div>
 
         <Modal

@@ -13,6 +13,7 @@ from models.admin_user import AdminUser
 from models.application import Application, ApplicationStatus
 from models.response import Response
 from pydantic import BaseModel
+from services.google_sheets import export_applicants_to_sheets
 
 router = APIRouter()
 auth = VerifyToken()
@@ -53,6 +54,13 @@ class AdminStatsResponse(BaseModel):
 
 class DecisionRequest(BaseModel):
     decision: str  # "accept", "reject", or "pending"
+
+
+class ExportResponse(BaseModel):
+    accepted_tab: str
+    rejected_tab: str
+    accepted_count: int
+    rejected_count: int
 
 
 class ApplicationListItem(BaseModel):
@@ -313,13 +321,16 @@ async def submit_decision(
     if decision == "accept":
         app.status = ApplicationStatus.ACCEPTED
         app.decided_by = user.id
+        app.decided_at = datetime.now(timezone.utc)
     elif decision == "reject":
         app.status = ApplicationStatus.REJECTED
         app.decided_by = user.id
+        app.decided_at = datetime.now(timezone.utc)
     elif decision == "pending":
-        # Mark as pending, clear decided_by
+        # Mark as pending, clear decided_by and decided_at
         app.status = ApplicationStatus.PENDING
         app.decided_by = None
+        app.decided_at = None
         # Keep locked_at updated so this app goes to back of queue
         app.locked_by = None
         app.locked_at = datetime.now(timezone.utc)
@@ -745,3 +756,75 @@ async def logout(
     db.commit()
 
     return {"status": "logged out"}
+
+
+@router.post("/export-to-sheets", response_model=ExportResponse)
+async def export_to_sheets(
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """
+    Export accepted and rejected applicants to Google Sheets.
+    Creates two new tabs with today's date.
+    """
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = (
+        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    )
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="User is not an admin")
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    # Get accepted applications ordered by decided_at
+    accepted_apps = (
+        db.query(Application)
+        .filter(Application.form_key == CURRENT_FORM_KEY)
+        .filter(Application.status == ApplicationStatus.ACCEPTED)
+        .order_by(Application.decided_at.asc().nullslast())
+        .all()
+    )
+
+    # Get rejected applications ordered by decided_at
+    rejected_apps = (
+        db.query(Application)
+        .filter(Application.form_key == CURRENT_FORM_KEY)
+        .filter(Application.status == ApplicationStatus.REJECTED)
+        .order_by(Application.decided_at.asc().nullslast())
+        .all()
+    )
+
+    # Build applicant data for export
+    accepted_applicants = []
+    for app in accepted_apps:
+        submission = app.submission_json or {}
+        accepted_applicants.append({
+            "user_id": str(app.user_id),
+            "email": submission.get("email", ""),
+        })
+
+    rejected_applicants = []
+    for app in rejected_apps:
+        submission = app.submission_json or {}
+        rejected_applicants.append({
+            "user_id": str(app.user_id),
+            "email": submission.get("email", ""),
+        })
+
+    # Export to Google Sheets
+    try:
+        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants)
+        return ExportResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")
