@@ -156,3 +156,61 @@
     width: 100%;
   }
 }
+
+/* Export Section */
+.admin-export-section {
+  margin-top: 64px;
+  padding-top: 48px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.export-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.export-description {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.export-btn {
+  min-width: 200px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: #4CAF50;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #43A047;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.export-btn:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.export-result {
+  margin-top: 24px;
+  padding: 16px 24px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  color: #2e7d32;
+  display: inline-block;
+}
+
+.export-result p {
+  margin: 4px 0;
+}
+
+.export-result p:first-child {
+  font-weight: 600;
+}

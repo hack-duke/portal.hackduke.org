@@ -45,3 +45,6 @@ class Application(Base):
     decided_by = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )  # FK to admin user who made the decision
+    decided_at = Column(
+        DateTime, nullable=True
+    )  # Timestamp when decision was made
