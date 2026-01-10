@@ -9,8 +9,10 @@ services:
       - .env
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./config/custom_memory.conf:/etc/postgresql/custom_memory.conf
     ports:
       - "5432:5432"
+    command: postgres -c 'config_file=/var/lib/postgresql/data/postgresql.conf' -c 'include_if_exists=/etc/postgresql/custom_memory.conf'
 
 volumes:
   pgdata:
