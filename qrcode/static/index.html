@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy" content="camera=*">
+    <title>QR Code Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        video {
+            max-width: 100%;
+            width: 100%;
+            height: auto;
+        }
+        canvas {
+            display: none;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 18px;
+            padding: 10px;
+        }
+        .waiting {
+            color: gray;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>QR Code Scanner</h1>
+    <select id="event-select">
+        <option value="check-in">Check-In</option>
+        <option value="lunch">Sat Lunch</option>
+        <option value="dinner">Sat Dinner</option>
+        <option value="brekky">Sun Brekky</option>
+    </select>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="status" class="waiting">Waiting for camera...</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const statusDiv = document.getElementById('status');
+        const eventSelect = document.getElementById('event-select');
+        const ctx = canvas.getContext('2d');
+        let scanning = true;
+
+        const constraints = {
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
+        video.addEventListener('loadedmetadata', () => {
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.error('Video dimensions not available');
+                statusDiv.textContent = 'Error: Camera not properly initialized';
+                statusDiv.className = 'error';
+            }
+        });
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.play();
+                requestAnimationFrame(scanFrame);
+                statusDiv.textContent = 'Camera active. Point at a QR code.';
+            } catch (err) {
+                console.error('Error accessing the camera:', err);
+                statusDiv.textContent = 'Camera access denied: ' + err.message;
+                statusDiv.className = 'error';
+            }
+        }
+
+        function scanFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code && scanning) {
+                    scanning = false;
+                    sendQRCode(code.data);
+                    statusDiv.textContent = 'User found: ' + code.data;
+                    statusDiv.className = 'success';
+
+                    setTimeout(() => {
+                        scanning = true;
+                        statusDiv.textContent = 'Ready to scan next code';
+                        statusDiv.className = 'waiting';
+                    }, 2000);
+                }
+            }
+            requestAnimationFrame(scanFrame);
+        }
+
+        function sendQRCode(data) {
+            const eventType = eventSelect.value;
+            fetch('/log_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ qrCode: data, eventType })
+            }).then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || 'Network response was not ok');
+                    });
+                }
+                return response.json();
+            }).then(data => {
+                console.log('Success:', data);
+            }).catch(err => {
+                console.error('Error sending QR code data:', err);
+                statusDiv.textContent = 'Error: ' + err.message;
+                statusDiv.className = 'error';
+            });
+        }
+
+        window.addEventListener('load', initCamera);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+            } else {
+                initCamera();
+            }
+        });
+    </script>
+</body>
+</html>
