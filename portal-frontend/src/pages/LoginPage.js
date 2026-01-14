@@ -61,7 +61,7 @@ const LoginPage = () => {
 
         {priorityCompleted && (
           <Countdown
-            date={new Date("2026-01-15T23:59:59-05:00")}
+            date={new Date("2026-01-16T23:59:59-05:00")}
             renderer={({ days, hours, minutes, seconds }) => (
               <CountdownRenderer
                 days={days}
