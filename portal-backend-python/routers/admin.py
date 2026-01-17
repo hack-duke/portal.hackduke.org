@@ -4,6 +4,7 @@ from sqlalchemy import or_
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+from urllib.parse import quote, unquote
 import uuid as uuid_lib
 
 from auth import VerifyToken
@@ -259,7 +260,9 @@ async def get_next_application(
         .first()
     )
     if resume_response and resume_response.file_s3_key:
-        resume_url = RESUME_S3_BASE_URL + resume_response.file_s3_key
+        # normalized_key = unquote(resume_response.file_s3_key)
+        encoded_key = quote(resume_response.file_s3_key, safe='/')
+        resume_url = RESUME_S3_BASE_URL + encoded_key
 
     return ApplicationResponse(
         id=str(next_app.id),
@@ -592,7 +595,8 @@ async def get_application(
         .first()
     )
     if resume_response and resume_response.file_s3_key:
-        resume_url = RESUME_S3_BASE_URL + resume_response.file_s3_key
+        encoded_key = quote(resume_response.file_s3_key, safe='/')
+        resume_url = RESUME_S3_BASE_URL + encoded_key
 
     return SingleApplicationResponse(
         id=str(app.id),
