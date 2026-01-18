@@ -201,6 +201,7 @@ async def get_application(
 
     return GetApplicationResponse(
         id=application.id,
+        user_id=application.user_id,
         status=application.status,
         created_at=application.created_at,
         form_data=form_data,

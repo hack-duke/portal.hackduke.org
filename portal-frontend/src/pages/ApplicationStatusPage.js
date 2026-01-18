@@ -9,7 +9,6 @@ import { useWindowSize } from "react-use";
 import Confetti from "react-confetti";
 import { useLocation } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import Button from "../components/Button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { createGetAuthToken } from "../utils/authUtils";
@@ -70,8 +69,33 @@ const formatApplication = (application) => {
   return ret;
 };
 
+const formatConfirmedApplication = (application) => {
+  const form_data = application["form_data"] || {};
+  const ret = [];
+
+  ret.push({ label: "Status", value: application["status"] });
+
+  const fieldsToShow = ["first_name", "last_name", "pref_name", "email"];
+
+  fieldsToShow.forEach((key) => {
+    const value = form_data[key];
+    if (value === null || value === undefined || value === "") {
+      return;
+    }
+
+    const label = key
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    ret.push({ label, value });
+  });
+
+  return ret;
+};
+
 const ApplicationStatusPage = () => {
-  const { user, getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently } = useAuth0();
   const [application, setApplication] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -88,7 +112,10 @@ const ApplicationStatusPage = () => {
     const checkIfSubmitted = async () => {
       try {
         setLoading(true);
-        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError,
+        );
         const token = await getAuthToken();
         if (!token) {
           return;
@@ -102,7 +129,7 @@ const ApplicationStatusPage = () => {
             params: {
               form_key: formKey,
             },
-          }
+          },
         );
         setApplication(response.data);
       } catch (error) {
@@ -119,8 +146,11 @@ const ApplicationStatusPage = () => {
     checkIfSubmitted();
   }, [getAccessTokenSilently, navigate, formKey]);
 
+  const isConfirmed = application && application["status"] === "confirmed";
+  const userId = application ? application["user_id"] : null;
+
   return (
-    <>
+    <div className="status-page-wrapper">
       <Navbar />
       <HeroBackground />
       {loading && <FullPageLoadingSpinner />}
@@ -137,40 +167,48 @@ const ApplicationStatusPage = () => {
       <h1 className="status-title">Form Status</h1>
       {error && <p>{error}</p>}
 
-      {application && (
+      {isConfirmed ? (
+        <div className="status-container confirmed-container">
+          <StatusList statusItems={formatConfirmedApplication(application)} />
+          <div className="qr-section">
+            <h2 className="qr-title">Check-In QR Code</h2>
+            <div
+              className="qr-code-container"
+              onClick={() => setShowQRModal(true)}
+            >
+              <QRCodeSVG
+                value={userId || ""}
+                size={200}
+                marginSize={2}
+                minVersion={6}
+              />
+            </div>
+            <p className="qr-instructions">Tap to enlarge</p>
+          </div>
+        </div>
+      ) : application ? (
         <div className="status-container">
           <StatusList statusItems={formatApplication(application)} />
         </div>
-      )}
+      ) : null}
 
-      {application && application["status"] === "confirmed" && (
-        <>
-          <Button
-            variant="secondary"
-            className="checkin-button"
-            onClick={() => setShowQRModal(true)}
-          >
-            Check-In Code
-          </Button>
-          {showQRModal && (
-            <div
-              className="qr-modal-overlay"
-              onClick={() => setShowQRModal(false)}
-            >
-              {/* TODO: Componentize this */}
-              <div className="qr-modal-content">
-                <QRCodeSVG
-                  value={user.sub}
-                  size={Math.min(width * 0.8, height * 0.8)}
-                  marginSize={2}
-                  minVersion={6}
-                />
-              </div>
-            </div>
-          )}
-        </>
+      {/* Full-screen QR Modal */}
+      {showQRModal && (
+        <div
+          className="qr-modal-overlay"
+          onClick={() => setShowQRModal(false)}
+        >
+          <div className="qr-modal-content">
+            <QRCodeSVG
+              value={userId || ""}
+              size={Math.min(width * 0.8, height * 0.8)}
+              marginSize={2}
+              minVersion={6}
+            />
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 };
 
