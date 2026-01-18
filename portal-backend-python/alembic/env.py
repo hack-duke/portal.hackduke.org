@@ -20,7 +20,6 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-
 def get_database_url() -> str:
     db_host = os.getenv("DB_HOST")
     db_user = os.getenv("DB_USER")
@@ -32,7 +31,9 @@ def get_database_url() -> str:
         raise ValueError(
             "Missing required environment variables to construct database URL"
         )
-    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    print(f"alembic migrations on {db_url}")
+    return db_url
 
 
 config.set_main_option("sqlalchemy.url", get_database_url())
