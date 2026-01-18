@@ -320,9 +320,9 @@ const AdminPage = () => {
             <div className="export-result">
               <p>Export complete!</p>
               <p>
-                Created tabs: "{exportResult.accepted_tab}" (
-                {exportResult.accepted_count} accepted), "
-                {exportResult.rejected_tab}" ({exportResult.rejected_count}{" "}
+                Created tabs: &quot;{exportResult.accepted_tab}&quot; (
+                {exportResult.accepted_count} accepted), &quot;
+                {exportResult.rejected_tab}&quot; ({exportResult.rejected_count}{" "}
                 rejected)
               </p>
             </div>
