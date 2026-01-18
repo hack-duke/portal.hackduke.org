@@ -274,6 +274,11 @@
   color: #c62828;
 }
 
+.status-confirmed {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .no-results {
   text-align: center;
   padding: 48px 20px !important;

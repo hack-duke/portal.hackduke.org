@@ -49,6 +49,7 @@ class AdminStatsResponse(BaseModel):
     total_pending: int
     total_accepted: int
     total_rejected: int
+    total_confirmed: int
     user_accepted: int
     user_rejected: int
 
@@ -412,6 +413,12 @@ async def get_stats(
         .filter(Application.status == ApplicationStatus.REJECTED)
         .count()
     )
+    total_confirmed = (
+        db.query(Application)
+        .filter(Application.form_key == CURRENT_FORM_KEY)
+        .filter(Application.status == ApplicationStatus.CONFIRMED)
+        .count()
+    )
 
     # Get per-user stats (only for current form)
     user_accepted = (
@@ -437,6 +444,7 @@ async def get_stats(
         total_pending=total_pending,
         total_accepted=total_accepted,
         total_rejected=total_rejected,
+        total_confirmed=total_confirmed,
         user_accepted=user_accepted,
         user_rejected=user_rejected,
     )
@@ -484,6 +492,8 @@ async def list_applications(
             query = query.filter(Application.status == ApplicationStatus.ACCEPTED)
         elif status_upper == "REJECTED":
             query = query.filter(Application.status == ApplicationStatus.REJECTED)
+        elif status_upper == "CONFIRMED":
+            query = query.filter(Application.status == ApplicationStatus.CONFIRMED)
 
     # Get all applications
     applications = query.order_by(Application.created_at.desc()).all()

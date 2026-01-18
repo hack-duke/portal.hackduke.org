@@ -25,7 +25,10 @@ const FormsLandingPage = () => {
         setLoading(true);
         setError(null);
 
-        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError,
+        );
         const token = await getAuthToken();
         if (!token) {
           setLoading(false);
@@ -39,7 +42,7 @@ const FormsLandingPage = () => {
               {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { form_key: form.formKey },
-              }
+              },
             );
 
             const isOpen = Boolean(statusRes.data?.is_open);
@@ -51,14 +54,14 @@ const FormsLandingPage = () => {
                 {
                   headers: { Authorization: `Bearer ${token}` },
                   params: { form_key: form.formKey },
-                }
+                },
               );
               hasSubmitted = true;
             } catch (error) {
               if (error.response?.status !== 404) {
                 console.error(
                   `Error checking submission for ${form.formKey}:`,
-                  error
+                  error,
                 );
               }
             }

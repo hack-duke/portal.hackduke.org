@@ -125,6 +125,8 @@ const AdminApplicantsPage = () => {
         return "status-accepted";
       case "rejected":
         return "status-rejected";
+      case "confirmed":
+        return "status-confirmed";
       default:
         return "status-pending";
     }
@@ -187,6 +189,7 @@ const AdminApplicantsPage = () => {
               <option value="pending">Pending</option>
               <option value="accepted">Accepted</option>
               <option value="rejected">Rejected</option>
+              <option value="confirmed">Confirmed</option>
             </select>
           </div>
         </div>
