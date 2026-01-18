@@ -11,7 +11,7 @@ import { createGetAuthToken } from "../utils/authUtils";
 import "./FormsLandingPage.css";
 
 const FormsLandingPage = () => {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
   const navigate = useNavigate();
   const [formsStatus, setFormsStatus] = useState({});
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,10 @@ const FormsLandingPage = () => {
         setLoading(true);
         setError(null);
 
-        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError,
+        );
         const token = await getAuthToken();
         if (!token) {
           setLoading(false);
@@ -34,12 +37,17 @@ const FormsLandingPage = () => {
 
         const statusPromises = allForms.map(async (form) => {
           try {
+            const params = { form_key: form.formKey };
+            if (user?.email) {
+              params.email = user.email;
+            }
+
             const statusRes = await axios.get(
               `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
               {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { form_key: form.formKey },
-              }
+                params,
+              },
             );
 
             const isOpen = Boolean(statusRes.data?.is_open);
@@ -51,14 +59,14 @@ const FormsLandingPage = () => {
                 {
                   headers: { Authorization: `Bearer ${token}` },
                   params: { form_key: form.formKey },
-                }
+                },
               );
               hasSubmitted = true;
             } catch (error) {
               if (error.response?.status !== 404) {
                 console.error(
                   `Error checking submission for ${form.formKey}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -94,7 +102,7 @@ const FormsLandingPage = () => {
     };
 
     fetchAllFormsStatus();
-  }, [allForms, getAccessTokenSilently]);
+  }, [allForms, getAccessTokenSilently, user?.email]);
 
   const handleFormClick = (formKey) => {
     navigate(`/form?formKey=${formKey}`);

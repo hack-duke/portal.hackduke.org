@@ -68,7 +68,7 @@ const AdminPage = () => {
         setLoading(true);
         const getAuthToken = createGetAuthToken(
           getAccessTokenSilently,
-          setError
+          setError,
         );
         const token = await getAuthToken();
         console.log("Token obtained:", !!token);
@@ -84,7 +84,7 @@ const AdminPage = () => {
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
 
         console.log("Admin check response:", response.data);
@@ -92,7 +92,7 @@ const AdminPage = () => {
         if (response.data.is_admin && response.data.session_id) {
           console.log(
             "User is admin, setting session ID:",
-            response.data.session_id
+            response.data.session_id,
           );
           setSessionId(response.data.session_id);
           // Store session in localStorage to detect multi-tab
@@ -134,7 +134,7 @@ const AdminPage = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sid },
-        }
+        },
       );
       setStats(statsRes.data);
     } catch (err) {
@@ -159,7 +159,7 @@ const AdminPage = () => {
           }
         }
       },
-      5 * 60 * 1000
+      5 * 60 * 1000,
     ); // 5 minutes
 
     return () => clearInterval(interval);
@@ -192,7 +192,7 @@ const AdminPage = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sessionId },
-        }
+        },
       );
 
       setExportResult(response.data);
@@ -201,11 +201,13 @@ const AdminPage = () => {
       // Open the Google Sheet in a new tab
       window.open(
         "https://docs.google.com/spreadsheets/d/1Q7aS2iA2rDywbJX7EaVLMXJj_wxAcslD4qLKcDaQWkE/edit",
-        "_blank"
+        "_blank",
       );
     } catch (err) {
       console.error("Error exporting to sheets:", err);
-      setError(err.response?.data?.detail || "Failed to export to Google Sheets.");
+      setError(
+        err.response?.data?.detail || "Failed to export to Google Sheets.",
+      );
       setExporting(false);
     }
   };
@@ -276,18 +278,21 @@ const AdminPage = () => {
             <div className="stat-label">Rejected</div>
           </div>
           <div className="stat-card">
+            <div className="stat-number" style={{ color: "#9C27B0" }}>
+              {stats?.total_confirmed || 0}
+            </div>
+            <div className="stat-label">Confirmed</div>
+          </div>
+          {/* <div className="stat-card">
             <div className="stat-number" style={{ color: "#1031D0" }}>
               {stats?.user_accepted || 0}
             </div>
             <div className="stat-label">Your Decisions</div>
-          </div>
+          </div> */}
         </div>
 
         <div className="admin-actions">
-          <Button
-            onClick={handleStartJudging}
-            className="start-judging-btn"
-          >
+          <Button onClick={handleStartJudging} className="start-judging-btn">
             Start Judging
           </Button>
           <Button
@@ -301,7 +306,8 @@ const AdminPage = () => {
         <div className="admin-export-section">
           <h2 className="export-title">Export to Google Sheets</h2>
           <p className="export-description">
-            Export current accepted and rejected applicants to the mail merge spreadsheet.
+            Export current accepted and rejected applicants to the mail merge
+            spreadsheet.
           </p>
           <Button
             onClick={handleExportToSheets}
@@ -313,7 +319,12 @@ const AdminPage = () => {
           {exportResult && (
             <div className="export-result">
               <p>Export complete!</p>
-              <p>Created tabs: "{exportResult.accepted_tab}" ({exportResult.accepted_count} accepted), "{exportResult.rejected_tab}" ({exportResult.rejected_count} rejected)</p>
+              <p>
+                Created tabs: &quot;{exportResult.accepted_tab}&quot; (
+                {exportResult.accepted_count} accepted), &quot;
+                {exportResult.rejected_tab}&quot; ({exportResult.rejected_count}{" "}
+                rejected)
+              </p>
             </div>
           )}
         </div>
