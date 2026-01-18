@@ -214,3 +214,112 @@
 .export-result p:first-child {
   font-weight: 600;
 }
+
+/* Exceptions Section */
+.admin-exceptions-section {
+  margin-top: 64px;
+  padding-top: 48px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.exceptions-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.exceptions-description {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.exception-add-form {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.exception-input {
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  min-width: 300px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.exception-input:focus {
+  border-color: #1031d0;
+}
+
+.exception-add-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.exception-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.exception-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.exception-email {
+  font-size: 0.95rem;
+  color: #333;
+  font-family: monospace;
+}
+
+.exception-remove-btn {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.exception-remove-btn:hover {
+  color: #c62828;
+}
+
+.no-exceptions {
+  color: #999;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .exception-input {
+    min-width: 100%;
+  }
+
+  .exception-add-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exception-add-btn {
+    width: 100%;
+  }
+}

@@ -13,6 +13,7 @@ from models.user import User
 from models.admin_user import AdminUser
 from models.application import Application, ApplicationStatus
 from models.response import Response
+from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
 
@@ -842,3 +843,128 @@ async def export_to_sheets(
         return ExportResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")
+
+
+class ExceptionListResponse(BaseModel):
+    form_key: str
+    exception_emails: list[str]
+
+
+class AddExceptionRequest(BaseModel):
+    email: str
+
+
+class RemoveExceptionRequest(BaseModel):
+    email: str
+
+
+@router.get("/exceptions", response_model=ExceptionListResponse)
+async def get_exception_list(
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Get the list of emails with form submission exceptions."""
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="Not an admin")
+
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    return ExceptionListResponse(
+        form_key=form.form_key,
+        exception_emails=form.exception_emails or []
+    )
+
+
+@router.post("/exceptions/add", response_model=ExceptionListResponse)
+async def add_exception_email(
+    request: AddExceptionRequest,
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Add an email to the exception list."""
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="Not an admin")
+
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    email = request.email.strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email cannot be empty")
+
+    current_emails = form.exception_emails or []
+    if email not in [e.lower() for e in current_emails]:
+        form.exception_emails = current_emails + [email]
+        db.commit()
+
+    return ExceptionListResponse(
+        form_key=form.form_key,
+        exception_emails=form.exception_emails or []
+    )
+
+
+@router.post("/exceptions/remove", response_model=ExceptionListResponse)
+async def remove_exception_email(
+    request: RemoveExceptionRequest,
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Remove an email from the exception list."""
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    if not admin_user:
+        raise HTTPException(status_code=403, detail="Not an admin")
+
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+
+    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    email = request.email.strip().lower()
+    current_emails = form.exception_emails or []
+    form.exception_emails = [e for e in current_emails if e.lower() != email]
+    db.commit()
+
+    return ExceptionListResponse(
+        form_key=form.form_key,
+        exception_emails=form.exception_emails or []
+    )
