@@ -29,6 +29,9 @@ const AdminPage = () => {
   const [showMultiTabModal, setShowMultiTabModal] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState(null);
+  const [exceptionEmails, setExceptionEmails] = useState([]);
+  const [newExceptionEmail, setNewExceptionEmail] = useState("");
+  const [addingException, setAddingException] = useState(false);
 
   // Release locks when tab/window is closed (only if session is still valid)
   useAdminLockRelease(sessionId, showMultiTabModal);
@@ -97,8 +100,9 @@ const AdminPage = () => {
           setSessionId(response.data.session_id);
           // Store session in localStorage to detect multi-tab
           localStorage.setItem("adminSessionId", response.data.session_id);
-          // Fetch initial stats
+          // Fetch initial stats and exception list
           await fetchStats(token, response.data.session_id);
+          await fetchExceptionList(token, response.data.session_id);
           // Start ping interval
           startPingInterval(token, response.data.session_id);
         }
@@ -139,6 +143,74 @@ const AdminPage = () => {
       setStats(statsRes.data);
     } catch (err) {
       console.error("Error fetching stats:", err);
+    }
+  };
+
+  const fetchExceptionList = async (token, sid) => {
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_BACKEND_URL}/admin/exceptions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { session_id: sid },
+        },
+      );
+      setExceptionEmails(response.data.exception_emails || []);
+    } catch (err) {
+      console.error("Error fetching exception list:", err);
+    }
+  };
+
+  const handleAddException = async () => {
+    if (!newExceptionEmail.trim()) return;
+
+    try {
+      setAddingException(true);
+      const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+      const token = await getAuthToken();
+      if (!token) {
+        setAddingException(false);
+        return;
+      }
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/admin/exceptions/add`,
+        { email: newExceptionEmail.trim() },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { session_id: sessionId },
+        },
+      );
+
+      setExceptionEmails(response.data.exception_emails || []);
+      setNewExceptionEmail("");
+      setAddingException(false);
+    } catch (err) {
+      console.error("Error adding exception:", err);
+      setError(err.response?.data?.detail || "Failed to add exception.");
+      setAddingException(false);
+    }
+  };
+
+  const handleRemoveException = async (email) => {
+    try {
+      const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/admin/exceptions/remove`,
+        { email },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { session_id: sessionId },
+        },
+      );
+
+      setExceptionEmails(response.data.exception_emails || []);
+    } catch (err) {
+      console.error("Error removing exception:", err);
+      setError(err.response?.data?.detail || "Failed to remove exception.");
     }
   };
 
@@ -326,6 +398,54 @@ const AdminPage = () => {
                 rejected)
               </p>
             </div>
+          )}
+        </div>
+
+        <div className="admin-exceptions-section">
+          <h2 className="exceptions-title">Form Exceptions</h2>
+          <p className="exceptions-description">
+            Allow specific emails to submit applications even when the form is closed.
+          </p>
+
+          <div className="exception-add-form">
+            <input
+              type="email"
+              placeholder="Enter email address"
+              value={newExceptionEmail}
+              onChange={(e) => setNewExceptionEmail(e.target.value)}
+              className="exception-input"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleAddException();
+                }
+              }}
+            />
+            <Button
+              onClick={handleAddException}
+              disabled={addingException || !newExceptionEmail.trim()}
+              className="exception-add-btn"
+            >
+              {addingException ? "Adding..." : "Add"}
+            </Button>
+          </div>
+
+          {exceptionEmails.length > 0 ? (
+            <ul className="exception-list">
+              {exceptionEmails.map((email) => (
+                <li key={email} className="exception-item">
+                  <span className="exception-email">{email}</span>
+                  <button
+                    onClick={() => handleRemoveException(email)}
+                    className="exception-remove-btn"
+                    title="Remove exception"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="no-exceptions">No exceptions configured.</p>
           )}
         </div>
 
