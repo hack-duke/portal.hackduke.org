@@ -1,0 +1,286 @@
+.qr-scanner-page {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0f0f0;
+}
+
+.qr-container {
+  max-width: 600px;
+  width: 100%;
+}
+
+.qr-scanner-page h1 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.qr-scanner-page video {
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.qr-scanner-page canvas {
+  display: none;
+}
+
+.qr-scanner-page .status {
+  margin-top: 10px;
+  font-size: 18px;
+  padding: 10px;
+  text-align: center;
+}
+
+.qr-scanner-page .status.waiting {
+  color: gray;
+}
+
+.qr-scanner-page .status.success {
+  color: green;
+}
+
+.qr-scanner-page .status.error {
+  color: red;
+}
+
+.qr-scanner-page select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+/* Manual Search Section */
+.manual-search-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.manual-search-section h2 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+#user-search {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.search-results {
+  margin-top: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.user-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.user-result:hover {
+  background-color: #f5f5f5;
+}
+
+.user-result:last-child {
+  border-bottom: none;
+}
+
+.user-name {
+  font-weight: bold;
+}
+
+.check-in-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.check-in-btn:hover {
+  background-color: #45a049;
+}
+
+.check-in-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.no-results {
+  color: #666;
+  text-align: center;
+  padding: 10px;
+}
+
+.search-hint {
+  color: #888;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+/* Scanner Toggle */
+.scanner-section {
+  margin-bottom: 15px;
+}
+
+.scanner-toggle-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background-color 0.2s;
+}
+
+.scanner-toggle-btn.active {
+  background-color: #f44336;
+  color: white;
+}
+
+.scanner-toggle-btn.inactive {
+  background-color: #4caf50;
+  color: white;
+}
+
+.scanner-toggle-btn:hover {
+  opacity: 0.9;
+}
+
+.scanner-container {
+  display: block;
+}
+
+.scanner-container.hidden {
+  display: none;
+}
+
+/* Attendees List Section */
+.attendees-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.attendees-section h2 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.attendees-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1d42c6;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+}
+
+.attendees-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.attendee-group-header {
+  font-weight: bold;
+  padding: 8px 10px;
+  background-color: #e0e0e0;
+  margin-top: 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.attendee-group-header:first-child {
+  margin-top: 0;
+}
+
+.attendee-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.attendee-item:last-child {
+  border-bottom: none;
+}
+
+.attendee-info {
+  flex: 1;
+}
+
+.attendee-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.attendee-time {
+  font-size: 12px;
+  color: #4caf50;
+}
+
+.checked-in-badge {
+  background-color: #4caf50;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.refresh-btn {
+  background-color: #1d42c6;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.refresh-btn:hover {
+  background-color: #162f8a;
+}
