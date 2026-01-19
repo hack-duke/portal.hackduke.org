@@ -3,6 +3,7 @@ from auth import VerifyToken
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from routers import application, check_in
+from fastapi.staticfiles import StaticFiles
 import sentry_sdk
 from config import Env
 
@@ -30,6 +31,9 @@ app.add_middleware(
 
 app.include_router(prefix="/application", router=application.router)
 app.include_router(prefix="/check-in", router=check_in.router)
+
+# Mount static files for QR code scanner UI
+app.mount("/qr", StaticFiles(directory="static/qr", html=True), name="qr")
 
 
 @app.get("/health")

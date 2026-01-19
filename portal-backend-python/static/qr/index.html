@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy" content="camera=*">
+    <title>QR Code Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        video {
+            max-width: 100%;
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        canvas {
+            display: none;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 18px;
+            padding: 10px;
+            text-align: center;
+        }
+        .waiting {
+            color: gray;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        /* Manual Search Section */
+        .manual-search-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .manual-search-section h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        #user-search {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        #search-results {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .user-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .user-result:hover {
+            background-color: #f5f5f5;
+        }
+        .user-result:last-child {
+            border-bottom: none;
+        }
+        .user-name {
+            font-weight: bold;
+        }
+        .check-in-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .check-in-btn:hover {
+            background-color: #45a049;
+        }
+        .check-in-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .no-results {
+            color: #666;
+            text-align: center;
+            padding: 10px;
+        }
+        .search-hint {
+            color: #888;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Scanner Toggle */
+        .scanner-section {
+            margin-bottom: 15px;
+        }
+        .scanner-toggle-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.2s;
+        }
+        .scanner-toggle-btn.active {
+            background-color: #f44336;
+            color: white;
+        }
+        .scanner-toggle-btn.inactive {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .scanner-toggle-btn:hover {
+            opacity: 0.9;
+        }
+        #scanner-container {
+            display: block;
+        }
+        #scanner-container.hidden {
+            display: none;
+        }
+
+        /* Attendees List Section */
+        .attendees-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .attendees-section h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        .attendees-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1d42c6;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .attendees-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .attendee-group-header {
+            font-weight: bold;
+            padding: 8px 10px;
+            background-color: #e0e0e0;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .attendee-group-header:first-child {
+            margin-top: 0;
+        }
+        .attendee-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .attendee-item:last-child {
+            border-bottom: none;
+        }
+        .attendee-info {
+            flex: 1;
+        }
+        .attendee-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .attendee-time {
+            font-size: 12px;
+            color: #4CAF50;
+        }
+        .checked-in-badge {
+            background-color: #4CAF50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .refresh-btn {
+            background-color: #1d42c6;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .refresh-btn:hover {
+            background-color: #162f8a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Scanner</h1>
+        <select id="event-select">
+            <option value="check-in">Check-In</option>
+            <option value="lunch">Sat Lunch</option>
+            <option value="dinner">Sat Dinner</option>
+            <option value="brekky">Sun Brekky</option>
+        </select>
+
+        <div class="scanner-section">
+            <button id="scanner-toggle" class="scanner-toggle-btn active" onclick="toggleScanner()">
+                Close Scanner
+            </button>
+            <div id="scanner-container">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+        <div id="status" class="waiting">Waiting for camera...</div>
+
+        <!-- Manual Search Section -->
+        <div class="manual-search-section">
+            <h2>Manual Search</h2>
+            <input type="text" id="user-search" placeholder="Search by name...">
+            <div class="search-hint">Type at least 2 characters to search</div>
+            <div id="search-results"></div>
+        </div>
+
+        <!-- Check-in Log Section -->
+        <div class="attendees-section">
+            <h2>Check-in Log</h2>
+            <button class="refresh-btn" onclick="loadLog()">Refresh</button>
+            <div class="attendees-stats">
+                <div class="stat">
+                    <div class="stat-number" id="checked-in-count">0</div>
+                    <div class="stat-label">Checked In</div>
+                </div>
+            </div>
+            <div class="attendees-list" id="attendees-list">
+                Loading...
+            </div>
+        </div>
+
+        <!-- Not Checked In Section -->
+        <div class="attendees-section">
+            <h2>Not Checked In</h2>
+            <button class="refresh-btn" onclick="loadNotCheckedIn()">Refresh</button>
+            <div class="attendees-stats">
+                <div class="stat">
+                    <div class="stat-number" id="not-checked-in-count">0</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+            <div class="attendees-list" id="not-checked-in-list">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base path for check-in endpoints
+        const API_BASE = '/check-in';
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const statusDiv = document.getElementById('status');
+        const eventSelect = document.getElementById('event-select');
+        const scannerContainer = document.getElementById('scanner-container');
+        const scannerToggle = document.getElementById('scanner-toggle');
+        const checkedInCountEl = document.getElementById('checked-in-count');
+        const attendeesListDiv = document.getElementById('attendees-list');
+        const notCheckedInCountEl = document.getElementById('not-checked-in-count');
+        const notCheckedInListDiv = document.getElementById('not-checked-in-list');
+        const ctx = canvas.getContext('2d');
+        let scanning = true;
+        let scannerActive = true;
+
+        const constraints = {
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
+        video.addEventListener('loadedmetadata', () => {
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.error('Video dimensions not available');
+                statusDiv.textContent = 'Error: Camera not properly initialized';
+                statusDiv.className = 'error';
+            }
+        });
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.play();
+                scannerActive = true;
+                requestAnimationFrame(scanFrame);
+                statusDiv.textContent = 'Camera active. Point at a QR code.';
+                statusDiv.className = 'waiting';
+            } catch (err) {
+                console.error('Error accessing the camera:', err);
+                statusDiv.textContent = 'Camera access denied: ' + err.message;
+                statusDiv.className = 'error';
+            }
+        }
+
+        function stopCamera() {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            scannerActive = false;
+        }
+
+        function toggleScanner() {
+            if (scannerActive) {
+                // Close scanner
+                stopCamera();
+                scannerContainer.classList.add('hidden');
+                scannerToggle.textContent = 'Open Scanner';
+                scannerToggle.classList.remove('active');
+                scannerToggle.classList.add('inactive');
+                statusDiv.textContent = 'Scanner closed. Use manual search below.';
+                statusDiv.className = 'waiting';
+            } else {
+                // Open scanner
+                scannerContainer.classList.remove('hidden');
+                scannerToggle.textContent = 'Close Scanner';
+                scannerToggle.classList.remove('inactive');
+                scannerToggle.classList.add('active');
+                initCamera();
+            }
+        }
+
+        function scanFrame() {
+            if (!scannerActive) return;
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code && scanning) {
+                    scanning = false;
+                    sendQRCode(code.data);
+                    statusDiv.textContent = 'User found: ' + code.data;
+                    statusDiv.className = 'success';
+
+                    setTimeout(() => {
+                        scanning = true;
+                        statusDiv.textContent = 'Ready to scan next code';
+                        statusDiv.className = 'waiting';
+                    }, 2000);
+                }
+            }
+            requestAnimationFrame(scanFrame);
+        }
+
+        function sendQRCode(data) {
+            const eventType = eventSelect.value;
+            fetch(`${API_BASE}/log_user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ qr_code: data, event_type: eventType })
+            }).then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.detail || 'Network response was not ok');
+                    });
+                }
+                return response.json();
+            }).then(data => {
+                console.log('Success:', data);
+                statusDiv.innerHTML = `
+                    <strong>${data.full_name}</strong> checked in!<br>
+                    <small>Event: ${data.event_type} | Time: ${data.check_in_time} | Status: ${data.status}</small>
+                `;
+                statusDiv.className = 'success';
+                // Refresh the check-in log and not-checked-in list
+                loadLog();
+                loadNotCheckedIn();
+            }).catch(err => {
+                console.error('Error sending QR code data:', err);
+                statusDiv.textContent = 'Error: ' + err.message;
+                statusDiv.className = 'error';
+            });
+        }
+
+        // Manual Search Functionality
+        const userSearchInput = document.getElementById('user-search');
+        const searchResultsDiv = document.getElementById('search-results');
+        let searchTimeout = null;
+
+        userSearchInput.addEventListener('input', () => {
+            const query = userSearchInput.value.trim();
+
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            // Clear results if query is too short
+            if (query.length < 2) {
+                searchResultsDiv.innerHTML = '';
+                return;
+            }
+
+            // Debounce the search
+            searchTimeout = setTimeout(() => {
+                searchUsers(query);
+            }, 300);
+        });
+
+        function searchUsers(query) {
+            fetch(`${API_BASE}/search_users?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.users);
+                })
+                .catch(err => {
+                    console.error('Search error:', err);
+                    searchResultsDiv.innerHTML = '<div class="no-results">Error searching users</div>';
+                });
+        }
+
+        function displaySearchResults(users) {
+            if (!users || users.length === 0) {
+                searchResultsDiv.innerHTML = '<div class="no-results">No users found</div>';
+                return;
+            }
+
+            searchResultsDiv.innerHTML = users.map(user => `
+                <div class="user-result">
+                    <span class="user-name">${user.name}</span>
+                    <button class="check-in-btn" onclick="checkInUser('${user.user_id}', '${user.name}')">
+                        Check In
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function checkInUser(userId, userName) {
+            const eventType = eventSelect.value;
+
+            fetch(`${API_BASE}/log_user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ qr_code: userId, event_type: eventType })
+            }).then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.detail || 'Check-in failed');
+                    });
+                }
+                return response.json();
+            }).then(data => {
+                statusDiv.innerHTML = `
+                    <strong>${data.full_name}</strong> checked in!<br>
+                    <small>Event: ${data.event_type} | Time: ${data.check_in_time} | Status: ${data.status}</small>
+                `;
+                statusDiv.className = 'success';
+                userSearchInput.value = '';
+                searchResultsDiv.innerHTML = '';
+                // Refresh the check-in log and not-checked-in list
+                loadLog();
+                loadNotCheckedIn();
+
+                setTimeout(() => {
+                    statusDiv.textContent = 'Ready to scan next code';
+                    statusDiv.className = 'waiting';
+                }, 3000);
+            }).catch(err => {
+                statusDiv.textContent = 'Error: ' + err.message;
+                statusDiv.className = 'error';
+            });
+        }
+
+        // Load check-in log
+        function loadLog() {
+            const eventType = eventSelect.value;
+            fetch(`${API_BASE}/log?event_type=${encodeURIComponent(eventType)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update count
+                    checkedInCountEl.textContent = data.total_users;
+
+                    // Build log HTML
+                    let html = '';
+
+                    if (data.log.length > 0) {
+                        data.log.forEach(entry => {
+                            html += `
+                                <div class="attendee-item">
+                                    <div class="attendee-info">
+                                        <span class="attendee-name">${entry.name}</span>
+                                        <span class="checked-in-badge">${entry.time}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html = '<div class="no-results">No check-ins yet</div>';
+                    }
+
+                    attendeesListDiv.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Error loading log:', err);
+                    attendeesListDiv.innerHTML = '<div class="no-results">Error loading log</div>';
+                });
+        }
+
+        // Load not checked in users
+        function loadNotCheckedIn() {
+            const eventType = eventSelect.value;
+            fetch(`${API_BASE}/not_checked_in?event_type=${encodeURIComponent(eventType)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update count
+                    notCheckedInCountEl.textContent = data.total;
+
+                    // Build list HTML
+                    let html = '';
+
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            html += `
+                                <div class="attendee-item">
+                                    <div class="attendee-info">
+                                        <span class="attendee-name">${user.name}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html = '<div class="no-results">Everyone has checked in!</div>';
+                    }
+
+                    notCheckedInListDiv.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Error loading not checked in:', err);
+                    notCheckedInListDiv.innerHTML = '<div class="no-results">Error loading data</div>';
+                });
+        }
+
+        // Reload log when event type changes
+        eventSelect.addEventListener('change', () => {
+            loadLog();
+            loadNotCheckedIn();
+        });
+
+        window.addEventListener('load', () => {
+            initCamera();
+            loadLog();
+            loadNotCheckedIn();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopCamera();
+            } else if (!scannerContainer.classList.contains('hidden')) {
+                initCamera();
+            }
+        });
+    </script>
+</body>
+</html>
