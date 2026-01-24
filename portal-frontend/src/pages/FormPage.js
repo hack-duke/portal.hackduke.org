@@ -9,9 +9,10 @@ import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
 import { getFormByKey } from "../forms/forms";
+import { createGetAuthToken } from "../utils/authUtils";
 
 const FormPage = ({ formKey }) => {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -24,22 +25,7 @@ const FormPage = ({ formKey }) => {
 
   const formDefinition = getFormByKey(formKey);
 
-  const getAuthToken = async () => {
-    try {
-      return await getAccessTokenSilently();
-    } catch (tokenError) {
-      if (tokenError.message.includes("Missing Refresh Token")) {
-        openModal();
-        setError(
-          "Session expired. Please try logging out and logging back in."
-        );
-        return null;
-      }
-      throw tokenError;
-    }
-  };
-
-  const prepareFormData = (data) => {
+  const prepareFormData = (data, auth0Email) => {
     const formData = new FormData();
     formData.append("form_key", formKey);
 
@@ -55,6 +41,9 @@ const FormPage = ({ formKey }) => {
     }
 
     formData.append("form_data", JSON.stringify(formDataJson));
+    if (auth0Email) {
+      formData.append("auth0_email", auth0Email);
+    }
     return formData;
   };
 
@@ -76,12 +65,13 @@ const FormPage = ({ formKey }) => {
     setError(null);
 
     try {
+      const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
       const token = await getAuthToken();
       if (!token) {
         return;
       }
 
-      const formData = prepareFormData(data);
+      const formData = prepareFormData(data, user?.email);
       await submitFormData(formData, token);
 
       navigate(`/status?formKey=${formKey}`, { state: { firstTime: true } });
@@ -94,16 +84,19 @@ const FormPage = ({ formKey }) => {
   };
 
   const checkFormStatus = useCallback(
-    async (token) => {
+    async (token, email) => {
+      const params = { form_key: formKey };
+      if (email) {
+        params.email = email;
+      }
+
       const statusRes = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          params: {
-            form_key: formKey,
-          },
+          params,
         }
       );
 
@@ -132,8 +125,15 @@ const FormPage = ({ formKey }) => {
       try {
         setLoading(true);
 
-        const token = await getAccessTokenSilently();
-        const isOpen = await checkFormStatus(token);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError
+        );
+        const token = await getAuthToken();
+        if (!token) {
+          return;
+        }
+        const isOpen = await checkFormStatus(token, user?.email);
         setIsFormOpen(isOpen);
 
         if (!isOpen) {
@@ -162,6 +162,7 @@ const FormPage = ({ formKey }) => {
     checkExistingSubmission,
     openModal,
     setError,
+    user?.email,
   ]);
 
   if (!formDefinition) {

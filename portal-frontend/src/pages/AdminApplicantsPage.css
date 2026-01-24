@@ -1,0 +1,342 @@
+.applicants-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 80px 20px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.applicants-header {
+  margin-bottom: 32px;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: #1031d0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(16, 49, 208, 0.1);
+}
+
+.back-btn:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(16, 49, 208, 0.15);
+  transform: translateX(-2px);
+}
+
+.header-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow:
+    0 4px 20px rgba(16, 49, 208, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(16, 49, 208, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.header-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1031d0 0%, #103f8f 50%, #1031d0 100%);
+  background-size: 200% 100%;
+}
+
+.header-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.applicants-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.applicants-count {
+  font-size: 0.95rem;
+  color: white;
+  margin: 0;
+  background: linear-gradient(135deg, #1031d0 0%, #103f8f 100%);
+  padding: 8px 18px;
+  border-radius: 24px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 49, 208, 0.25);
+}
+
+.filters-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #999;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 12px 12px 42px;
+  font-size: 0.95rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  border-color: #1031d0;
+  box-shadow: 0 0 0 3px rgba(16, 49, 208, 0.1);
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-select {
+  padding: 12px 36px 12px 14px;
+  font-size: 0.95rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  min-width: 140px;
+}
+
+.filter-select:focus {
+  border-color: #1031d0;
+}
+
+.applicants-error {
+  background-color: #ffebee;
+  border: 2px solid #ff5252;
+  border-radius: 8px;
+  color: #c62828;
+  padding: 16px;
+  margin-bottom: 24px;
+  font-weight: 500;
+}
+
+.table-loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  font-size: 1rem;
+}
+
+.table-wrapper {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+}
+
+.applicants-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.applicants-table thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.applicants-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #444;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.applicants-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.15s;
+}
+
+.applicants-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.applicants-table tbody tr:hover {
+  background-color: #f8f9ff;
+}
+
+.applicants-table tbody tr.clickable-row {
+  cursor: pointer;
+}
+
+.applicants-table tbody tr.clickable-row:active {
+  background-color: #eef0ff;
+}
+
+.applicants-table td {
+  padding: 14px 16px;
+  color: #333;
+  vertical-align: middle;
+}
+
+.name-cell {
+  font-weight: 600;
+  color: #1031d0;
+}
+
+.email-cell {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.year-cell {
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-pending {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-accepted {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-rejected {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.status-confirmed {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.no-results {
+  text-align: center;
+  padding: 48px 20px !important;
+  color: #999;
+  font-style: italic;
+}
+
+.modal-button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .applicants-container {
+    padding: 60px 16px 32px;
+  }
+
+  .header-card {
+    padding: 20px 20px;
+    border-radius: 12px;
+  }
+
+  .header-card-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .applicants-title {
+    font-size: 1.5rem;
+  }
+
+  .applicants-count {
+    font-size: 0.85rem;
+    padding: 6px 14px;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .applicants-table {
+    min-width: 700px;
+  }
+}

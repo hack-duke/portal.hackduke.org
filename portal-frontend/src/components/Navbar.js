@@ -14,7 +14,7 @@ export const Navbar = () => {
           application
         </Link>
         <a
-          href="https://2025.hackduke.org/"
+          href="https://2026.hackduke.org/"
           className="nav-button"
           target="_blank"
           rel="noopener noreferrer"

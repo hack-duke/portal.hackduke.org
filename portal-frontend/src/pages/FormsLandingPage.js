@@ -7,78 +7,102 @@ import { WhiteBackground } from "../components/WhiteBackground";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Button from "../components/Button";
 import { getAllForms } from "../forms/forms";
+import { createGetAuthToken } from "../utils/authUtils";
 import "./FormsLandingPage.css";
 
 const FormsLandingPage = () => {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
   const navigate = useNavigate();
   const [formsStatus, setFormsStatus] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const allForms = useMemo(() => getAllForms(), []);
 
   useEffect(() => {
     const fetchAllFormsStatus = async () => {
-      setLoading(true);
-      const token = await getAccessTokenSilently();
-      const statusPromises = allForms.map(async (form) => {
-        try {
-          const statusRes = await axios.get(
-            `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-              params: { form_key: form.formKey },
-            }
-          );
+      try {
+        setLoading(true);
+        setError(null);
 
-          const isOpen = Boolean(statusRes.data?.is_open);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError,
+        );
+        const token = await getAuthToken();
+        if (!token) {
+          setLoading(false);
+          return;
+        }
 
-          let hasSubmitted = false;
+        const statusPromises = allForms.map(async (form) => {
           try {
-            await axios.get(
-              `${process.env.REACT_APP_BACKEND_URL}/application`,
+            const params = { form_key: form.formKey };
+            if (user?.email) {
+              params.email = user.email;
+            }
+
+            const statusRes = await axios.get(
+              `${process.env.REACT_APP_BACKEND_URL}/application/form-status`,
               {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { form_key: form.formKey },
-              }
+                params,
+              },
             );
-            hasSubmitted = true;
-          } catch (error) {
-            if (error.response?.status !== 404) {
-              console.error(
-                `Error checking submission for ${form.formKey}:`,
-                error
+
+            const isOpen = Boolean(statusRes.data?.is_open);
+
+            let hasSubmitted = false;
+            try {
+              await axios.get(
+                `${process.env.REACT_APP_BACKEND_URL}/application`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                  params: { form_key: form.formKey },
+                },
               );
+              hasSubmitted = true;
+            } catch (error) {
+              if (error.response?.status !== 404) {
+                console.error(
+                  `Error checking submission for ${form.formKey}:`,
+                  error,
+                );
+              }
             }
+
+            return {
+              formKey: form.formKey,
+              isOpen,
+              hasSubmitted,
+            };
+          } catch (error) {
+            console.error(`Error fetching status for ${form.formKey}:`, error);
+            return {
+              formKey: form.formKey,
+              isOpen: false,
+              hasSubmitted: false,
+              error: true,
+            };
           }
+        });
 
-          return {
-            formKey: form.formKey,
-            isOpen,
-            hasSubmitted,
-          };
-        } catch (error) {
-          console.error(`Error fetching status for ${form.formKey}:`, error);
-          return {
-            formKey: form.formKey,
-            isOpen: false,
-            hasSubmitted: false,
-            error: true,
-          };
-        }
-      });
-
-      const results = await Promise.all(statusPromises);
-      const statusMap = {};
-      results.forEach((result) => {
-        statusMap[result.formKey] = result;
-      });
-      setFormsStatus(statusMap);
-      setLoading(false);
+        const results = await Promise.all(statusPromises);
+        const statusMap = {};
+        results.forEach((result) => {
+          statusMap[result.formKey] = result;
+        });
+        setFormsStatus(statusMap);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error in fetchAllFormsStatus:", err);
+        setError("Failed to load.");
+        setLoading(false);
+      }
     };
 
     fetchAllFormsStatus();
-  }, [getAccessTokenSilently, allForms]);
+  }, [allForms, getAccessTokenSilently, user?.email]);
 
   const handleFormClick = (formKey) => {
     navigate(`/form?formKey=${formKey}`);
@@ -110,6 +134,7 @@ const FormsLandingPage = () => {
       <Navbar />
       <WhiteBackground />
       {loading && <FullPageLoadingSpinner />}
+      {error && <div style={{ color: "red", padding: "1rem" }}>{error}</div>}
       <div className="forms-landing-container">
         <h1 className="forms-landing-title">Applications & Forms</h1>
         <p className="forms-landing-subtitle">

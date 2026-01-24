@@ -38,3 +38,15 @@ class Application(Base):
     submission_json = Column(
         JSONB, nullable=True
     )  # redundant but makes fetching form data easier
+    locked_by = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )  # FK to user (admin) who is currently reviewing
+    locked_at = Column(
+        DateTime, nullable=True
+    )  # Timestamp when lock was acquired
+    decided_by = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )  # FK to admin user who made the decision
+    decided_at = Column(
+        DateTime, nullable=True
+    )  # Timestamp when decision was made

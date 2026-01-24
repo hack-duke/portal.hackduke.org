@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, Form as FastAPIForm, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Security, Form as FastAPIForm, File, UploadFile, Query
 from uuid import UUID
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from auth import VerifyToken
 from db import get_db
 from models.application import Application, ApplicationStatus
@@ -29,6 +29,7 @@ class FormStatusResponse(BaseModel):
 @router.get("/form-status", response_model=FormStatusResponse)
 async def form_status(
     form_key: str,
+    email: Optional[str] = Query(None, description="User email to check for exception override"),
     auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
@@ -40,13 +41,21 @@ async def form_status(
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
-    return FormStatusResponse(form_key=form_key, is_open=bool(form.is_open))
+    # Check if form is open OR if the email has an exception
+    is_open = bool(form.is_open)
+    if not is_open and email:
+        exception_emails = form.exception_emails or []
+        if email.lower() in [e.lower() for e in exception_emails]:
+            is_open = True
+
+    return FormStatusResponse(form_key=form_key, is_open=is_open)
 
 
 @router.post("/submit", response_model=SubmitApplicationResponse)
 async def submit_application(
     form_key: str = FastAPIForm(...),   # <-- use FastAPIForm (not ORM model)
     form_data: str = FastAPIForm(...),
+    auth0_email: Optional[str] = FastAPIForm(None),  # For exception list checking
     files: List[UploadFile] = File(default=[]),
     auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
@@ -55,12 +64,24 @@ async def submit_application(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    # Ensure form exists and is open
+    # Parse form data early to check for email exception
+    try:
+        parsed_form_data = json.loads(form_data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid form_data JSON")
+
+    # Ensure form exists and is open (or user has exception)
     form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
+
     if not form.is_open:
-        raise HTTPException(status_code=403, detail="Form is closed")
+        # Check if user's Auth0 email has an exception
+        exception_emails = form.exception_emails or []
+        email_to_check = (auth0_email or "").lower()
+        has_exception = email_to_check and email_to_check in [e.lower() for e in exception_emails]
+        if not has_exception:
+            raise HTTPException(status_code=403, detail="Form is closed")
 
     user = (
         db.query(User).filter(User.auth0_id == auth0_id).first()
@@ -81,11 +102,6 @@ async def submit_application(
             status_code=400,
             detail="Application already exists for this user for this form",
         )
-
-    try:
-        parsed_form_data = json.loads(form_data)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid form_data JSON")
 
     application = Application(
         user_id=user.id,
@@ -185,6 +201,7 @@ async def get_application(
 
     return GetApplicationResponse(
         id=application.id,
+        user_id=application.user_id,
         status=application.status,
         created_at=application.created_at,
         form_data=form_data,

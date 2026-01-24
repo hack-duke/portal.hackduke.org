@@ -2,7 +2,7 @@ from fastapi import FastAPI, Security
 from auth import VerifyToken
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from routers import application, check_in
+from routers import application, check_in, admin
 from fastapi.staticfiles import StaticFiles
 import sentry_sdk
 from config import Env

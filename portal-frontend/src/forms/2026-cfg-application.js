@@ -68,7 +68,7 @@ export const CFG_APPLICATION_2026 = {
       />
       <LongQuestion
         name="why_track"
-        label="Which of our four tracks excites you the most? Why?"
+        label="Which of our four tracks excites you the most (Health, Finance, Interactive Media, Sustainability)? Why?"
         rows={2}
         required
       />

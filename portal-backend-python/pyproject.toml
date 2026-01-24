@@ -18,6 +18,8 @@ pytest-asyncio = "^1.1.0"
 boto3 = "^1.40.29"
 python-multipart = "^0.0.20"
 sentry-sdk = {extras = ["fastapi"], version = "^2.38.0"}
+google-api-python-client = "^2.150.0"
+google-auth = "^2.36.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"

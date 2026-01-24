@@ -15,11 +15,12 @@ root.render(
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: process.env.REACT_APP_AUTH0_AUDIENCE,
+        scope: "openid profile email offline_access",
       }}
       useRefreshTokens={true}
       cacheLocation="localstorage"
     >
       <App />
     </Auth0Provider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

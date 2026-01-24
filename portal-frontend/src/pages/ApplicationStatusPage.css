@@ -1,3 +1,8 @@
+.status-page-wrapper {
+  min-height: 100vh;
+  position: relative;
+}
+
 .status-container {
   border: white;
   border-style: solid;
@@ -93,4 +98,51 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Confirmed user styles */
+.confirmed-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.confirmed-container .status-grid {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.qr-title {
+  font-size: 1.25rem;
+  color: white;
+  margin-bottom: 1rem;
+  font-family: "Urbanist";
+}
+
+.qr-code-container {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.qr-code-container:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+.qr-instructions {
+  color: #c0daff;
+  font-size: 0.9rem;
+  margin-top: 1rem;
 }

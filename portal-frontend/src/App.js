@@ -7,9 +7,14 @@ import FormPage from "./pages/FormPage";
 import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
 import QRScannerPage from "./pages/QRScannerPage";
+import AdminPage from "./pages/AdminPage";
+import AdminJudgePage from "./pages/AdminJudgePage";
+import AdminApplicantsPage from "./pages/AdminApplicantsPage";
+import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
+import { useInitializeAuth } from "./utils/authUtils";
 
 const DynamicFormPage = () => {
   const params = new URLSearchParams(window.location.search);
@@ -24,6 +29,8 @@ const DynamicFormPage = () => {
 
 function App() {
   const { isLoading } = useAuth0();
+  useInitializeAuth();
+
   if (isLoading) {
     return <FullPageLoadingSpinner />;
   }
@@ -60,6 +67,38 @@ function App() {
           path="/qr-scanner"
           element={
               <QRScannerPage />
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/judge"
+          element={
+            <ProtectedRoute>
+              <AdminJudgePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/applicants"
+          element={
+            <ProtectedRoute>
+              <AdminApplicantsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/application/:appId"
+          element={
+            <ProtectedRoute>
+              <AdminApplicationViewPage />
+            </ProtectedRoute>
           }
         />
 
