@@ -146,7 +146,7 @@ const ApplicationStatusPage = () => {
     checkIfSubmitted();
   }, [getAccessTokenSilently, navigate, formKey]);
 
-  const isConfirmed = application && application["status"] === "confirmed";
+  const isConfirmed = application && application["status"] === "CONFIRMED";
   const userId = application ? application["user_id"] : null;
 
   return (
@@ -194,10 +194,7 @@ const ApplicationStatusPage = () => {
 
       {/* Full-screen QR Modal */}
       {showQRModal && (
-        <div
-          className="qr-modal-overlay"
-          onClick={() => setShowQRModal(false)}
-        >
+        <div className="qr-modal-overlay" onClick={() => setShowQRModal(false)}>
           <div className="qr-modal-content">
             <QRCodeSVG
               value={userId || ""}

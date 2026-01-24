@@ -202,11 +202,11 @@ if __name__ == "__main__":
             "phone": doc.get("phone"),
         }
 
-        if doc.get("status") == "accepted":
+        if doc.get("status").lower() == "accepted":
             application.status = ApplicationStatus.ACCEPTED
-        elif doc.get("status") == "rejected":
+        elif doc.get("status").lower() == "rejected":
             application.status = ApplicationStatus.REJECTED
-        elif doc.get("status") == "confirmed":
+        elif doc.get("status").lower() == "confirmed":
             application.status = ApplicationStatus.CONFIRMED
 
     mongo.disconnect()

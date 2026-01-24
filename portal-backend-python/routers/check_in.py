@@ -191,6 +191,8 @@ async def log_user(
             check_in_time=check_in.check_in_time.strftime('%H:%M'),
             status=application.status.value
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

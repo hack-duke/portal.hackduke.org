@@ -1,19 +1,48 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import jsQR from "jsqr";
+import { WhiteBackground } from "../components/WhiteBackground";
 import "./QRScannerPage.css";
 
-const API_BASE = "/check_in";
+const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/check_in`;
+
+// Convert UTC military time to 12-hour Eastern Time format
+const formatTime = (militaryTime) => {
+  if (!militaryTime) return "";
+
+  // Create a date object for today with the given UTC time
+  const [hours, minutes] = militaryTime.split(":").map(Number);
+  const now = new Date();
+  const utcDate = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      hours,
+      minutes,
+    ),
+  );
+
+  // Format to Eastern Time
+  return utcDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  });
+};
 
 const QRScannerPage = () => {
   const [eventType, setEventType] = useState("check-in");
-  const [scannerActive, setScannerActive] = useState(true);
-  const [status, setStatus] = useState({ message: "Waiting for camera...", type: "waiting" });
+  const [scannerActive, setScannerActive] = useState(false);
+  const [status, setStatus] = useState({
+    message: "Tap 'Open Scanner' to begin",
+    type: "waiting",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [checkedInLog, setCheckedInLog] = useState([]);
   const [checkedInCount, setCheckedInCount] = useState(0);
-  const [notCheckedInList, setNotCheckedInList] = useState([]);
-  const [notCheckedInCount, setNotCheckedInCount] = useState(0);
+  const [logSearchQuery, setLogSearchQuery] = useState("");
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -31,18 +60,6 @@ const QRScannerPage = () => {
       })
       .catch((err) => {
         console.error("Error loading log:", err);
-      });
-  }, [eventType]);
-
-  const loadNotCheckedIn = useCallback(() => {
-    fetch(`${API_BASE}/not_checked_in?event_type=${encodeURIComponent(eventType)}`)
-      .then((response) => response.json())
-      .then((data) => {
-        setNotCheckedInCount(data.total);
-        setNotCheckedInList(data.users);
-      })
-      .catch((err) => {
-        console.error("Error loading not checked in:", err);
       });
   }, [eventType]);
 
@@ -70,21 +87,21 @@ const QRScannerPage = () => {
                 <strong>{data.full_name}</strong> checked in!
                 <br />
                 <small>
-                  Event: {data.event_type} | Time: {data.check_in_time} | Status: {data.status}
+                  Event: {data.event_type} | Time:{" "}
+                  {formatTime(data.check_in_time)} | Status: {data.status}
                 </small>
               </>
             ),
             type: "success",
           });
           loadLog();
-          loadNotCheckedIn();
         })
         .catch((err) => {
           console.error("Error sending QR code data:", err);
           setStatus({ message: "Error: " + err.message, type: "error" });
         });
     },
-    [eventType, loadLog, loadNotCheckedIn]
+    [eventType, loadLog],
   );
 
   const scanFrame = useCallback(() => {
@@ -105,7 +122,6 @@ const QRScannerPage = () => {
       if (code && scanningRef.current) {
         scanningRef.current = false;
         sendQRCode(code.data);
-        setStatus({ message: "User found: " + code.data, type: "success" });
 
         setTimeout(() => {
           scanningRef.current = true;
@@ -118,7 +134,6 @@ const QRScannerPage = () => {
 
   const initCamera = useCallback(async () => {
     try {
-      // Stop any existing stream first
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
@@ -136,25 +151,32 @@ const QRScannerPage = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
-        // Wait for video to be ready before playing
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
-            videoRef.current.play().then(() => {
-              setScannerActive(true);
-              animationFrameRef.current = requestAnimationFrame(scanFrame);
-              setStatus({ message: "Camera active. Point at a QR code.", type: "waiting" });
-            }).catch((err) => {
-              // Ignore AbortError which happens when play is interrupted
-              if (err.name !== "AbortError") {
-                console.error("Error playing video:", err);
-              }
-            });
+            videoRef.current
+              .play()
+              .then(() => {
+                setScannerActive(true);
+                animationFrameRef.current = requestAnimationFrame(scanFrame);
+                setStatus({
+                  message: "Camera active. Point at a QR code.",
+                  type: "waiting",
+                });
+              })
+              .catch((err) => {
+                if (err.name !== "AbortError") {
+                  console.error("Error playing video:", err);
+                }
+              });
           }
         };
       }
     } catch (err) {
       console.error("Error accessing the camera:", err);
-      setStatus({ message: "Camera access denied: " + err.message, type: "error" });
+      setStatus({
+        message: "Camera access denied: " + err.message,
+        type: "error",
+      });
     }
   }, [scanFrame]);
 
@@ -177,7 +199,10 @@ const QRScannerPage = () => {
   const toggleScanner = () => {
     if (scannerActive) {
       stopCamera();
-      setStatus({ message: "Scanner closed. Use manual search below.", type: "waiting" });
+      setStatus({
+        message: "Scanner closed. Use manual search below.",
+        type: "waiting",
+      });
     } else {
       initCamera();
     }
@@ -213,7 +238,7 @@ const QRScannerPage = () => {
     }, 300);
   };
 
-  const checkInUser = (userId, userName) => {
+  const checkInUser = (userId) => {
     fetch(`${API_BASE}/log_user`, {
       method: "POST",
       headers: {
@@ -236,7 +261,8 @@ const QRScannerPage = () => {
               <strong>{data.full_name}</strong> checked in!
               <br />
               <small>
-                Event: {data.event_type} | Time: {data.check_in_time} | Status: {data.status}
+                Event: {data.event_type} | Time:{" "}
+                {formatTime(data.check_in_time)} | Status: {data.status}
               </small>
             </>
           ),
@@ -245,7 +271,6 @@ const QRScannerPage = () => {
         setSearchQuery("");
         setSearchResults([]);
         loadLog();
-        loadNotCheckedIn();
 
         setTimeout(() => {
           setStatus({ message: "Ready to scan next code", type: "waiting" });
@@ -256,22 +281,24 @@ const QRScannerPage = () => {
       });
   };
 
-  // Initialize camera and load data on mount
+  // Filter log based on search query
+  const filteredLog = checkedInLog.filter((entry) =>
+    entry.name.toLowerCase().includes(logSearchQuery.toLowerCase()),
+  );
+
+  // Load data on mount (camera starts closed by default)
   useEffect(() => {
-    initCamera();
     loadLog();
-    loadNotCheckedIn();
 
     return () => {
       stopCamera();
     };
-  }, [initCamera, loadLog, loadNotCheckedIn, stopCamera]);
+  }, [loadLog, stopCamera]);
 
   // Reload data when event type changes
   useEffect(() => {
     loadLog();
-    loadNotCheckedIn();
-  }, [eventType, loadLog, loadNotCheckedIn]);
+  }, [eventType, loadLog]);
 
   // Handle visibility change
   useEffect(() => {
@@ -290,123 +317,120 @@ const QRScannerPage = () => {
   }, [scannerActive, initCamera, stopCamera]);
 
   return (
-    <div className="qr-scanner-page">
-      <div className="qr-container">
-        <h1>QR Code Scanner</h1>
+    <>
+      {/* <Navbar /> */}
+      <WhiteBackground />
+      <div className="qr-scanner-page">
+        <div className="qr-container">
+          <div className="qr-header">
+            <h1 className="qr-title">QR Scanner</h1>
+            <p className="qr-subtitle">Scan attendee QR codes for check-in</p>
+          </div>
 
-        <select
-          id="event-select"
-          value={eventType}
-          onChange={(e) => setEventType(e.target.value)}
-        >
-          <option value="check-in">Check-In</option>
-          <option value="lunch">Sat Lunch</option>
-          <option value="dinner">Sat Dinner</option>
-          <option value="brekky">Sun Brekky</option>
-        </select>
-
-        <div className="scanner-section">
-          <button
-            className={`scanner-toggle-btn ${scannerActive ? "active" : "inactive"}`}
-            onClick={toggleScanner}
+          <select
+            className="event-select"
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
           >
-            {scannerActive ? "Close Scanner" : "Open Scanner"}
-          </button>
-          <div className={`scanner-container ${!scannerActive ? "hidden" : ""}`}>
-            <video ref={videoRef} autoPlay playsInline muted></video>
-            <canvas ref={canvasRef}></canvas>
-          </div>
-        </div>
+            <option value="check-in">Check-In</option>
+            <option value="lunch">Sat Lunch</option>
+            <option value="dinner">Sat Dinner</option>
+            <option value="brekky">Sun Brekky</option>
+          </select>
 
-        <div className={`status ${status.type}`}>
-          {typeof status.message === "string" ? status.message : status.message}
-        </div>
-
-        {/* Manual Search Section */}
-        <div className="manual-search-section">
-          <h2>Manual Search</h2>
-          <input
-            type="text"
-            id="user-search"
-            placeholder="Search by name..."
-            value={searchQuery}
-            onChange={handleSearchInput}
-          />
-          <div className="search-hint">Type at least 2 characters to search</div>
-          <div className="search-results">
-            {searchResults.length === 0 && searchQuery.length >= 2 && (
-              <div className="no-results">No users found</div>
-            )}
-            {searchResults.map((user) => (
-              <div key={user.user_id} className="user-result">
-                <span className="user-name">{user.name}</span>
-                <button
-                  className="check-in-btn"
-                  onClick={() => checkInUser(user.user_id, user.name)}
-                >
-                  Check In
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Check-in Log Section */}
-        <div className="attendees-section">
-          <h2>Check-in Log</h2>
-          <button className="refresh-btn" onClick={loadLog}>
-            Refresh
-          </button>
-          <div className="attendees-stats">
-            <div className="stat">
-              <div className="stat-number">{checkedInCount}</div>
-              <div className="stat-label">Checked In</div>
+          {/* Scanner Section - transforms to fullscreen overlay on mobile when active */}
+          <div
+            className={`scanner-section ${scannerActive ? "scanner-active" : ""}`}
+          >
+            <button
+              className={`scanner-toggle-btn ${scannerActive ? "active" : "inactive"}`}
+              onClick={toggleScanner}
+            >
+              {scannerActive ? "Close Scanner" : "Open Scanner"}
+            </button>
+            <div
+              className={`scanner-container ${!scannerActive ? "hidden" : ""}`}
+            >
+              <video ref={videoRef} autoPlay playsInline muted></video>
+              <canvas ref={canvasRef}></canvas>
+            </div>
+            <div className={`status-card ${status.type}`}>
+              {typeof status.message === "string"
+                ? status.message
+                : status.message}
             </div>
           </div>
-          <div className="attendees-list">
-            {checkedInLog.length === 0 ? (
-              <div className="no-results">No check-ins yet</div>
-            ) : (
-              checkedInLog.map((entry, index) => (
-                <div key={index} className="attendee-item">
-                  <div className="attendee-info">
-                    <span className="attendee-name">{entry.name}</span>
-                    <span className="checked-in-badge">{entry.time}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
 
-        {/* Not Checked In Section */}
-        <div className="attendees-section">
-          <h2>Not Checked In</h2>
-          <button className="refresh-btn" onClick={loadNotCheckedIn}>
-            Refresh
-          </button>
-          <div className="attendees-stats">
-            <div className="stat">
-              <div className="stat-number">{notCheckedInCount}</div>
-              <div className="stat-label">Remaining</div>
+          {/* Manual Search Section */}
+          <div className="card manual-search-section">
+            <h2>Manual Search</h2>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={handleSearchInput}
+            />
+            <div className="search-hint">
+              Type at least 2 characters to search
+            </div>
+            <div className="search-results">
+              {searchResults.length === 0 && searchQuery.length >= 2 && (
+                <div className="no-results">No users found</div>
+              )}
+              {searchResults.map((user) => (
+                <div key={user.user_id} className="user-result">
+                  <span className="user-name">{user.name}</span>
+                  <button
+                    className="check-in-btn"
+                    onClick={() => checkInUser(user.user_id)}
+                  >
+                    Check In
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="attendees-list">
-            {notCheckedInList.length === 0 ? (
-              <div className="no-results">Everyone has checked in!</div>
-            ) : (
-              notCheckedInList.map((user, index) => (
-                <div key={index} className="attendee-item">
-                  <div className="attendee-info">
-                    <span className="attendee-name">{user.name}</span>
-                  </div>
+
+          {/* Check-in Log Section */}
+          <div className="card log-section">
+            <div className="log-header">
+              <h2>Check-in Log</h2>
+              <button className="refresh-btn" onClick={loadLog}>
+                Refresh
+              </button>
+            </div>
+            <div className="stat-badge">
+              <span className="stat-number">{checkedInCount}</span>
+              <span className="stat-label">Checked In</span>
+            </div>
+            <input
+              type="text"
+              className="log-search-input"
+              placeholder="Search log..."
+              value={logSearchQuery}
+              onChange={(e) => setLogSearchQuery(e.target.value)}
+            />
+            <div className="log-list">
+              {filteredLog.length === 0 ? (
+                <div className="no-results">
+                  {checkedInLog.length === 0
+                    ? "No check-ins yet"
+                    : "No matches found"}
                 </div>
-              ))
-            )}
+              ) : (
+                filteredLog.map((entry, index) => (
+                  <div key={index} className="log-item">
+                    <span className="log-name">{entry.name}</span>
+                    <span className="log-time">{formatTime(entry.time)}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
