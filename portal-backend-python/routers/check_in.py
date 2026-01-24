@@ -119,76 +119,87 @@ async def log_user(
     user_id = request.qr_code.strip()
     event_type = request.event_type
 
-    # Validate user_id is not empty
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Invalid QR code: empty user ID")
+    try:
+        engine_url = str(db.get_bind().url)
+        # Validate user_id is not empty
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Invalid QR code: empty user ID")
 
-    # Validate user_id is a valid UUID format
-    import re
-    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
-    if not uuid_pattern.match(user_id):
-        raise HTTPException(status_code=400, detail=f"Invalid QR code format: {user_id}")
+        # Validate user_id is a valid UUID format
+        import re
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        if not uuid_pattern.match(user_id):
+            raise HTTPException(status_code=400, detail=f"Invalid QR code format: {user_id}")
 
-    # Look up application by user_id
-    application = db.query(Application).filter(
-        Application.user_id == user_id,
-        Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
-    ).first()
+        # Look up application by user_id
+        application = db.query(Application).filter(
+            Application.user_id == user_id,
+            Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
+        ).first()
 
-    if not application:
-        raise HTTPException(status_code=400, detail="User not confirmed or accepted")
+        if not application:
+            raise HTTPException(status_code=400, detail="User not confirmed or accepted")
 
-    # Extract name using user table 
-    # user = db.query(User).filter(User.id == user_id).first()
+        # Extract name using user table 
+        # user = db.query(User).filter(User.id == user_id).first()
 
-    # if user is None:
-    #     # No user found → raise 404
-    #     raise HTTPException(status_code=404, detail="User not found")
+        # if user is None:
+        #     # No user found → raise 404
+        #     raise HTTPException(status_code=404, detail="User not found")
 
-    # first_name = user.first_name
-    # last_name = user.last_name
-    # full_name = f"{first_name} {last_name}".strip() or "Unknown"
+        # first_name = user.first_name
+        # last_name = user.last_name
+        # full_name = f"{first_name} {last_name}".strip() or "Unknown"
 
-    #Extract name from submission_json
-    submission = application.submission_json or {}
-    first_name = submission.get("first_name", "")
-    last_name = submission.get("last_name", "")
-    full_name = f"{first_name} {last_name}".strip() or "Unknown"
+        #Extract name from submission_json
+        submission = application.submission_json or {}
+        first_name = submission.get("first_name", "")
+        last_name = submission.get("last_name", "")
+        full_name = f"{first_name} {last_name}".strip() or "Unknown"
 
-    # Check if user has already checked in for this event type
-    existing_check_in = db.query(CheckInLog).filter(
-        CheckInLog.user_id == user_id,
-        CheckInLog.event_type == event_type
-    ).first()
+        # Check if user has already checked in for this event type
+        existing_check_in = db.query(CheckInLog).filter(
+            CheckInLog.user_id == user_id,
+            CheckInLog.event_type == event_type
+        ).first()
 
-    if existing_check_in:
-        check_in_time = existing_check_in.check_in_time.strftime('%H:%M')
+        if existing_check_in:
+            check_in_time = existing_check_in.check_in_time.strftime('%H:%M')
+            raise HTTPException(
+                status_code=400,
+                detail=f"{full_name} already checked in at {check_in_time}"
+            )
+
+        # Create new check-in
+        check_in = CheckInLog(
+            user_id=user_id,
+            name=full_name,
+            event_type=event_type,
+            check_in_time=datetime.now()
+        )
+        db.add(check_in)
+        db.commit()
+        db.refresh(check_in)
+
+        return CheckInResponse(
+            message="Check-in successful",
+            user_id=user_id,
+            first_name=first_name,
+            last_name=last_name,
+            full_name=full_name,
+            event_type=event_type,
+            check_in_time=check_in.check_in_time.strftime('%H:%M'),
+            status=application.status.value
+        )
+    except Exception as e:
         raise HTTPException(
-            status_code=400,
-            detail=f"{full_name} already checked in at {check_in_time}"
+            status_code=500,
+            detail={
+                "error": str(e),
+                "engine_url": engine_url,
+            },
         )
 
-    # Create new check-in
-    check_in = CheckInLog(
-        user_id=user_id,
-        name=full_name,
-        event_type=event_type,
-        check_in_time=datetime.now()
-    )
-    db.add(check_in)
-    db.commit()
-    db.refresh(check_in)
-
-    return CheckInResponse(
-        message="Check-in successful",
-        user_id=user_id,
-        first_name=first_name,
-        last_name=last_name,
-        full_name=full_name,
-        event_type=event_type,
-        check_in_time=check_in.check_in_time.strftime('%H:%M'),
-        status=application.status.value
-    )
 
 
 @router.get("/search_users", response_model=SearchUsersResponse)
