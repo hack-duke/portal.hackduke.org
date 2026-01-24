@@ -13,6 +13,9 @@ shell:
 backend:
 	cd portal-backend-python && source ./load_env.sh && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run uvicorn server:app --reload
 
+backend-test-db:
+	cd portal-backend-python && source ./load_env.sh && export DB_NAME=test && export PYTHONPATH=/workspaces/portal.hackduke.org && poetry install && poetry run uvicorn server:app --reload
+
 frontend:
 	cd portal-frontend && source ./load_env.sh && npm install && npm start
 
