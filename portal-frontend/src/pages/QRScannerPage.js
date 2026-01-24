@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import jsQR from "jsqr";
 import "./QRScannerPage.css";
 
-const API_BASE = "/check-in";
+const API_BASE = "/check_in";
 
 const QRScannerPage = () => {
   const [eventType, setEventType] = useState("check-in");

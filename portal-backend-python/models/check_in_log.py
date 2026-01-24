@@ -3,8 +3,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
 from models.base import Base
 
-class CheckIn(Base):
-    __tablename__ = "check_in"
+class CheckInLog(Base):
+    __tablename__ = "check_in_log"
 
     id = Column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False)
     user_id = Column(

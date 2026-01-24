@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from db import get_db
-from models.check_in import CheckInLog
+from models.check_in_log import CheckInLog
 from models.application import Application, ApplicationStatus
+from models.user import User
 from datetime import datetime
 
 router = APIRouter()
@@ -78,6 +79,7 @@ class NotCheckedInResponse(BaseModel):
     total: int
 
 
+
 # Helper functions
 def get_name_from_application(application: Application) -> str:
     """Extract full name from application's submission_json."""
@@ -134,9 +136,20 @@ async def log_user(
     ).first()
 
     if not application:
-        raise HTTPException(status_code=400, detail="User not found in DB")
+        raise HTTPException(status_code=400, detail="User not confirmed or accepted")
 
-    # Extract name from submission_json
+    # Extract name using user table 
+    # user = db.query(User).filter(User.id == user_id).first()
+
+    # if user is None:
+    #     # No user found → raise 404
+    #     raise HTTPException(status_code=404, detail="User not found")
+
+    # first_name = user.first_name
+    # last_name = user.last_name
+    # full_name = f"{first_name} {last_name}".strip() or "Unknown"
+
+    #Extract name from submission_json
     submission = application.submission_json or {}
     first_name = submission.get("first_name", "")
     last_name = submission.get("last_name", "")

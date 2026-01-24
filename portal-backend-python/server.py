@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(prefix="/application", router=application.router)
-app.include_router(prefix="/check-in", router=check_in.router)
+app.include_router(prefix="/check_in", router=check_in.router)
 
 # Mount static files for QR code scanner UI
 app.mount("/qr", StaticFiles(directory="static/qr", html=True), name="qr")
