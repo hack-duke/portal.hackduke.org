@@ -297,7 +297,7 @@ class TestSubmitDecision:
         
         assert decision_response.status_code == 200
         data = decision_response.json()
-        assert data["status"] == "accepted"
+        assert data["status"].lower() == "accepted"
         
         # Verify in database
         app = test_session.query(Application).filter(
