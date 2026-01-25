@@ -7,10 +7,10 @@ from sqlalchemy import func
 
 
 class ApplicationStatus(enum.Enum):
-    PENDING = 'PENDING'
-    ACCEPTED = 'ACCEPTED'
-    REJECTED = 'REJECTED'
-    CONFIRMED = 'CONFIRMED'
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    CONFIRMED = "confirmed"
 
 
 class Application(Base):
@@ -31,9 +31,7 @@ class Application(Base):
         server_default=func.now(),
     )
     status = Column(
-        Enum(ApplicationStatus, values_callable=lambda x: [e.value for e in x]),
-        nullable=False,
-        default=ApplicationStatus.PENDING
+        Enum(ApplicationStatus), nullable=False, default=ApplicationStatus.PENDING
     )
     submission_json = Column(
         JSONB, nullable=True

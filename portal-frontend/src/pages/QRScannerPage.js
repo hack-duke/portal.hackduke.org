@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import jsQR from "jsqr";
 import { WhiteBackground } from "../components/WhiteBackground";
+import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
+import { createGetAuthToken } from "../utils/authUtils";
 import "./QRScannerPage.css";
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/check_in`;
@@ -32,6 +37,15 @@ const formatTime = (militaryTime) => {
 };
 
 const QRScannerPage = () => {
+  const { getAccessTokenSilently, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const navigate = useNavigate();
+
+  // Admin check state
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminError, setAdminError] = useState(null);
+  const hasCheckedAdmin = useRef(false);
+
   const [eventType, setEventType] = useState("check-in");
   const [scannerActive, setScannerActive] = useState(false);
   const [status, setStatus] = useState({
@@ -48,6 +62,44 @@ const QRScannerPage = () => {
   const canvasRef = useRef(null);
   const scanningRef = useRef(true);
   const searchTimeoutRef = useRef(null);
+
+  // Check admin status on mount
+  useEffect(() => {
+    if (hasCheckedAdmin.current) return;
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    hasCheckedAdmin.current = true;
+
+    const checkAdminStatus = async () => {
+      try {
+        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setAdminError);
+        const token = await getAuthToken();
+        if (!token) {
+          setAdminLoading(false);
+          return;
+        }
+
+        const response = await axios.post(
+          `${process.env.REACT_APP_BACKEND_URL}/admin/auth/check`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setIsAdmin(response.data.is_admin);
+        setAdminLoading(false);
+      } catch (err) {
+        console.error("Error checking admin status:", err);
+        setAdminError("Failed to verify admin status.");
+        setAdminLoading(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [authLoading, isAuthenticated, navigate, getAccessTokenSilently]);
   const animationFrameRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -315,6 +367,45 @@ const QRScannerPage = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [scannerActive, initCamera, stopCamera]);
+
+  // Show loading while checking admin status
+  if (authLoading || adminLoading) {
+    return <FullPageLoadingSpinner />;
+  }
+
+  // Show error if admin check failed
+  if (adminError) {
+    return (
+      <>
+        <WhiteBackground />
+        <div className="qr-scanner-page">
+          <div className="qr-container">
+            <div className="qr-header">
+              <h1 className="qr-title">Error</h1>
+              <p className="qr-subtitle">{adminError}</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Show not authorized if not admin
+  if (!isAdmin) {
+    return (
+      <>
+        <WhiteBackground />
+        <div className="qr-scanner-page">
+          <div className="qr-container">
+            <div className="qr-header">
+              <h1 className="qr-title">Not Authorized</h1>
+              <p className="qr-subtitle">You do not have permission to access this page.</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -146,7 +146,8 @@ const ApplicationStatusPage = () => {
     checkIfSubmitted();
   }, [getAccessTokenSilently, navigate, formKey]);
 
-  const isConfirmed = application && application["status"] === "CONFIRMED";
+  const isConfirmed =
+    application && application["status"].toUpperCase() === "CONFIRMED";
   const userId = application ? application["user_id"] : null;
 
   return (
@@ -171,7 +172,7 @@ const ApplicationStatusPage = () => {
         <div className="status-container confirmed-container">
           <StatusList statusItems={formatConfirmedApplication(application)} />
           <div className="qr-section">
-            <h2 className="qr-title">Check-In QR Code</h2>
+            <h2 className="qr-titles">Check-In QR Code</h2>
             <div
               className="qr-code-container"
               onClick={() => setShowQRModal(true)}

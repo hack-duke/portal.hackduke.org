@@ -62,8 +62,10 @@ class DecisionRequest(BaseModel):
 class ExportResponse(BaseModel):
     accepted_tab: str
     rejected_tab: str
+    confirmed_tab: str
     accepted_count: int
     rejected_count: int
+    confirmed_count: int
 
 
 class ApplicationListItem(BaseModel):
@@ -820,6 +822,15 @@ async def export_to_sheets(
         .all()
     )
 
+    # Get confirmed applications ordered by decided_at
+    confirmed_apps = (
+        db.query(Application)
+        .filter(Application.form_key == CURRENT_FORM_KEY)
+        .filter(Application.status == ApplicationStatus.CONFIRMED)
+        .order_by(Application.decided_at.asc().nullslast())
+        .all()
+    )
+
     # Build applicant data for export
     accepted_applicants = []
     for app in accepted_apps:
@@ -837,9 +848,17 @@ async def export_to_sheets(
             "email": submission.get("email", ""),
         })
 
+    confirmed_applicants = []
+    for app in confirmed_apps:
+        submission = app.submission_json or {}
+        confirmed_applicants.append({
+            "user_id": str(app.user_id),
+            "email": submission.get("email", ""),
+        })
+
     # Export to Google Sheets
     try:
-        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants)
+        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants, confirmed_applicants)
         return ExportResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")

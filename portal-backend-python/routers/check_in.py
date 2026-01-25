@@ -9,7 +9,7 @@ from models.user import User
 from datetime import datetime
 
 router = APIRouter()
-
+CURRENT_FORM_KEY = "2026-cfg-application"
 
 # Pydantic schemas
 class CheckInRequest(BaseModel):
@@ -98,6 +98,7 @@ def resolve_name(db: Session, user_id: str) -> Optional[str]:
         # Look up application by user_id and get name from submission_json
         application = db.query(Application).filter(
             Application.user_id == user_id,
+            Application.form_key == CURRENT_FORM_KEY,
             Application.status.in_([ApplicationStatus.CONFIRMED, ApplicationStatus.ACCEPTED])
         ).first()
 
@@ -134,6 +135,7 @@ async def log_user(
         # Look up application by user_id
         application = db.query(Application).filter(
             Application.user_id == user_id,
+            Application.form_key == CURRENT_FORM_KEY,
             Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
         ).first()
 
@@ -216,6 +218,7 @@ async def search_users(
 
     # Get all applications with ACCEPTED or CONFIRMED status
     applications = db.query(Application).filter(
+        Application.form_key == CURRENT_FORM_KEY,
         Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
     ).all()
 
@@ -298,6 +301,7 @@ async def get_not_checked_in(
     """Get all accepted users who have NOT checked in for a specific event type."""
     # Get all accepted/confirmed applications
     applications = db.query(Application).filter(
+        Application.form_key == CURRENT_FORM_KEY,
         Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
     ).all()
 
