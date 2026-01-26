@@ -37,7 +37,11 @@ const formatTime = (militaryTime) => {
 };
 
 const QRScannerPage = () => {
-  const { getAccessTokenSilently, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const {
+    getAccessTokenSilently,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth0();
   const navigate = useNavigate();
 
   // Admin check state
@@ -76,7 +80,10 @@ const QRScannerPage = () => {
 
     const checkAdminStatus = async () => {
       try {
-        const getAuthToken = createGetAuthToken(getAccessTokenSilently, setAdminError);
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setAdminError,
+        );
         const token = await getAuthToken();
         if (!token) {
           setAdminLoading(false);
@@ -86,7 +93,7 @@ const QRScannerPage = () => {
         const response = await axios.post(
           `${process.env.REACT_APP_BACKEND_URL}/admin/auth/check`,
           {},
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
         setIsAdmin(response.data.is_admin);
@@ -326,7 +333,7 @@ const QRScannerPage = () => {
 
         setTimeout(() => {
           setStatus({ message: "Ready to scan next code", type: "waiting" });
-        }, 3000);
+        }, 2000);
       })
       .catch((err) => {
         setStatus({ message: "Error: " + err.message, type: "error" });
@@ -399,7 +406,9 @@ const QRScannerPage = () => {
           <div className="qr-container">
             <div className="qr-header">
               <h1 className="qr-title">Not Authorized</h1>
-              <p className="qr-subtitle">You do not have permission to access this page.</p>
+              <p className="qr-subtitle">
+                You do not have permission to access this page.
+              </p>
             </div>
           </div>
         </div>

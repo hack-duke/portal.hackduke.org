@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -166,7 +167,13 @@ async def log_user(
         ).first()
 
         if existing_check_in:
-            check_in_time = existing_check_in.check_in_time.strftime('%H:%M')
+            eastern_time = (
+                existing_check_in.check_in_time
+                .replace(tzinfo=ZoneInfo("UTC"))
+                .astimezone(ZoneInfo("America/New_York"))
+            )
+
+            check_in_time = eastern_time.strftime('%I:%M %p').lstrip('0')
             raise HTTPException(
                 status_code=400,
                 detail=f"{full_name} already checked in at {check_in_time}"
