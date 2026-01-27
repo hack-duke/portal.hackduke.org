@@ -11,6 +11,8 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 
+.coverage
+
 # Environment variable files
 .env
 .env.local

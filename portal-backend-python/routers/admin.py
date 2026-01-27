@@ -10,12 +10,26 @@ import uuid as uuid_lib
 from auth import VerifyToken
 from db import get_db
 from models.user import User
-from models.admin_user import AdminUser
+from models.user_role import UserRole, RoleEnum
 from models.application import Application, ApplicationStatus
 from models.response import Response
 from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
+
+
+def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
+    """Check if a user has a specific role."""
+    return db.query(UserRole).filter(
+        UserRole.user_id == user_id,
+        UserRole.role == role
+    ).first() is not None
+
+
+def _require_admin(db: Session, user_id: UUID) -> None:
+    """Raise HTTPException if user is not an admin."""
+    if not _user_has_role(db, user_id, RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail="User is not an admin")
 
 router = APIRouter()
 auth = VerifyToken()
@@ -30,6 +44,7 @@ RESUME_S3_BASE_URL = "https://hackathon-resume-bucket.s3.us-east-2.amazonaws.com
 
 class AdminCheckResponse(BaseModel):
     is_admin: bool
+    roles: list[str] = []
     session_id: Optional[str] = None
 
 
@@ -135,21 +150,21 @@ def _release_expired_locks(db: Session) -> None:
 
 
 def _invalidate_other_sessions(
-    db: Session, admin_user_id: UUID, new_session_id: str
+    db: Session, user_id: UUID, new_session_id: str
 ) -> None:
-    """Invalidate all other sessions for this admin user."""
-    admin = db.query(AdminUser).filter(AdminUser.user_id == admin_user_id).first()
-    if admin:
-        admin.current_session_id = new_session_id
+    """Invalidate all other sessions for this user."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.current_session_id = new_session_id
         db.commit()
 
 
 def _validate_session(
-    db: Session, admin_user_id: UUID, session_id: str
+    db: Session, user_id: UUID, session_id: str
 ) -> bool:
     """Validate that the session is still active."""
-    admin = db.query(AdminUser).filter(AdminUser.user_id == admin_user_id).first()
-    if not admin or admin.current_session_id != session_id:
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.current_session_id != session_id:
         return False
     return True
 
@@ -160,8 +175,9 @@ async def check_admin_status(
     db: Session = Depends(get_db),
 ):
     """
-    Check if the authenticated user is an admin.
-    If they are, create or update their session.
+    Check if the authenticated user has any privileged role.
+    If they do, create or update their session.
+    Returns is_admin (true if admin role) and list of all roles.
     """
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
@@ -174,14 +190,15 @@ async def check_admin_status(
         db.add(user)
         db.flush()
 
-    # Check if user is in admin allowlist
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
+    # Get all roles for this user
+    user_roles = db.query(UserRole).filter(UserRole.user_id == user.id).all()
+    role_names = [ur.role.value for ur in user_roles]
+    is_admin = RoleEnum.ADMIN.value in role_names
+    has_any_role = len(role_names) > 0
 
-    if not admin_user:
+    if not has_any_role:
         db.commit()
-        return AdminCheckResponse(is_admin=False)
+        return AdminCheckResponse(is_admin=False, roles=[])
 
     # Release any locks held by this user (e.g., from a previous abruptly closed session)
     locked_apps = db.query(Application).filter(Application.locked_by == user.id).all()
@@ -195,7 +212,7 @@ async def check_admin_status(
     new_session_id = str(uuid_lib.uuid4())
     _invalidate_other_sessions(db, user.id, new_session_id)
 
-    return AdminCheckResponse(is_admin=True, session_id=new_session_id)
+    return AdminCheckResponse(is_admin=is_admin, roles=role_names, session_id=new_session_id)
 
 
 @router.get("/next-application", response_model=ApplicationResponse)
@@ -217,11 +234,7 @@ async def get_next_application(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -299,11 +312,7 @@ async def submit_decision(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -387,11 +396,7 @@ async def get_stats(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -473,11 +478,7 @@ async def list_applications(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -562,11 +563,7 @@ async def get_application(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -644,11 +641,7 @@ async def release_application_lock(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -712,21 +705,21 @@ async def release_locks_beacon(
     if not session_id:
         return {"status": "no session"}
 
-    # Find the admin user with this active session
-    admin_user = (
-        db.query(AdminUser)
-        .filter(AdminUser.current_session_id == session_id)
+    # Find the user with this active session
+    user = (
+        db.query(User)
+        .filter(User.current_session_id == session_id)
         .first()
     )
 
-    if not admin_user:
+    if not user:
         # Session is invalid or already replaced by another tab
         return {"status": "invalid session"}
 
     # Release all locks held by this user
     locked_apps = (
         db.query(Application)
-        .filter(Application.locked_by == admin_user.user_id)
+        .filter(Application.locked_by == user.id)
         .all()
     )
 
@@ -758,12 +751,8 @@ async def logout(
         raise HTTPException(status_code=401, detail="User not found")
 
     # Clear session
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if admin_user:
-        admin_user.current_session_id = None
-        db.commit()
+    user.current_session_id = None
+    db.commit()
 
     # Clear all locks held by this user
     locked_apps = db.query(Application).filter(Application.locked_by == user.id).all()
@@ -794,11 +783,7 @@ async def export_to_sheets(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = (
-        db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    )
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
+    _require_admin(db, user.id)
 
     # Validate session
     if not _validate_session(db, user.id, session_id):
@@ -892,9 +877,7 @@ async def get_exception_list(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="Not an admin")
+    _require_admin(db, user.id)
 
     if not _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
@@ -925,9 +908,7 @@ async def add_exception_email(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="Not an admin")
+    _require_admin(db, user.id)
 
     if not _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
@@ -967,9 +948,7 @@ async def remove_exception_email(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="Not an admin")
+    _require_admin(db, user.id)
 
     if not _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")

@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 import json
 
 from models.user import User
-from models.admin_user import AdminUser
 from models.application import Application, ApplicationStatus
 from models.form import Form
 from models.question import Question, QuestionType
+from models.user_role import UserRole, RoleEnum
 from routers.admin import router
 from fastapi import FastAPI
 from db import get_db
@@ -34,21 +34,22 @@ def setup_dependency_overrides(test_session):
 
 @pytest.fixture
 def test_admin_user(test_session):
-    """Create a test admin user."""
+    """Create a test admin user with admin role."""
     auth0_id = "auth0|admin_user_123"
     # Delete any existing user with this auth0_id from previous test runs
     test_session.query(User).filter(User.auth0_id == auth0_id).delete()
     test_session.flush()
-    
+
     user = User(auth0_id=auth0_id)
     test_session.add(user)
     test_session.flush()
-    
-    admin = AdminUser(user_id=user.id)
-    test_session.add(admin)
+
+    # Grant admin role
+    admin_role = UserRole(user_id=user.id, role=RoleEnum.ADMIN)
+    test_session.add(admin_role)
     test_session.flush()
-    
-    return user, admin
+
+    return user
 
 
 @pytest.fixture
@@ -122,17 +123,17 @@ class TestAdminAuth:
         # First login
         response1 = client.post("/admin/auth/check")
         session_id_1 = response1.json()["session_id"]
-        
-        # Refresh the admin user from db to get latest session_id
-        test_session.refresh(test_admin_user[1])
-        assert test_admin_user[1].current_session_id == session_id_1
-        
+
+        # Refresh the user from db to get latest session_id
+        test_session.refresh(test_admin_user)
+        assert test_admin_user.current_session_id == session_id_1
+
         # Second login (simulating new tab)
         response2 = client.post("/admin/auth/check")
         session_id_2 = response2.json()["session_id"]
-        
+
         assert session_id_1 != session_id_2
-        
+
         # Verify old session is invalid
         response_ping = client.get(
             "/admin/ping",
@@ -199,16 +200,16 @@ class TestNextApplication:
         self, test_admin_user, test_session, test_form, test_non_admin_user
     ):
         """Test that locked applications are not given to other admins."""
-        # Create two admins
+        # Create second admin
         admin2_auth0_id = f"auth0|admin_user_{uuid4()}"
         admin2_user = User(auth0_id=admin2_auth0_id)
         test_session.add(admin2_user)
         test_session.flush()
-        
-        admin2 = AdminUser(user_id=admin2_user.id)
-        test_session.add(admin2)
+
+        admin2_role = UserRole(user_id=admin2_user.id, role=RoleEnum.ADMIN)
+        test_session.add(admin2_role)
         test_session.flush()
-        
+
         # Create two pending apps
         app1 = Application(
             user_id=test_non_admin_user.id,
@@ -364,7 +365,7 @@ class TestSubmitDecision:
         ).first()
         assert app_obj.status == ApplicationStatus.ACCEPTED
         assert app_obj.decided_by is not None
-        admin_user_id = test_admin_user[0].id
+        admin_user_id = test_admin_user.id
         
         # Now we need to get the app again to lock it (since accepting unlocks it)
         # Then we can change decision back to pending
@@ -402,11 +403,11 @@ class TestSubmitDecision:
         admin2_user = User(auth0_id=admin2_auth0_id)
         test_session.add(admin2_user)
         test_session.flush()
-        
-        admin2 = AdminUser(user_id=admin2_user.id)
-        test_session.add(admin2)
+
+        admin2_role = UserRole(user_id=admin2_user.id, role=RoleEnum.ADMIN)
+        test_session.add(admin2_role)
         test_session.flush()
-        
+
         # Admin1 locks app
         auth_response1 = client.post("/admin/auth/check")
         session_id1 = auth_response1.json()["session_id"]
@@ -457,7 +458,7 @@ class TestStats:
         self, test_admin_user, test_session, test_form, test_non_admin_user
     ):
         """Test that stats return both global and personal counts."""
-        admin_user_obj = test_admin_user[0]  # test_admin_user is (user, admin) tuple
+        admin_user_obj = test_admin_user
         
         # Create applications in different states
         accepted_by_admin = Application(
@@ -558,7 +559,7 @@ class TestLogout:
         self, test_admin_user, pending_applications, test_session
     ):
         """Test that logout releases all locks held by the admin."""
-        admin_user_obj = test_admin_user[0]  # test_admin_user is (user, admin) tuple
+        admin_user_obj = test_admin_user
         
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
@@ -585,7 +586,7 @@ class TestLockTimeout:
         self, test_admin_user, test_session, test_form, test_non_admin_user
     ):
         """Test that expired locks are released when getting next application."""
-        admin_user_obj = test_admin_user[0]  # test_admin_user is (user, admin) tuple
+        admin_user_obj = test_admin_user
         
         # Create a single pending app with an old lock
         app_with_expired_lock = Application(
@@ -605,11 +606,11 @@ class TestLockTimeout:
         other_admin_user = User(auth0_id=other_admin_auth0_id)
         test_session.add(other_admin_user)
         test_session.flush()
-        
-        other_admin = AdminUser(user_id=other_admin_user.id)
-        test_session.add(other_admin)
+
+        other_admin_role = UserRole(user_id=other_admin_user.id, role=RoleEnum.ADMIN)
+        test_session.add(other_admin_role)
         test_session.flush()
-        
+
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
         

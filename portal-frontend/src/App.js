@@ -12,6 +12,7 @@ import AdminPage from "./pages/AdminPage";
 import AdminJudgePage from "./pages/AdminJudgePage";
 import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
+import AdminRolesPage from "./pages/AdminRolesPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -102,6 +103,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminApplicationViewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            <ProtectedRoute>
+              <AdminRolesPage />
             </ProtectedRoute>
           }
         />

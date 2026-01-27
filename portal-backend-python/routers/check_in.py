@@ -1,15 +1,19 @@
 from zoneinfo import ZoneInfo
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from db import get_db
+from auth import VerifyToken
 from models.check_in_log import CheckInLog
 from models.application import Application, ApplicationStatus
 from models.user import User
+from models.user_role import RoleEnum
+from routers.roles import require_check_in
 from datetime import datetime
 
 router = APIRouter()
+auth = VerifyToken()
 CURRENT_FORM_KEY = "2026-cfg-application"
 
 # Pydantic schemas
@@ -111,13 +115,31 @@ def resolve_name(db: Session, user_id: str) -> Optional[str]:
         return None
 
 
+# Helper to verify check_in role
+def _verify_check_in_access(auth_payload: Dict[str, Any], db: Session) -> User:
+    """Verify the user has check_in role and return the user."""
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    require_check_in(db, user.id)
+    return user
+
+
 # Endpoints
 @router.post("/log_user", response_model=CheckInResponse)
 async def log_user(
     request: CheckInRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
-    """Check in a user for an event."""
+    """Check in a user for an event. Requires check_in role."""
+    _verify_check_in_access(auth_payload, db)
+
     user_id = request.qr_code.strip()
     event_type = request.event_type
 
@@ -216,9 +238,11 @@ async def log_user(
 @router.get("/search_users", response_model=SearchUsersResponse)
 async def search_users(
     q: str = "",
+    auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
-    """Search for users by name for manual check-in."""
+    """Search for users by name for manual check-in. Requires check_in role."""
+    _verify_check_in_access(auth_payload, db)
     query = q.strip().lower()
     if not query or len(query) < 2:
         return SearchUsersResponse(users=[])
@@ -257,9 +281,11 @@ async def search_users(
 @router.get("/log", response_model=AllCheckInsResponse)
 async def get_all_check_ins(
     event_type: Optional[str] = None,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
-    """Get all check-in logs ordered by most recent first."""
+    """Get all check-in logs ordered by most recent first. Requires check_in role."""
+    _verify_check_in_access(auth_payload, db)
     query = db.query(CheckInLog)
     if event_type:
         query = query.filter(CheckInLog.event_type == event_type)
@@ -283,9 +309,11 @@ async def get_all_check_ins(
 @router.post("/delete_log_entry")
 async def delete_log_entry(
     request: DeleteCheckInRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
-    """Delete a check-in entry."""
+    """Delete a check-in entry. Requires check_in role."""
+    _verify_check_in_access(auth_payload, db)
     check_in = db.query(CheckInLog).filter(
         CheckInLog.user_id == request.user_id,
         CheckInLog.event_type == request.event_type
@@ -303,9 +331,11 @@ async def delete_log_entry(
 @router.get("/not_checked_in", response_model=NotCheckedInResponse)
 async def get_not_checked_in(
     event_type: str = "check-in",
+    auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
-    """Get all accepted users who have NOT checked in for a specific event type."""
+    """Get all accepted users who have NOT checked in for a specific event type. Requires check_in role."""
+    _verify_check_in_access(auth_payload, db)
     # Get all accepted/confirmed applications
     applications = db.query(Application).filter(
         Application.form_key == CURRENT_FORM_KEY,
