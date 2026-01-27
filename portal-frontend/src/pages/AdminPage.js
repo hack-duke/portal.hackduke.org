@@ -245,6 +245,10 @@ const AdminPage = () => {
     navigate("/admin/applicants", { state: { sessionId } });
   };
 
+  const handleManageRoles = () => {
+    navigate("/admin/roles");
+  };
+
   const handleExportToSheets = async () => {
     try {
       setExporting(true);
@@ -372,6 +376,9 @@ const AdminPage = () => {
             className="view-applicants-btn"
           >
             View All Applicants
+          </Button>
+          <Button onClick={handleManageRoles} className="manage-roles-btn">
+            Manage Roles
           </Button>
         </div>
 

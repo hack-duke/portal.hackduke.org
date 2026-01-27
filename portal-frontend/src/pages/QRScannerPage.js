@@ -44,11 +44,12 @@ const QRScannerPage = () => {
   } = useAuth0();
   const navigate = useNavigate();
 
-  // Admin check state
-  const [adminLoading, setAdminLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminError, setAdminError] = useState(null);
-  const hasCheckedAdmin = useRef(false);
+  // Access check state (check_in role required)
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessError, setAccessError] = useState(null);
+  const hasCheckedAccess = useRef(false);
+  const authTokenRef = useRef(null);
 
   const [eventType, setEventType] = useState("check-in");
   const [scannerActive, setScannerActive] = useState(false);
@@ -67,28 +68,31 @@ const QRScannerPage = () => {
   const scanningRef = useRef(true);
   const searchTimeoutRef = useRef(null);
 
-  // Check admin status on mount
+  // Check access on mount (check_in role required)
   useEffect(() => {
-    if (hasCheckedAdmin.current) return;
+    if (hasCheckedAccess.current) return;
     if (authLoading) return;
     if (!isAuthenticated) {
       navigate("/", { replace: true });
       return;
     }
 
-    hasCheckedAdmin.current = true;
+    hasCheckedAccess.current = true;
 
-    const checkAdminStatus = async () => {
+    const checkAccessStatus = async () => {
       try {
         const getAuthToken = createGetAuthToken(
           getAccessTokenSilently,
-          setAdminError,
+          setAccessError,
         );
         const token = await getAuthToken();
         if (!token) {
-          setAdminLoading(false);
+          setAccessLoading(false);
           return;
         }
+
+        // Store token for API calls
+        authTokenRef.current = token;
 
         const response = await axios.post(
           `${process.env.REACT_APP_BACKEND_URL}/admin/auth/check`,
@@ -96,23 +100,35 @@ const QRScannerPage = () => {
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
-        setIsAdmin(response.data.is_admin);
-        setAdminLoading(false);
+        // User has access if they have check_in role
+        const roles = response.data.roles || [];
+        const canAccess = roles.includes("check_in");
+        setHasAccess(canAccess);
+        setAccessLoading(false);
       } catch (err) {
-        console.error("Error checking admin status:", err);
-        setAdminError("Failed to verify admin status.");
-        setAdminLoading(false);
+        console.error("Error checking access status:", err);
+        setAccessError("Failed to verify access.");
+        setAccessLoading(false);
       }
     };
 
-    checkAdminStatus();
+    checkAccessStatus();
   }, [authLoading, isAuthenticated, navigate, getAccessTokenSilently]);
   const animationFrameRef = useRef(null);
   const streamRef = useRef(null);
 
   const loadLog = useCallback(() => {
-    fetch(`${API_BASE}/log?event_type=${encodeURIComponent(eventType)}`)
-      .then((response) => response.json())
+    if (!authTokenRef.current) return;
+
+    fetch(`${API_BASE}/log?event_type=${encodeURIComponent(eventType)}`, {
+      headers: {
+        Authorization: `Bearer ${authTokenRef.current}`,
+      },
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load log");
+        return response.json();
+      })
       .then((data) => {
         setCheckedInCount(data.total_users);
         setCheckedInLog(data.log);
@@ -124,10 +140,13 @@ const QRScannerPage = () => {
 
   const sendQRCode = useCallback(
     (data) => {
+      if (!authTokenRef.current) return;
+
       fetch(`${API_BASE}/log_user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${authTokenRef.current}`,
         },
         body: JSON.stringify({ qr_code: data, event_type: eventType }),
       })
@@ -268,8 +287,17 @@ const QRScannerPage = () => {
   };
 
   const searchUsers = (query) => {
-    fetch(`${API_BASE}/search_users?q=${encodeURIComponent(query)}`)
-      .then((response) => response.json())
+    if (!authTokenRef.current) return;
+
+    fetch(`${API_BASE}/search_users?q=${encodeURIComponent(query)}`, {
+      headers: {
+        Authorization: `Bearer ${authTokenRef.current}`,
+      },
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Search failed");
+        return response.json();
+      })
       .then((data) => {
         setSearchResults(data.users || []);
       })
@@ -298,10 +326,13 @@ const QRScannerPage = () => {
   };
 
   const checkInUser = (userId) => {
+    if (!authTokenRef.current) return;
+
     fetch(`${API_BASE}/log_user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${authTokenRef.current}`,
       },
       body: JSON.stringify({ qr_code: userId, event_type: eventType }),
     })
@@ -345,19 +376,23 @@ const QRScannerPage = () => {
     entry.name.toLowerCase().includes(logSearchQuery.toLowerCase()),
   );
 
-  // Load data on mount (camera starts closed by default)
+  // Load data once we have access (camera starts closed by default)
   useEffect(() => {
-    loadLog();
+    if (hasAccess && authTokenRef.current) {
+      loadLog();
+    }
 
     return () => {
       stopCamera();
     };
-  }, [loadLog, stopCamera]);
+  }, [hasAccess, loadLog, stopCamera]);
 
   // Reload data when event type changes
   useEffect(() => {
-    loadLog();
-  }, [eventType, loadLog]);
+    if (hasAccess && authTokenRef.current) {
+      loadLog();
+    }
+  }, [eventType, hasAccess, loadLog]);
 
   // Handle visibility change
   useEffect(() => {
@@ -375,13 +410,13 @@ const QRScannerPage = () => {
     };
   }, [scannerActive, initCamera, stopCamera]);
 
-  // Show loading while checking admin status
-  if (authLoading || adminLoading) {
+  // Show loading while checking access
+  if (authLoading || accessLoading) {
     return <FullPageLoadingSpinner />;
   }
 
-  // Show error if admin check failed
-  if (adminError) {
+  // Show error if access check failed
+  if (accessError) {
     return (
       <>
         <WhiteBackground />
@@ -389,7 +424,7 @@ const QRScannerPage = () => {
           <div className="qr-container">
             <div className="qr-header">
               <h1 className="qr-title">Error</h1>
-              <p className="qr-subtitle">{adminError}</p>
+              <p className="qr-subtitle">{accessError}</p>
             </div>
           </div>
         </div>
@@ -397,8 +432,8 @@ const QRScannerPage = () => {
     );
   }
 
-  // Show not authorized if not admin
-  if (!isAdmin) {
+  // Show not authorized if user doesn't have check_in role
+  if (!hasAccess) {
     return (
       <>
         <WhiteBackground />
@@ -407,7 +442,7 @@ const QRScannerPage = () => {
             <div className="qr-header">
               <h1 className="qr-title">Not Authorized</h1>
               <p className="qr-subtitle">
-                You do not have permission to access this page.
+                You need the check-in role to access this page.
               </p>
             </div>
           </div>
