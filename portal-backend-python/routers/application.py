@@ -189,3 +189,95 @@ async def get_application(
         created_at=application.created_at,
         form_data=form_data,
     )
+
+
+class QuestionForForm(BaseModel):
+    """Question details for form definition endpoint."""
+    id: str
+    form_key: str
+    question_key: str
+    question_type: str
+    label: str | None
+    placeholder: str | None
+    description: str | None
+    required: bool
+    page_number: int
+    page_title: str | None
+    order_in_page: int
+    config: Dict[str, Any] | None
+
+    class Config:
+        from_attributes = True
+
+
+class FormDetails(BaseModel):
+    """Form definition for rendering database-driven forms."""
+    form_key: str
+    year: int
+    title: str | None
+    closed_message_title: str | None
+    closed_message_body: str | None
+    is_open: bool
+    is_db_driven: bool
+    questions: List[QuestionForForm]
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/form-details", response_model=FormDetails)
+async def get_form_details(
+    form_key: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """
+    Get full form definition including all questions.
+    Used for rendering database-driven forms on the frontend.
+    """
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    # Get form
+    form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    # Get questions ordered by page_number and order_in_page
+    questions = (
+        db.query(Question)
+        .filter(Question.form_key == form_key)
+        .order_by(Question.page_number.asc(), Question.order_in_page.asc())
+        .all()
+    )
+
+    # Convert questions to response format
+    question_responses = [
+        QuestionForForm(
+            id=str(q.id),
+            form_key=q.form_key,
+            question_key=q.question_key,
+            question_type=q.question_type.value,
+            label=q.label,
+            placeholder=q.placeholder,
+            description=q.description,
+            required=q.required,
+            page_number=q.page_number,
+            page_title=q.page_title,
+            order_in_page=q.order_in_page,
+            config=q.config,
+        )
+        for q in questions
+    ]
+
+    return FormDetails(
+        form_key=form.form_key,
+        year=form.year,
+        title=form.title,
+        closed_message_title=form.closed_message_title,
+        closed_message_body=form.closed_message_body,
+        is_open=form.is_open,
+        is_db_driven=form.is_db_driven,
+        questions=question_responses,
+    )

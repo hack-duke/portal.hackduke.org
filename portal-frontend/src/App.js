@@ -10,6 +10,8 @@ import AdminPage from "./pages/AdminPage";
 import AdminJudgePage from "./pages/AdminJudgePage";
 import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
+import AdminFormBuilderPage from "./pages/AdminFormBuilderPage";
+import FormEditorPage from "./pages/FormEditorPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -91,6 +93,22 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminApplicationViewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/forms"
+          element={
+            <ProtectedRoute>
+              <AdminFormBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/forms/:formKey/edit"
+          element={
+            <ProtectedRoute>
+              <FormEditorPage />
             </ProtectedRoute>
           }
         />

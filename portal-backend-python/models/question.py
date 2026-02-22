@@ -1,6 +1,6 @@
 from sqlalchemy import text
-from sqlalchemy import Column, String, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, ForeignKey, Integer, Boolean
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from models.base import Base
 from sqlalchemy import Enum
 import enum
@@ -24,5 +24,12 @@ class Question(Base):
         String, ForeignKey("form.form_key", ondelete="CASCADE"), nullable=False
     )
     question_key = Column(String, nullable=False)  # must be unique within the form
-    # question_text = Column(Text, nullable=False) # not used for now, add back if we want to pull questions from db and render frontend with them
     question_type = Column(Enum(QuestionType), nullable=False)
+    label = Column(Text, nullable=True)
+    placeholder = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    required = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    page_number = Column(Integer, nullable=False, default=1, server_default=text("1"))
+    page_title = Column(String, nullable=True)
+    order_in_page = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    config = Column(JSONB, nullable=True)

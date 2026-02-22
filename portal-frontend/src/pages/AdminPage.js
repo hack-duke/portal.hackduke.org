@@ -173,6 +173,10 @@ const AdminPage = () => {
     navigate("/admin/applicants", { state: { sessionId } });
   };
 
+  const handleFormBuilder = () => {
+    navigate("/admin/forms", { state: { sessionId } });
+  };
+
   const handleExportToSheets = async () => {
     try {
       setExporting(true);
@@ -295,6 +299,12 @@ const AdminPage = () => {
             className="view-applicants-btn"
           >
             View All Applicants
+          </Button>
+          <Button
+            onClick={handleFormBuilder}
+            className="form-builder-btn"
+          >
+            Form Builder
           </Button>
         </div>
 

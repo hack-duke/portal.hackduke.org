@@ -22,8 +22,7 @@ const FormPage = ({ formKey }) => {
   const closeModal = useCallback(() => setIsModalOpen(false), []);
 
   const [isFormOpen, setIsFormOpen] = useState(null);
-
-  const formDefinition = getFormByKey(formKey);
+  const [formDefinition, setFormDefinition] = useState(null);
 
   const prepareFormData = (data) => {
     const formData = new FormData();
@@ -113,6 +112,30 @@ const FormPage = ({ formKey }) => {
     },
     [formKey]
   );
+
+  // Load form definition (supports both hardcoded and database-driven forms)
+  useEffect(() => {
+    const loadFormDefinition = async () => {
+      try {
+        const getAuthToken = createGetAuthToken(
+          getAccessTokenSilently,
+          setError
+        );
+        const token = await getAuthToken();
+        if (!token) {
+          return;
+        }
+
+        const form = await getFormByKey(formKey, token);
+        setFormDefinition(form);
+      } catch (err) {
+        console.error("Failed to load form definition:", err);
+        setFormDefinition(null);
+      }
+    };
+
+    loadFormDefinition();
+  }, [formKey, getAccessTokenSilently]);
 
   useEffect(() => {
     const checkIfSubmitted = async () => {
