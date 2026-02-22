@@ -74,7 +74,7 @@ const AdminApplicationViewPage = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sessionId },
-        }
+        },
       );
 
       setCurrentApp(response.data);
@@ -105,7 +105,7 @@ const AdminApplicationViewPage = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sessionId },
-        }
+        },
       );
       setStats(response.data);
     } catch (err) {
@@ -131,13 +131,18 @@ const AdminApplicationViewPage = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { session_id: sessionId },
-        }
+        },
       );
 
       setSubmitting(false);
 
       // Stay on view and update the displayed status
-      const newStatus = decision === "accept" ? "ACCEPTED" : decision === "reject" ? "REJECTED" : "PENDING";
+      const newStatus =
+        decision === "accept"
+          ? "ACCEPTED"
+          : decision === "reject"
+            ? "REJECTED"
+            : "PENDING";
       setCurrentApp((prev) => ({
         ...prev,
         status: newStatus,
@@ -165,13 +170,15 @@ const AdminApplicationViewPage = () => {
           {
             headers: { Authorization: `Bearer ${token}` },
             params: { session_id: sessionId },
-          }
+          },
         );
       }
     } catch (err) {
       console.error("Error releasing lock:", err);
     }
-    navigate("/admin/applicants", { state: { sessionId, searchQuery, statusFilter } });
+    navigate("/admin/applicants", {
+      state: { sessionId, searchQuery, statusFilter },
+    });
   };
 
   const getStatusBadgeClass = (status) => {
@@ -180,6 +187,8 @@ const AdminApplicationViewPage = () => {
         return "accepted";
       case "REJECTED":
         return "rejected";
+      case "CONFIRMED":
+        return "confirmed";
       default:
         return "pending";
     }
@@ -234,6 +243,9 @@ const AdminApplicationViewPage = () => {
               <span className="stat-item rejected">
                 {stats.total_rejected} rejected
               </span>
+              <span className="stat-item confirmed">
+                {stats.total_confirmed} confirmed
+              </span>
               <span className="stat-item yours">
                 {(stats.user_accepted || 0) + (stats.user_rejected || 0)} by you
               </span>
@@ -245,7 +257,9 @@ const AdminApplicationViewPage = () => {
           <div className="judge-header">
             <h1 className="judge-title">Viewing Application</h1>
             <div className="judge-status-badges">
-              <span className={`status-badge ${getStatusBadgeClass(currentApp.status)}`}>
+              <span
+                className={`status-badge ${getStatusBadgeClass(currentApp.status)}`}
+              >
                 {currentApp.status}
               </span>
             </div>
@@ -277,8 +291,9 @@ const AdminApplicationViewPage = () => {
                 />
               </svg>
               <span>
-                Application is currently being judged by {lockedByEmail || "another admin"}.
-                You can view but not make changes.
+                Application is currently being judged by{" "}
+                {lockedByEmail || "another admin"}. You can view but not make
+                changes.
               </span>
             </div>
           )}

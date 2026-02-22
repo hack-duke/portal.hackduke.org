@@ -56,6 +56,11 @@
   color: #721C24;
 }
 
+.judge-stats-bar .stat-item.confirmed {
+  background: #F3E5F5;
+  color: #7B1FA2;
+}
+
 .judge-stats-bar .stat-item.yours {
   background: #E3F2FD;
   color: #1031D0;
@@ -111,6 +116,11 @@
 .status-badge.rejected {
   background-color: #F8D7DA;
   color: #721C24;
+}
+
+.status-badge.confirmed {
+  background-color: #F3E5F5;
+  color: #7B1FA2;
 }
 
 .judge-error {

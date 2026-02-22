@@ -4,7 +4,9 @@ from .form import Form
 from .question import Question
 from .response import Response
 from .application import Application
-from .admin_user import AdminUser
+from .check_in_log import CheckInLog
+from .admin_user import AdminUser  # Deprecated - to be removed after migration
+from .user_role import UserRole, RoleEnum
 
 # should this be dynamically generated?
-__all__ = ["Base", "User", "Form", "Question", "Response", "Application", "AdminUser"]
+__all__ = ["Base", "User", "Form", "Question", "Response", "Application", "CheckInLog", "AdminUser", "UserRole", "RoleEnum"]

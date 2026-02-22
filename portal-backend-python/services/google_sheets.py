@@ -28,25 +28,30 @@ def get_sheets_service():
 def export_applicants_to_sheets(
     accepted_applicants: List[Dict[str, Any]],
     rejected_applicants: List[Dict[str, Any]],
+    confirmed_applicants: List[Dict[str, Any]] = None,
 ) -> Dict[str, str]:
     """
-    Export accepted and rejected applicants to Google Sheets.
+    Export accepted, rejected, and confirmed applicants to Google Sheets.
 
-    Creates two new tabs:
+    Creates new tabs:
     - "Accepted as of MM/DD"
     - "Rejected as of MM/DD"
+    - "Confirmed as of MM/DD" (if confirmed_applicants provided)
 
     Each tab has columns: id, Email, Email Sent
 
     Args:
         accepted_applicants: List of dicts with 'user_id' and 'email' keys
         rejected_applicants: List of dicts with 'user_id' and 'email' keys
+        confirmed_applicants: List of dicts with 'user_id' and 'email' keys (optional)
 
     Returns:
-        Dict with 'accepted_tab' and 'rejected_tab' names
+        Dict with tab names and counts
     """
-    service = get_sheets_service()
+    if confirmed_applicants is None:
+        confirmed_applicants = []
 
+    service = get_sheets_service()
 
     now = datetime.now()
     today = now.strftime("%m/%d")
@@ -54,7 +59,9 @@ def export_applicants_to_sheets(
 
     accepted_tab_name = f"Accepted as of {today} ({epoch})"
     rejected_tab_name = f"Rejected as of {today} ({epoch})"
-    # Create the two new tabs
+    confirmed_tab_name = f"Confirmed as of {today} ({epoch})"
+
+    # Create the new tabs
     requests = [
         {
             "addSheet": {
@@ -67,6 +74,13 @@ def export_applicants_to_sheets(
             "addSheet": {
                 "properties": {
                     "title": rejected_tab_name,
+                }
+            }
+        },
+        {
+            "addSheet": {
+                "properties": {
+                    "title": confirmed_tab_name,
                 }
             }
         }
@@ -87,6 +101,11 @@ def export_applicants_to_sheets(
     for applicant in rejected_applicants:
         rejected_data.append([applicant["user_id"], applicant["email"], ""])
 
+    # Prepare data for confirmed tab
+    confirmed_data = [["id", "Email", "Email Sent"]]  # Header row
+    for applicant in confirmed_applicants:
+        confirmed_data.append([applicant["user_id"], applicant["email"], ""])
+
     # Write data to accepted tab
     service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
@@ -103,9 +122,19 @@ def export_applicants_to_sheets(
         body={"values": rejected_data}
     ).execute()
 
+    # Write data to confirmed tab
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{confirmed_tab_name}'!A1",
+        valueInputOption="RAW",
+        body={"values": confirmed_data}
+    ).execute()
+
     return {
         "accepted_tab": accepted_tab_name,
         "rejected_tab": rejected_tab_name,
+        "confirmed_tab": confirmed_tab_name,
         "accepted_count": len(accepted_applicants),
         "rejected_count": len(rejected_applicants),
+        "confirmed_count": len(confirmed_applicants),
     }

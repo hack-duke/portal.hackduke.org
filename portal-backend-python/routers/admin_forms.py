@@ -1,6 +1,6 @@
 """
 Form and Question management endpoints for admin panel.
-All endpoints require admin authentication (Auth0 JWT + AdminUser + session_id).
+All endpoints require admin authentication (Auth0 JWT + UserRole + session_id).
 """
 
 from typing import Any, Dict, List, Optional
@@ -14,10 +14,34 @@ from db import get_db
 from models.form import Form
 from models.question import Question, QuestionType
 from models.user import User
-from models.admin_user import AdminUser
+from models.user_role import UserRole, RoleEnum
 
 router = APIRouter()
 auth = VerifyToken()
+
+
+def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
+    """Check if a user has a specific role."""
+    return db.query(UserRole).filter(
+        UserRole.user_id == user_id,
+        UserRole.role == role
+    ).first() is not None
+
+
+def _require_admin(db: Session, user_id: UUID) -> None:
+    """Raise HTTPException if user is not an admin."""
+    if not _user_has_role(db, user_id, RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail="User is not an admin")
+
+
+def _validate_session(
+    db: Session, user_id: UUID, session_id: str
+) -> bool:
+    """Validate that the session is still active."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.current_session_id != session_id:
+        return False
+    return True
 
 
 # ============================================================================
@@ -110,33 +134,6 @@ class ReorderQuestionsRequest(BaseModel):
     )
 
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-def _validate_admin_session(
-    db: Session, auth0_id: str, session_id: str
-) -> User:
-    """
-    Validate that the user is authenticated and is an admin with a valid session.
-    Returns the User object if valid.
-    Raises HTTPException if not valid.
-    """
-    # Get user from auth0_id
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    # Check if user is admin
-    admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
-    if not admin_user:
-        raise HTTPException(status_code=403, detail="User is not an admin")
-
-    # Validate session
-    if admin_user.current_session_id != session_id:
-        raise HTTPException(status_code=403, detail="Invalid or expired session")
-
-    return user
 
 
 # ============================================================================
@@ -154,7 +151,16 @@ async def list_forms(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     forms = db.query(Form).order_by(Form.year.desc()).all()
 
@@ -191,7 +197,16 @@ async def create_form(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Check if form_key already exists
     existing = db.query(Form).filter(Form.form_key == form_data.form_key).first()
@@ -237,7 +252,16 @@ async def update_form(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Find form
     form = db.query(Form).filter(Form.form_key == form_key).first()
@@ -286,7 +310,16 @@ async def delete_form(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Find form
     form = db.query(Form).filter(Form.form_key == form_key).first()
@@ -323,7 +356,16 @@ async def toggle_form_open(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Find form
     form = db.query(Form).filter(Form.form_key == form_key).first()
@@ -368,7 +410,16 @@ async def list_questions(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Check form exists
     form = db.query(Form).filter(Form.form_key == form_key).first()
@@ -417,7 +468,16 @@ async def create_question(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Check form exists
     form = db.query(Form).filter(Form.form_key == form_key).first()
@@ -496,7 +556,16 @@ async def update_question(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Parse UUID
     try:
@@ -566,7 +635,16 @@ async def delete_question(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Parse UUID
     try:
@@ -606,7 +684,16 @@ async def reorder_questions(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    _validate_admin_session(db, auth0_id, session_id)
+    # Get user and verify admin status
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    # Validate session
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Check form exists
     form = db.query(Form).filter(Form.form_key == form_key).first()

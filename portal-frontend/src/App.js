@@ -6,10 +6,13 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import FormPage from "./pages/FormPage";
 import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
+import QRScannerPage from "./pages/QRScannerPage";
+import QRDisplayPage from "./pages/QRDisplayPage";
 import AdminPage from "./pages/AdminPage";
 import AdminJudgePage from "./pages/AdminJudgePage";
 import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
+import AdminRolesPage from "./pages/AdminRolesPage";
 import AdminFormBuilderPage from "./pages/AdminFormBuilderPage";
 import FormEditorPage from "./pages/FormEditorPage";
 import "./App.css";
@@ -65,6 +68,15 @@ function App() {
           }
         />
         <Route
+          path="/qr-scanner"
+          element={
+            <ProtectedRoute>
+              <QRScannerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/qr" element={<QRDisplayPage />} />
+        <Route
           path="/admin"
           element={
             <ProtectedRoute>
@@ -93,6 +105,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminApplicationViewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            <ProtectedRoute>
+              <AdminRolesPage />
             </ProtectedRoute>
           }
         />

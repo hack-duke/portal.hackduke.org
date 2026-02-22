@@ -215,6 +215,9 @@ const AdminJudgePage = () => {
               <span className="stat-item rejected">
                 {stats.total_rejected} rejected
               </span>
+              <span className="stat-item confirmed">
+                {stats.total_confirmed} confirmed
+              </span>
               <span className="stat-item yours">
                 {(stats.user_accepted || 0) + (stats.user_rejected || 0)} by you
               </span>

@@ -1,0 +1,39 @@
+.qr-display-page {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.qr-display-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-display-container svg {
+  max-width: 90vw;
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+
+.qr-display-error {
+  font-family: "Oxygen", sans-serif;
+  font-size: 1.2rem;
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.qr-display-error code {
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+}

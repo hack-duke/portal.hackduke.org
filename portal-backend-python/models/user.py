@@ -16,3 +16,6 @@ class User(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     email = Column(String, nullable=True)
+    current_session_id = Column(
+        String, nullable=True
+    )  # For admin multi-tab session invalidation
