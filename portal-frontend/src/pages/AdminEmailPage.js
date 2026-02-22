@@ -1,10 +1,15 @@
 import React, { useState, useRef } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import axios from "axios";
 import "./AdminEmailPage.css";
 
 function AdminEmailPage() {
+  const { getAccessTokenSilently } = useAuth0();
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [sending, setSending] = useState(false);
   const [emailData, setEmailData] = useState({
     to: "",
     cc: "",
@@ -16,6 +21,7 @@ function AdminEmailPage() {
 
   const handleOpenCompose = () => {
     setIsComposeOpen(true);
+    setIsExpanded(false);
     setShowCc(false);
     setShowBcc(false);
     setEmailData({ to: "", cc: "", bcc: "", subject: "", body: "" });
@@ -35,11 +41,35 @@ function AdminEmailPage() {
     editorRef.current?.focus();
   };
 
-  const handleSend = () => {
+  const parseRecipients = (str) =>
+    str.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const handleSend = async () => {
     const bodyContent = editorRef.current?.innerHTML || "";
-    console.log("Sending email:", { ...emailData, body: bodyContent });
-    // TODO: Implement actual send logic
-    handleCloseCompose();
+    const to = parseRecipients(emailData.to);
+    if (to.length === 0) return;
+
+    setSending(true);
+    try {
+      const token = await getAccessTokenSilently();
+      await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/admin/send-email`,
+        {
+          to,
+          cc: emailData.cc ? parseRecipients(emailData.cc) : [],
+          bcc: emailData.bcc ? parseRecipients(emailData.bcc) : [],
+          subject: emailData.subject,
+          body: bodyContent,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      handleCloseCompose();
+    } catch (err) {
+      console.error("Failed to send email:", err);
+      alert("Failed to send email. Please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleAttachment = () => {
@@ -69,18 +99,41 @@ function AdminEmailPage() {
       {/* Main Content Area */}
       <div className="email-main">
         <div className="email-placeholder">
-          <p>Select an email or compose a new message</p>
+          <p>Select a draft or compose a new message</p>
         </div>
       </div>
 
       {/* Compose Modal */}
       {isComposeOpen && (
-        <div className="compose-modal">
+        <div className={`compose-modal${isExpanded ? " compose-modal-expanded" : ""}`}>
           <div className="compose-header">
             <span className="compose-title">New Message</span>
-            <button className="compose-close" onClick={handleCloseCompose}>
-              &times;
-            </button>
+            <div className="compose-header-actions">
+              <button
+                className="compose-expand"
+                onClick={() => setIsExpanded((prev) => !prev)}
+                title={isExpanded ? "Collapse" : "Expand"}
+              >
+                {isExpanded ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="4 14 10 14 10 20" />
+                    <polyline points="20 10 14 10 14 4" />
+                    <line x1="14" y1="10" x2="21" y2="3" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                )}
+              </button>
+              <button className="compose-close" onClick={handleCloseCompose}>
+                &times;
+              </button>
+            </div>
           </div>
 
           <div className="compose-body">
@@ -168,8 +221,8 @@ function AdminEmailPage() {
 
           {/* Compose Footer with Actions */}
           <div className="compose-footer">
-            <button className="send-btn" onClick={handleSend}>
-              Send
+            <button className="send-btn" onClick={handleSend} disabled={sending}>
+              {sending ? "Sending..." : "Send"}
             </button>
 
             {/* Formatting Toolbar */}

@@ -59,9 +59,10 @@
 .compose-modal {
   position: fixed;
   bottom: 0;
-  right: 24px;
-  width: 500px;
-  max-height: 600px;
+  right: 1vw;
+  width: 30vw;
+  height: 30vw;
+  min-width: 320px;
   background-color: #fff;
   border-radius: 16px 16px 0 0;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -86,6 +87,35 @@
   font-weight: 500;
 }
 
+.compose-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compose-expand {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compose-expand svg {
+  width: 16px;
+  height: 16px;
+}
+
+.compose-expand:hover {
+  opacity: 1;
+}
+
 .compose-close {
   background: none;
   border: none;
@@ -100,6 +130,23 @@
 
 .compose-close:hover {
   opacity: 1;
+}
+
+/* Expanded Compose Modal */
+.compose-modal-expanded {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: 75vw;
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 16px;
+}
+
+.compose-modal-expanded .compose-header {
+  border-radius: 16px 16px 0 0;
 }
 
 /* Compose Body */
