@@ -147,7 +147,9 @@ const ApplicationStatusPage = () => {
   }, [getAccessTokenSilently, navigate, formKey]);
 
   const isConfirmed =
-    application && application["status"].toUpperCase() === "CONFIRMED";
+    application &&
+    (application["status"].toUpperCase() === "ACCEPTED" ||
+      application["status"].toUpperCase() === "CONFIRMED");
   const userId = application ? application["user_id"] : null;
 
   return (
