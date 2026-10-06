@@ -151,3 +151,27 @@
     width: 100%;
   }
 }
+.duquantum-event-card {
+  border-color: #632323;
+  background: linear-gradient(145deg, #171025, #0e0525);
+  color: #fffaf0;
+}
+
+.duquantum-event-card .form-card-title {
+  color: #f3b562;
+}
+
+.event-card-kicker {
+  display: block;
+  color: #e8b167;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+}
+
+.duquantum-event-copy {
+  color: #e4d8c5;
+  line-height: 1.55;
+}

@@ -1,0 +1,547 @@
+@font-face {
+  font-family: "Edge of the Galaxy";
+  src: url("../assets/duquantum-2026/edge-of-the-galaxy.otf") format("opentype");
+  font-display: swap;
+}
+
+:root {
+  --dq-page: #0e0525;
+  --dq-panel: #0a0517;
+  --dq-panel-soft: #161027;
+  --dq-red: #632323;
+  --dq-yellow: #f3b562;
+  --dq-amber: #e8b167;
+  --dq-ink: #3e1d23;
+  --dq-muted: #c7a983;
+  --dq-white: #fffaf0;
+  --dq-border: rgba(243, 181, 98, 0.34);
+}
+
+.dq-page,
+.dq-admin-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 85% 4%,
+      rgba(99, 35, 35, 0.55),
+      transparent 28rem
+    ),
+    linear-gradient(180deg, #0e0525 0%, #100823 55%, #0a0517 100%);
+  color: var(--dq-white);
+  font-family: "Oxygen", system-ui, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.dq-page *,
+.dq-admin-page * {
+  box-sizing: border-box;
+}
+
+.dq-circuit {
+  position: absolute;
+  inset: 0 0 auto auto;
+  width: min(62vw, 920px);
+  height: 620px;
+  background: url("../assets/duquantum-2026/circuit.svg") top right / contain no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.dq-circuit::after {
+  content: "";
+  position: absolute;
+  inset: 10% 0 0 25%;
+  background: url("../assets/duquantum-2026/dots.svg") top right / 72% auto no-repeat;
+  opacity: 0.6;
+}
+
+.dq-skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-160%);
+  background: var(--dq-yellow);
+  color: var(--dq-page);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+}
+
+.dq-skip-link:focus {
+  transform: translateY(0);
+}
+
+.dq-header {
+  position: relative;
+  z-index: 2;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.25rem clamp(1rem, 4vw, 4.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 1px solid var(--dq-border);
+}
+
+.dq-brand {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: var(--dq-yellow);
+  text-decoration: none;
+  letter-spacing: 0.16em;
+  font:
+    700 0.68rem/1.3 "Oxygen",
+    sans-serif;
+}
+
+.dq-brand img {
+  width: clamp(150px, 21vw, 248px);
+  height: auto;
+}
+
+.dq-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+}
+
+.dq-header-actions a,
+.dq-header-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--dq-white);
+  cursor: pointer;
+  font:
+    600 0.88rem/1.4 "Oxygen",
+    sans-serif;
+  padding: 0.4rem 0;
+  text-decoration: none;
+}
+
+.dq-header-actions a:hover,
+.dq-header-actions button:hover {
+  color: var(--dq-yellow);
+}
+
+.dq-header-actions a:focus-visible,
+.dq-header-actions button:focus-visible,
+.dq-primary-button:focus-visible,
+.dq-secondary-button:focus-visible,
+.dq-text-link:focus-visible {
+  outline: 3px solid var(--dq-yellow);
+  outline-offset: 4px;
+}
+
+.dq-hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(3.5rem, 7vw, 7rem) clamp(1rem, 4vw, 4.5rem) 3rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: clamp(2rem, 5vw, 6rem);
+  align-items: end;
+}
+
+.dq-eyebrow,
+.dq-terminal-label {
+  color: var(--dq-yellow);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  margin: 0 0 0.8rem;
+}
+
+.dq-hero h1 {
+  max-width: 780px;
+  margin: 0;
+  color: var(--dq-white);
+  font:
+    400 clamp(2.55rem, 6vw, 5.7rem)/0.98 "Edge of the Galaxy",
+    "Urbanist",
+    sans-serif;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.dq-hero-copy {
+  max-width: 650px;
+  color: var(--dq-muted);
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.7;
+  margin: 1.5rem 0 0;
+}
+
+.dq-event-meta {
+  margin: 0;
+  border-left: 1px solid var(--dq-border);
+  padding-left: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.dq-event-meta div {
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.15);
+}
+
+.dq-event-meta dt,
+.dq-status-card dt {
+  color: var(--dq-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dq-event-meta dd {
+  margin: 0.35rem 0 0;
+  color: var(--dq-white);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.dq-dashboard {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 4.5rem) 5rem;
+}
+
+.dq-panel {
+  background: linear-gradient(
+    145deg,
+    rgba(22, 16, 39, 0.98),
+    rgba(10, 5, 23, 0.98)
+  );
+  border: 1px solid var(--dq-border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  position: relative;
+}
+
+.dq-panel::before {
+  content: "";
+  position: absolute;
+  width: 52px;
+  height: 3px;
+  left: -1px;
+  top: -1px;
+  background: var(--dq-yellow);
+}
+
+.dq-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.65fr);
+  gap: 1.25rem;
+}
+
+.dq-pass-card,
+.dq-claim-card,
+.dq-empty-card {
+  padding: clamp(1.35rem, 3vw, 2.5rem);
+}
+
+.dq-pass-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.16);
+}
+
+.dq-pass-heading h2,
+.dq-claim-card h2,
+.dq-empty-card h2,
+.dq-status-card h2,
+.dq-support-card h2 {
+  font-family: "Urbanist", sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.1;
+  margin: 0;
+}
+
+.dq-pass-heading p:last-child {
+  color: var(--dq-muted);
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.dq-status-chip {
+  display: inline-flex;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.dq-status-chip.is-active {
+  background: var(--dq-yellow);
+  color: var(--dq-ink);
+}
+
+.dq-status-chip.is-pending {
+  background: rgba(99, 35, 35, 0.7);
+  color: var(--dq-white);
+}
+
+.dq-qr-wrap {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(220px, 1fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  padding-top: clamp(1.5rem, 4vw, 3rem);
+}
+
+.dq-qr-code {
+  width: min(100%, 292px);
+  margin: 0 auto;
+  background: #fff;
+  border: 10px solid var(--dq-yellow);
+  padding: 0.75rem;
+  box-shadow: 12px 12px 0 var(--dq-red);
+}
+
+.dq-qr-code svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.dq-pass-instructions h3,
+.dq-pass-pending h3 {
+  color: var(--dq-yellow);
+  font-size: 1.05rem;
+  margin: 0 0 1rem;
+}
+
+.dq-pass-instructions ol {
+  color: #e4d8c5;
+  line-height: 1.7;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.dq-pass-reference {
+  color: var(--dq-muted);
+  letter-spacing: 0.12em;
+  font: 700 0.72rem/1.4 monospace;
+  margin: 1.5rem 0 0;
+}
+
+.dq-pass-pending {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  color: #e4d8c5;
+}
+
+.dq-pass-pending > span {
+  color: var(--dq-yellow);
+  font-size: 3rem;
+}
+
+.dq-pass-pending p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.dq-side-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.dq-status-card,
+.dq-support-card {
+  padding: 1.5rem;
+}
+
+.dq-status-card dl {
+  margin: 1.25rem 0 0;
+}
+
+.dq-status-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.14);
+}
+
+.dq-status-card dd {
+  margin: 0;
+  color: var(--dq-yellow);
+  font-weight: 700;
+  text-align: right;
+}
+
+.dq-support-card p:not(.dq-terminal-label),
+.dq-claim-card > p:not(.dq-terminal-label),
+.dq-empty-card p {
+  color: #e4d8c5;
+  line-height: 1.65;
+}
+
+.dq-text-link,
+.dq-help-copy a {
+  color: var(--dq-yellow);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dq-primary-button,
+.dq-secondary-button {
+  min-height: 48px;
+  border: 1px solid var(--dq-yellow);
+  padding: 0.7rem 1.15rem;
+  font:
+    700 0.92rem/1.2 "Oxygen",
+    sans-serif;
+  cursor: pointer;
+}
+
+.dq-primary-button {
+  background: var(--dq-yellow);
+  color: var(--dq-page);
+  box-shadow: 5px 5px 0 var(--dq-red);
+}
+
+.dq-secondary-button {
+  background: transparent;
+  color: var(--dq-yellow);
+}
+
+.dq-primary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.dq-help-copy {
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+.dq-alert {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dq-alert-error {
+  background: #3a1420;
+  border: 1px solid #d56c69;
+  color: #ffe4de;
+}
+
+.dq-loading {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  color: var(--dq-muted);
+}
+
+.dq-loader {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(243, 181, 98, 0.2);
+  border-top-color: var(--dq-yellow);
+  border-radius: 50%;
+  animation: dq-spin 0.8s linear infinite;
+}
+
+.dq-footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--dq-border);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.4rem clamp(1rem, 4vw, 4.5rem) 2rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--dq-muted);
+  font: 700 0.68rem/1.4 monospace;
+  letter-spacing: 0.08em;
+}
+
+@keyframes dq-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 850px) {
+  .dq-header,
+  .dq-hero,
+  .dq-content-grid,
+  .dq-qr-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .dq-header {
+    align-items: flex-start;
+  }
+
+  .dq-event-meta {
+    border-left: 0;
+    padding-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .dq-event-meta div {
+    border-top: 1px solid var(--dq-border);
+  }
+}
+
+@media (max-width: 620px) {
+  .dq-header {
+    display: block;
+  }
+
+  .dq-header-actions {
+    justify-content: flex-start;
+    margin-top: 1rem;
+  }
+
+  .dq-hero {
+    padding-top: 3rem;
+  }
+
+  .dq-event-meta {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .dq-pass-heading,
+  .dq-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dq-status-chip {
+    white-space: normal;
+  }
+
+  .dq-qr-code {
+    box-shadow: 7px 7px 0 var(--dq-red);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dq-loader {
+    animation-duration: 1.8s;
+  }
+}

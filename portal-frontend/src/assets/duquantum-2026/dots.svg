@@ -1,0 +1,46 @@
+<svg width="34" height="129" viewBox="0 0 34 129" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Wireframe - 4">
+<g clip-path="url(#clip0_4_7)">
+<g id="landing page">
+<g id="dots">
+<circle id="Ellipse 15" cx="27" cy="122" r="7" fill="#2E0810"/>
+<circle id="Ellipse 16" cx="27" cy="99" r="7" fill="#2E0810"/>
+<circle id="Ellipse 17" cx="27" cy="76" r="7" fill="#2E0810"/>
+<circle id="Ellipse 18" cx="27" cy="53" r="7" fill="#2E0810"/>
+<circle id="Ellipse 19" cx="27" cy="30" r="7" fill="#2E0810"/>
+<circle id="Ellipse 20" cx="27" cy="7" r="7" fill="#2E0810"/>
+<circle id="Ellipse 21" cx="7" cy="122" r="7" fill="#2E0810"/>
+<circle id="Ellipse 22" cx="7" cy="99" r="7" fill="#2E0810"/>
+<circle id="Ellipse 23" cx="7" cy="76" r="7" fill="#2E0810"/>
+<circle id="Ellipse 24" cx="7" cy="53" r="7" fill="#2E0810"/>
+<circle id="Ellipse 25" cx="7" cy="30" r="7" fill="#2E0810"/>
+<circle id="Ellipse 26" cx="7" cy="7" r="7" fill="#2E0810"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_n_4_7" x="-1640" y="-710" width="1748" height="8580" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feTurbulence type="fractalNoise" baseFrequency="2 2" stitchTiles="stitch" numOctaves="3" result="noise" seed="3085" />
+<feComponentTransfer in="noise" result="coloredNoise1">
+<feFuncR type="linear" slope="2" intercept="-0.5" />
+<feFuncG type="linear" slope="2" intercept="-0.5" />
+<feFuncB type="linear" slope="2" intercept="-0.5" />
+<feFuncA type="discrete" tableValues="1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "/>
+</feComponentTransfer>
+<feComposite operator="in" in2="shape" in="coloredNoise1" result="noise1Clipped" />
+<feComponentTransfer in="noise1Clipped" result="color1">
+<feFuncA type="table" tableValues="0 0.25" />
+</feComponentTransfer>
+<feMerge result="effect1_noise_4_7">
+<feMergeNode in="shape" />
+<feMergeNode in="color1" />
+</feMerge>
+</filter>
+<clipPath id="clip0_4_7">
+<rect width="1748" height="8580" fill="white" transform="translate(-1640 -710)"/>
+</clipPath>
+</defs>
+</svg>

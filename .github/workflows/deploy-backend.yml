@@ -69,9 +69,18 @@ jobs:
 
           # Deploy on EC2
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+            set -euo pipefail
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            RELEASE_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            docker pull "\$RELEASE_IMAGE"
             ./populate_env_prod.sh
+
+            # Run additive schema changes with the freshly pulled release while
+            # the previous backend container remains in service. A failed
+            # migration exits this SSH step before Compose can replace it.
+            docker run --rm --env-file .env "\$RELEASE_IMAGE" alembic upgrade head
+
+            export BACKEND_IMAGE="\$RELEASE_IMAGE"
             docker-compose up -d
             docker image prune -f
           EOF

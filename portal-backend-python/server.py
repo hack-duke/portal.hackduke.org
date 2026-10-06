@@ -2,7 +2,7 @@ from fastapi import FastAPI, Security
 from auth import VerifyToken
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from routers import application, check_in, admin, roles
+from routers import application, check_in, admin, roles, events
 from fastapi.staticfiles import StaticFiles
 import sentry_sdk
 from config import Env
@@ -15,7 +15,7 @@ env = os.getenv("ENV")
 if env == Env.PROD:
     sentry_sdk.init(
         dsn=sentry_dsn,
-        send_default_pii=True,
+        send_default_pii=False,
     )
 
 app = FastAPI()
@@ -33,6 +33,7 @@ app.include_router(prefix="/application", router=application.router)
 app.include_router(prefix="/check_in", router=check_in.router)
 app.include_router(prefix="/admin", router=admin.router)
 app.include_router(prefix="/roles", router=roles.router)
+app.include_router(prefix="/events", router=events.router)
 
 # Mount static files for QR code scanner UI
 app.mount("/qr", StaticFiles(directory="static/qr", html=True), name="qr")

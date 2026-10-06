@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Navigate } from "react-router-dom";
 import { HeroBackground } from "../components/HeroBackground";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Button from "../components/Button";
 import "./LoginPage.css";
 import Countdown from "react-countdown";
@@ -10,7 +10,6 @@ import CountdownRenderer from "../components/CountdownRenderer";
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
-  const [priorityCompleted, setPriorityCompleted] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -29,9 +28,24 @@ const LoginPage = () => {
         <div className="buttons-container">
           <Button
             className="hero-button"
-            onClick={() => loginWithRedirect({ screen_hint: "signup" })}
+            onClick={() =>
+              loginWithRedirect({
+                screen_hint: "signup",
+                appState: { returnTo: "/application" },
+              })
+            }
           >
-            Participant
+            HackDuke Applicant
+          </Button>
+          <Button
+            className="dq-login-button"
+            onClick={() =>
+              loginWithRedirect({
+                appState: { returnTo: "/events/duquantum-2026" },
+              })
+            }
+          >
+            DuQuantum Attendee
           </Button>
           <Button
             className="mentor-button"
@@ -43,36 +57,18 @@ const LoginPage = () => {
             Mentor/Judge
           </Button>
         </div>
-        {!priorityCompleted && (
-          <Countdown
-            date={new Date("2026-01-01T23:59:59-05:00")}
-            onComplete={() => setPriorityCompleted(true)}
-            renderer={({ days, hours, minutes, seconds }) => (
-              <CountdownRenderer
-                days={days}
-                hours={hours}
-                minutes={minutes}
-                seconds={seconds}
-                deadlineType="Priority applications"
-              />
-            )}
-          />
-        )}
-
-        {priorityCompleted && (
-          <Countdown
-            date={new Date("2026-01-16T23:59:59-05:00")}
-            renderer={({ days, hours, minutes, seconds }) => (
-              <CountdownRenderer
-                days={days}
-                hours={hours}
-                minutes={minutes}
-                seconds={seconds}
-                deadlineType="Regular applications"
-              />
-            )}
-          />
-        )}
+        <Countdown
+          date={new Date("2026-10-24T09:00:00-04:00")}
+          renderer={({ days, hours, minutes, seconds }) => (
+            <CountdownRenderer
+              days={days}
+              hours={hours}
+              minutes={minutes}
+              seconds={seconds}
+              deadlineType="DuQuantum 2026 begins"
+            />
+          )}
+        />
       </div>
     </>
   );

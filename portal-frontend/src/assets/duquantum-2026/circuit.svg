@@ -1,0 +1,89 @@
+<svg width="1001" height="984" viewBox="0 0 1001 984" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Wireframe - 4">
+<g clip-path="url(#clip0_4_7)">
+<g id="landing page">
+<g id="circuit elements">
+<path id="Vector 93" d="M530.5 216.5L413.5 313" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Subtract" d="M687.136 756.176C683.834 754.505 682.197 750.607 683.451 747.017C684.705 743.427 688.413 741.395 692.038 742.144L687.136 756.176ZM693.926 742.803C697.229 744.475 698.866 748.373 697.612 751.963C696.358 755.554 692.65 757.584 689.024 756.836L693.926 742.803Z" fill="#632323"/>
+<path id="Subtract_2" d="M827.146 555.122C823.737 556.563 819.704 555.295 817.773 552.019C815.843 548.742 816.687 544.599 819.6 542.315L827.146 555.122ZM821.323 541.3C824.733 539.858 828.766 541.127 830.697 544.404C832.627 547.68 831.782 551.822 828.869 554.106L821.323 541.3Z" fill="#632323"/>
+<path id="Vector 79" d="M876 806.5H415.5L281 969.5H-14" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 86" d="M907 883.5H620L510.5 749.5H62L-15 663.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 87" d="M936 918H594.5L499 784H-37" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 83" d="M393.5 428H-18" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<rect id="Rectangle 113" x="732" y="630" width="80" height="67" fill="#632323"/>
+<rect id="Rectangle 114" x="736" y="595" width="16" height="20" fill="#632323"/>
+<rect id="Rectangle 115" x="764" y="595" width="16" height="20" fill="#632323"/>
+<rect id="Rectangle 116" x="792" y="595" width="16" height="20" fill="#632323"/>
+<g id="tick marks">
+<rect id="Rectangle 126" x="382.567" y="294" width="5" height="16" transform="rotate(51.7588 382.567 294)" fill="#632323"/>
+<rect id="Rectangle 127" x="395.567" y="310" width="5" height="16" transform="rotate(51.7588 395.567 310)" fill="#632323"/>
+<rect id="Rectangle 128" x="408.567" y="326" width="5" height="16" transform="rotate(51.7588 408.567 326)" fill="#632323"/>
+<rect id="Rectangle 129" x="421.567" y="342" width="5" height="16" transform="rotate(51.7588 421.567 342)" fill="#632323"/>
+<rect id="Rectangle 122" x="297.567" y="190" width="5" height="16" transform="rotate(51.7588 297.567 190)" fill="#632323"/>
+<rect id="Rectangle 123" x="310.567" y="206" width="5" height="16" transform="rotate(51.7588 310.567 206)" fill="#632323"/>
+<rect id="Rectangle 124" x="323.567" y="222" width="5" height="16" transform="rotate(51.7588 323.567 222)" fill="#632323"/>
+<rect id="Rectangle 125" x="336.567" y="238" width="5" height="16" transform="rotate(51.7588 336.567 238)" fill="#632323"/>
+</g>
+<rect id="Rectangle 117" x="736" y="712" width="16" height="20" fill="#632323"/>
+<rect id="Rectangle 118" x="764" y="712" width="16" height="20" fill="#632323"/>
+<rect id="Rectangle 119" x="792" y="712" width="16" height="20" fill="#632323"/>
+<path id="Vector 70" d="M535 460L270.5 138" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 71" d="M395 428L531 317.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 73" d="M531.5 386L276 78V-16" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<circle id="Ellipse 32" cx="775" cy="428" r="12.5" stroke="#632323" stroke-width="5"/>
+<circle id="Ellipse 34" cx="540" cy="398" r="12.5" stroke="#632323" stroke-width="5"/>
+<circle id="Ellipse 36" cx="697" cy="884" r="15" fill="#632323"/>
+<circle id="Ellipse 37" cx="757" cy="884" r="15" fill="#632323"/>
+<circle id="Ellipse 35" cx="333" cy="292" r="12.5" stroke="#632323" stroke-width="5"/>
+<circle id="Ellipse 33" cx="986" cy="969" r="12.5" stroke="#632323" stroke-width="5"/>
+<path id="Vector 78" d="M790 429H813L876 482.5V849.5L977 958" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 72" d="M318 152L359 119" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 69" d="M326 0V75.5L644 457H905" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 74" d="M294 172.5L144.5 277L14 172.5V-6" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<ellipse id="Ellipse 27" cx="62.5" cy="142.5" rx="15.5" ry="9.5" fill="#632323"/>
+<ellipse id="Ellipse 28" cx="62.5" cy="118.5" rx="15.5" ry="9.5" fill="#632323"/>
+<ellipse id="Ellipse 29" cx="62.5" cy="94.5" rx="15.5" ry="9.5" fill="#632323"/>
+<path id="Vector 75" d="M63 87.5V-5.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 76" d="M63 149.5V174L144 234.5L242.5 174V78L202 41.5V-14.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 77" d="M271 138H197" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Subtract_3" d="M154.5 95C177.972 95 197 114.028 197 137.5C197 160.972 177.972 180 154.5 180C131.028 180 112 160.972 112 137.5C112 114.028 131.028 95 154.5 95ZM155 128C148.373 128 143 133.373 143 140C143 146.627 148.373 152 155 152C161.627 152 167 146.627 167 140C167 133.373 161.627 128 155 128Z" fill="#632323"/>
+<path id="Vector 80" d="M329 905H113" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 81" d="M351.5 877H113" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 82" d="M378 849L113 849" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<rect id="Rectangle 120" x="77" y="832" width="25" height="89" fill="#632323"/>
+<rect id="Rectangle 121" x="48" y="832" width="25" height="89" fill="#632323"/>
+<path id="Vector 84" d="M321.5 296.5L222.5 361.5H-9.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 85" d="M-39 390H122L233.5 307.5" stroke="#632323" stroke-width="5" stroke-linecap="round"/>
+<path id="Vector 89" d="M62 214V466.5V550.5L-9.5 613" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 90" d="M86 232V483.5" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 91" d="M110 251L111.99 452" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+<path id="Vector 92" d="M112.5 452.5L146 485H938" stroke="#632323" stroke-width="10" stroke-linecap="round"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_n_4_7" x="0" y="0" width="1748" height="8580" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feTurbulence type="fractalNoise" baseFrequency="2 2" stitchTiles="stitch" numOctaves="3" result="noise" seed="3085" />
+<feComponentTransfer in="noise" result="coloredNoise1">
+<feFuncR type="linear" slope="2" intercept="-0.5" />
+<feFuncG type="linear" slope="2" intercept="-0.5" />
+<feFuncB type="linear" slope="2" intercept="-0.5" />
+<feFuncA type="discrete" tableValues="1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "/>
+</feComponentTransfer>
+<feComposite operator="in" in2="shape" in="coloredNoise1" result="noise1Clipped" />
+<feComponentTransfer in="noise1Clipped" result="color1">
+<feFuncA type="table" tableValues="0 0.25" />
+</feComponentTransfer>
+<feMerge result="effect1_noise_4_7">
+<feMergeNode in="shape" />
+<feMergeNode in="color1" />
+</feMerge>
+</filter>
+<clipPath id="clip0_4_7">
+<rect width="1748" height="8580" fill="white"/>
+</clipPath>
+</defs>
+</svg>

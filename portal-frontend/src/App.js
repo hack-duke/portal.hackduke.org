@@ -13,6 +13,9 @@ import AdminJudgePage from "./pages/AdminJudgePage";
 import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
 import AdminRolesPage from "./pages/AdminRolesPage";
+import DuQuantumPortalPage from "./pages/DuQuantumPortalPage";
+import DuQuantumAdminPage from "./pages/DuQuantumAdminPage";
+import DuQuantumScannerPage from "./pages/DuQuantumScannerPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -75,6 +78,14 @@ function App() {
         />
         <Route path="/qr" element={<QRDisplayPage />} />
         <Route
+          path="/events/duquantum-2026"
+          element={
+            <ProtectedRoute>
+              <DuQuantumPortalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
             <ProtectedRoute>
@@ -111,6 +122,22 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminRolesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/events/duquantum-2026/attendees"
+          element={
+            <ProtectedRoute>
+              <DuQuantumAdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/events/duquantum-2026/check-in"
+          element={
+            <ProtectedRoute>
+              <DuQuantumScannerPage />
             </ProtectedRoute>
           }
         />

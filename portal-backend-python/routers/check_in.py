@@ -144,7 +144,6 @@ async def log_user(
     event_type = request.event_type
 
     try:
-        engine_url = str(db.get_bind().url)
         # Validate user_id is not empty
         if not user_id:
             raise HTTPException(status_code=400, detail="Invalid QR code: empty user ID")
@@ -224,13 +223,10 @@ async def log_user(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": str(e),
-                "engine_url": engine_url,
-            },
+            detail="Unable to complete check-in",
         )
 
 

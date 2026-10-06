@@ -32,6 +32,14 @@
   padding-left: 1rem;
 }
 
+.dq-login-button {
+  margin-top: 1rem;
+  padding-inline: 1rem;
+  background: #f3b562 !important;
+  color: #0e0525 !important;
+  border: 2px solid #632323 !important;
+}
+
 .buttons-container {
   display: flex;
   column-gap: 1rem;
