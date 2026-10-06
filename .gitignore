@@ -39,3 +39,6 @@ __pycache__/
 *$py.class
 
 .claude/
+
+# Private attendee imports and operational artifacts. Never commit these files.
+data/private/

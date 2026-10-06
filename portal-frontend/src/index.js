@@ -7,6 +7,18 @@ import "@fontsource/oxygen";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
+const getSafeReturnTo = (appState) => {
+  const returnTo = appState?.returnTo;
+  if (
+    typeof returnTo === "string" &&
+    returnTo.startsWith("/") &&
+    !returnTo.startsWith("//")
+  ) {
+    return returnTo;
+  }
+  return window.location.pathname;
+};
+
 root.render(
   <React.StrictMode>
     <Auth0Provider
@@ -17,10 +29,17 @@ root.render(
         audience: process.env.REACT_APP_AUTH0_AUDIENCE,
         scope: "openid profile email offline_access",
       }}
+      onRedirectCallback={(appState) => {
+        window.history.replaceState(
+          {},
+          document.title,
+          getSafeReturnTo(appState),
+        );
+      }}
       useRefreshTokens={true}
       cacheLocation="localstorage"
     >
       <App />
     </Auth0Provider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

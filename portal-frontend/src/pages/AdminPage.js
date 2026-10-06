@@ -249,6 +249,14 @@ const AdminPage = () => {
     navigate("/admin/roles");
   };
 
+  const handleDuQuantumAttendees = () => {
+    navigate("/admin/events/duquantum-2026/attendees");
+  };
+
+  const handleDuQuantumCheckIn = () => {
+    navigate("/admin/events/duquantum-2026/check-in");
+  };
+
   const handleExportToSheets = async () => {
     try {
       setExporting(true);
@@ -382,6 +390,31 @@ const AdminPage = () => {
           </Button>
         </div>
 
+        <section className="duquantum-admin-section">
+          <div>
+            <span>DUQUANTUM 2026</span>
+            <h2>Attendee operations</h2>
+            <p>
+              Review confirmation records, account claims, passes, and
+              event-scoped check-ins.
+            </p>
+          </div>
+          <div className="duquantum-admin-actions">
+            <Button
+              onClick={handleDuQuantumAttendees}
+              className="duquantum-admin-btn"
+            >
+              Attendee Manifest
+            </Button>
+            <Button
+              onClick={handleDuQuantumCheckIn}
+              className="duquantum-scanner-btn"
+            >
+              Open Check-in Scanner
+            </Button>
+          </div>
+        </section>
+
         <div className="admin-export-section">
           <h2 className="export-title">Export to Google Sheets</h2>
           <p className="export-description">
@@ -411,7 +444,8 @@ const AdminPage = () => {
         <div className="admin-exceptions-section">
           <h2 className="exceptions-title">Form Exceptions</h2>
           <p className="exceptions-description">
-            Allow specific emails to submit applications even when the form is closed.
+            Allow specific emails to submit applications even when the form is
+            closed.
           </p>
 
           <div className="exception-add-form">
