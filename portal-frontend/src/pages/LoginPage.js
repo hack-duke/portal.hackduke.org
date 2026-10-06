@@ -27,17 +27,6 @@ const LoginPage = () => {
         <h1 className="hero-text">Portal</h1>
         <div className="buttons-container">
           <Button
-            className="hero-button"
-            onClick={() =>
-              loginWithRedirect({
-                screen_hint: "signup",
-                appState: { returnTo: "/application" },
-              })
-            }
-          >
-            HackDuke Applicant
-          </Button>
-          <Button
             className="dq-login-button"
             onClick={() =>
               loginWithRedirect({
@@ -46,15 +35,6 @@ const LoginPage = () => {
             }
           >
             DuQuantum Attendee
-          </Button>
-          <Button
-            className="mentor-button"
-            variant="secondary"
-            onClick={() =>
-              window.open("https://forms.gle/iE2HH3dAPe3ubKwdA", "_blank")
-            }
-          >
-            Mentor/Judge
           </Button>
         </div>
         <Countdown
