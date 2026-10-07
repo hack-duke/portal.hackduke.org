@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import os
 import secrets
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 import httpx
@@ -69,10 +70,14 @@ class Auth0OnboardingClient:
         settings: Auth0OnboardingSettings,
         *,
         http_client: httpx.Client | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.time,
     ):
         self.settings = settings
         self.http = http_client or httpx.Client(timeout=20.0)
         self._owns_client = http_client is None
+        self._sleep = sleep
+        self._clock = clock
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
 
@@ -90,11 +95,37 @@ class Auth0OnboardingClient:
     def base_url(self) -> str:
         return f"https://{self.settings.domain}"
 
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        """Retry Auth0 rate limits without logging request or attendee data."""
+
+        for attempt in range(5):
+            response = self.http.request(method, url, **kwargs)
+            if response.status_code != 429 or attempt == 4:
+                return response
+
+            retry_after = response.headers.get("retry-after")
+            reset_at = response.headers.get("x-ratelimit-reset")
+            try:
+                delay = float(retry_after) if retry_after is not None else None
+            except ValueError:
+                delay = None
+            if delay is None and reset_at is not None:
+                try:
+                    delay = float(reset_at) - self._clock()
+                except ValueError:
+                    delay = None
+            if delay is None:
+                delay = 0.5 * (2**attempt)
+            self._sleep(max(0.1, min(delay + 0.1, 10.0)))
+
+        raise AssertionError("unreachable")
+
     def _management_token(self) -> str:
         now = datetime.now(timezone.utc)
         if self._token and self._token_expires_at and now < self._token_expires_at:
             return self._token
-        response = self.http.post(
+        response = self._request(
+            "POST",
             f"{self.base_url}/oauth/token",
             json={
                 "client_id": self.settings.management_client_id,
@@ -114,7 +145,8 @@ class Auth0OnboardingClient:
         return {"Authorization": f"Bearer {self._management_token()}"}
 
     def find_users_by_email(self, email: str) -> list[dict[str, Any]]:
-        response = self.http.get(
+        response = self._request(
+            "GET",
             f"{self.base_url}/api/v2/users-by-email",
             headers=self._headers(),
             params={"email": email.strip().casefold()},
@@ -123,7 +155,8 @@ class Auth0OnboardingClient:
         return list(response.json())
 
     def create_user(self, *, email: str, first_name: str, last_name: str) -> str:
-        response = self.http.post(
+        response = self._request(
+            "POST",
             f"{self.base_url}/api/v2/users",
             headers=self._headers(),
             json={
@@ -142,7 +175,8 @@ class Auth0OnboardingClient:
         return str(response.json()["user_id"])
 
     def create_password_ticket(self, *, user_id: str) -> str:
-        response = self.http.post(
+        response = self._request(
+            "POST",
             f"{self.base_url}/api/v2/tickets/password-change",
             headers=self._headers(),
             json={

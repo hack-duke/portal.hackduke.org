@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from scripts.import_event_registrations import (
@@ -18,7 +19,11 @@ from scripts.import_event_registrations import (
     normalize_email,
     parse_csv,
 )
-from services.auth0_onboarding import generate_temporary_password
+from services.auth0_onboarding import (
+    Auth0OnboardingClient,
+    Auth0OnboardingSettings,
+    generate_temporary_password,
+)
 from services.event_email_campaign import render_campaign
 from services.event_email_campaign import (
     OptionalEmailDeliveryAudit,
@@ -96,6 +101,48 @@ def test_generated_password_is_random_and_complex():
     assert any(character.islower() for character in first)
     assert any(character.isdigit() for character in first)
     assert "!" in first
+
+
+def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        if len([item for item in requests if item.url.path.endswith("users-by-email")]) == 1:
+            return httpx.Response(
+                429,
+                request=request,
+                headers={"retry-after": "0"},
+            )
+        return httpx.Response(200, request=request, json=[])
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+        invitation_return_url="https://portal.example.org/events/test",
+    )
+    sleeps = []
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(
+            settings,
+            http_client=http_client,
+            sleep=sleeps.append,
+        ) as client:
+            assert client.find_users_by_email("attendee@example.org") == []
+
+    lookup_requests = [
+        request for request in requests if request.url.path.endswith("users-by-email")
+    ]
+    assert len(lookup_requests) == 2
+    assert sleeps == [0.1]
 
 
 def test_campaign_escapes_display_name_and_does_not_embed_a_pass():
