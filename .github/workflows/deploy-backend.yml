@@ -8,6 +8,10 @@ on:
       - "portal-backend-python/**"
   workflow_dispatch:
 
+concurrency:
+  group: production-backend-deployment
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: portal-backend
@@ -22,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -30,7 +34,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2.1.6
 
       - name: Set IMAGE_TAG to current time
         run: echo "IMAGE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
@@ -68,10 +72,57 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/populate_env_prod.sh $EC2_USER@$EC2_IP:~/
 
           # Deploy on EC2
-          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP \
+            bash -s -- "$AWS_REGION" "$ECR_REGISTRY" "$ECR_REPOSITORY" "$IMAGE_TAG" << 'EOF'
             set -euo pipefail
+            AWS_REGION="$1"
+            ECR_REGISTRY="$2"
+            ECR_REPOSITORY="$3"
+            IMAGE_TAG="$4"
+
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             RELEASE_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            wait_for_backend_health() {
+              local backend_id="$1"
+              local backend_health=""
+              local attempt
+
+              for attempt in $(seq 1 12); do
+                backend_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$backend_id")"
+                if [ "$backend_health" = "healthy" ]; then
+                  return 0
+                fi
+                if [ "$backend_health" = "exited" ] || [ "$backend_health" = "dead" ]; then
+                  return 1
+                fi
+                sleep 5
+              done
+
+              return 1
+            }
+
+            rollback_backend() {
+              if [ -z "$PREVIOUS_IMAGE" ]; then
+                echo "No previous backend image is available for rollback" >&2
+                return 1
+              fi
+
+              echo "Restoring the previous backend image"
+              export BACKEND_IMAGE="$PREVIOUS_IMAGE"
+              docker-compose up -d backend
+
+              local rollback_id
+              rollback_id="$(docker-compose ps -q backend)"
+              if wait_for_backend_health "$rollback_id"; then
+                echo "Previous backend image restored and healthy"
+                return 0
+              fi
+
+              echo "Previous backend image did not become healthy" >&2
+              docker logs --tail 100 "$rollback_id" || true
+              return 1
+            }
 
             # Failed releases can leave old images and build cache behind before
             # the normal post-deploy prune runs. Reclaim only unused artifacts
@@ -83,15 +134,49 @@ jobs:
             docker builder prune -af --filter "until=168h"
             df -h /
 
-            docker pull "\$RELEASE_IMAGE"
-            ./populate_env_prod.sh
+            docker pull "$RELEASE_IMAGE"
+            PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' $(docker-compose ps -q backend) 2>/dev/null || true)"
+
+            # Prefer a fresh Vault export. If Vault's AWS auth backend is
+            # temporarily unavailable, retain the protected environment that
+            # is already serving the current healthy backend. Never print its
+            # contents, and fail closed if the release cannot safely use it.
+            if ! ./populate_env_prod.sh; then
+              echo "Vault refresh failed; validating the existing protected environment"
+              ./populate_env_prod.sh --validate-existing .env
+              echo "Using the existing protected production environment"
+            fi
 
             # Run additive schema changes with the freshly pulled release while
             # the previous backend container remains in service. A failed
             # migration exits this SSH step before Compose can replace it.
-            docker run --rm --env-file .env "\$RELEASE_IMAGE" alembic upgrade head
+            docker run --rm --env-file .env "$RELEASE_IMAGE" alembic upgrade head
 
-            export BACKEND_IMAGE="\$RELEASE_IMAGE"
+            export BACKEND_IMAGE="$RELEASE_IMAGE"
             docker-compose up -d
+
+            BACKEND_ID="$(docker-compose ps -q backend)"
+            if ! wait_for_backend_health "$BACKEND_ID"; then
+              echo "New backend failed its health check; restoring the previous image"
+              docker logs --tail 100 "$BACKEND_ID" || true
+              rollback_backend || true
+              exit 1
+            fi
+
+            PUBLIC_HEALTHY=false
+            for attempt in $(seq 1 6); do
+              if curl --fail --silent --show-error https://portal-backend.hackduke.org/health > /dev/null; then
+                PUBLIC_HEALTHY=true
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$PUBLIC_HEALTHY" != "true" ]; then
+              echo "New backend is not healthy through the public endpoint"
+              rollback_backend || true
+              exit 1
+            fi
+
             docker image prune -af --filter "until=168h"
           EOF

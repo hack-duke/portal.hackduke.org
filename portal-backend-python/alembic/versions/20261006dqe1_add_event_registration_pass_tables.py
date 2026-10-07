@@ -1,7 +1,7 @@
 """Add event-scoped registrations, passes, and check-ins.
 
 Revision ID: 20261006dqe1
-Revises: eb4fd79a5e2f
+Revises: 1a2b3c4d5e6f
 Create Date: 2026-10-06
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 
 revision: str = "20261006dqe1"
-down_revision: Union[str, Sequence[str], None] = "eb4fd79a5e2f"
+down_revision: Union[str, Sequence[str], None] = "1a2b3c4d5e6f"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
