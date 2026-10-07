@@ -72,6 +72,17 @@ jobs:
             set -euo pipefail
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             RELEASE_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            # Failed releases can leave old images and build cache behind before
+            # the normal post-deploy prune runs. Reclaim only unused artifacts
+            # older than seven days; running containers and recent rollback
+            # images remain available.
+            df -h /
+            docker system df || true
+            docker image prune -af --filter "until=168h"
+            docker builder prune -af --filter "until=168h"
+            df -h /
+
             docker pull "\$RELEASE_IMAGE"
             ./populate_env_prod.sh
 
@@ -82,5 +93,5 @@ jobs:
 
             export BACKEND_IMAGE="\$RELEASE_IMAGE"
             docker-compose up -d
-            docker image prune -f
+            docker image prune -af --filter "until=168h"
           EOF
