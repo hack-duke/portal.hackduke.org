@@ -1,6 +1,6 @@
 """Inventory or explicitly provision Auth0 accounts for an event.
 
-The safe default is claim-only inventory: no accounts, tickets, or emails are
+The safe default is claim-only inventory: no accounts, setup links, or emails are
 created. Account creation requires all of ``--create-missing``, ``--commit``,
 ``--send-invitations``, and the exact event confirmation. Never pass attendee
 data on the command line.
@@ -12,6 +12,7 @@ import argparse
 from collections import Counter
 
 from services.auth0_onboarding import Auth0OnboardingClient, Auth0OnboardingSettings
+from services.account_setup import issue_account_setup_link
 from services.event_email_campaign import (
     OptionalEmailDeliveryAudit,
     SesEmailSender,
@@ -111,15 +112,22 @@ def main(argv: list[str] | None = None) -> int:
                             ):
                                 counts["invitation_already_recorded"] += 1
                                 continue
-                            ticket = auth0.create_password_ticket(
-                                user_id=str(existing["user_id"])
+                            account_setup_url = issue_account_setup_link(
+                                session,
+                                event_id=event.id,
+                                event_slug=event.slug,
+                                registration_id=registration.id,
+                                auth0_user_id=str(existing["user_id"]),
+                                portal_url=mail_settings.portal_url,
+                                ttl_seconds=auth_settings.account_setup_ttl_seconds,
                             )
                             assert mailer is not None and mail_settings is not None
                             rendered = render_campaign(
                                 "auth0-invitation",
                                 first_name=registration.first_name or "Attendee",
                                 portal_url=mail_settings.portal_url,
-                                password_ticket_url=ticket,
+                                account_setup_url=account_setup_url,
+                                login_email=registration.email,
                             )
                             delivery = audit.queued(
                                 event_id=event.id,
@@ -159,12 +167,21 @@ def main(argv: list[str] | None = None) -> int:
                     ):
                         counts["invitation_already_recorded"] += 1
                         continue
-                    ticket = auth0.create_password_ticket(user_id=user_id)
+                    account_setup_url = issue_account_setup_link(
+                        session,
+                        event_id=event.id,
+                        event_slug=event.slug,
+                        registration_id=registration.id,
+                        auth0_user_id=user_id,
+                        portal_url=mail_settings.portal_url,
+                        ttl_seconds=auth_settings.account_setup_ttl_seconds,
+                    )
                     rendered = render_campaign(
                         "auth0-invitation",
                         first_name=registration.first_name or "Attendee",
                         portal_url=mail_settings.portal_url,
-                        password_ticket_url=ticket,
+                        account_setup_url=account_setup_url,
+                        login_email=registration.email,
                     )
                     assert mailer is not None
                     delivery = audit.queued(
@@ -200,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Existing invitation audits skipped: {counts['invitation_already_recorded']}")
         print(f"Failures: {counts['failed']}")
         if not args.create_missing:
-            print("Inventory only; no accounts, tickets, or emails were created")
+            print("Inventory only; no accounts, setup links, or emails were created")
         return 1 if counts["failed"] or counts["ambiguous"] else 0
     finally:
         session.close()

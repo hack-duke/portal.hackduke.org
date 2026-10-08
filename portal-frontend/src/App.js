@@ -14,6 +14,7 @@ import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
 import AdminRolesPage from "./pages/AdminRolesPage";
 import DuQuantumPortalPage from "./pages/DuQuantumPortalPage";
+import DuQuantumAccountSetupPage from "./pages/DuQuantumAccountSetupPage";
 import DuQuantumAdminPage from "./pages/DuQuantumAdminPage";
 import DuQuantumScannerPage from "./pages/DuQuantumScannerPage";
 import "./App.css";
@@ -77,6 +78,10 @@ function App() {
           }
         />
         <Route path="/qr" element={<QRDisplayPage />} />
+        <Route
+          path="/events/duquantum-2026/account-setup"
+          element={<DuQuantumAccountSetupPage />}
+        />
         <Route
           path="/events/duquantum-2026"
           element={

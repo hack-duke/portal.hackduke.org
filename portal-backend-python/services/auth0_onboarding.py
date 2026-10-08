@@ -1,9 +1,9 @@
 """Conservative Auth0 account onboarding for event registrations.
 
 Predictable passwords derived from names, phone numbers, or other personal data
-are intentionally unsupported. New accounts receive an unguessable temporary
-password and a single-use password-change ticket; the temporary password is
-never returned, logged, or stored.
+are intentionally unsupported. New accounts receive an unguessable internal
+password and a single-use portal setup capability; the internal password is
+never returned, logged, stored by the portal, or sent to the attendee.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import quote
 
 import httpx
 
@@ -25,8 +25,7 @@ class Auth0OnboardingSettings:
     management_client_id: str
     management_client_secret: str
     database_connection: str
-    invitation_return_url: str
-    ticket_ttl_seconds: int = 604800
+    account_setup_ttl_seconds: int = 604800
 
     @classmethod
     def from_environment(cls) -> "Auth0OnboardingSettings":
@@ -35,8 +34,12 @@ class Auth0OnboardingSettings:
             management_client_id=os.getenv("AUTH0_MGMT_CLIENT_ID", "").strip(),
             management_client_secret=os.getenv("AUTH0_MGMT_CLIENT_SECRET", "").strip(),
             database_connection=os.getenv("AUTH0_DB_CONNECTION", "").strip(),
-            invitation_return_url=os.getenv("AUTH0_INVITATION_RETURN_URL", "").strip(),
-            ticket_ttl_seconds=int(os.getenv("AUTH0_INVITATION_TTL_SECONDS", "604800")),
+            account_setup_ttl_seconds=int(
+                os.getenv(
+                    "ACCOUNT_SETUP_TTL_SECONDS",
+                    os.getenv("AUTH0_INVITATION_TTL_SECONDS", "604800"),
+                )
+            ),
         )
         if not all(
             (
@@ -44,15 +47,11 @@ class Auth0OnboardingSettings:
                 settings.management_client_id,
                 settings.management_client_secret,
                 settings.database_connection,
-                settings.invitation_return_url,
             )
         ):
             raise ValueError("required Auth0 onboarding environment variables are missing")
-        return_url = urlparse(settings.invitation_return_url)
-        if return_url.scheme != "https" or not return_url.netloc:
-            raise ValueError("AUTH0_INVITATION_RETURN_URL must be HTTPS")
-        if not 300 <= settings.ticket_ttl_seconds <= 604800:
-            raise ValueError("Auth0 invitation TTL must be between 5 minutes and 7 days")
+        if not 300 <= settings.account_setup_ttl_seconds <= 604800:
+            raise ValueError("account setup TTL must be between 5 minutes and 7 days")
         return settings
 
 
@@ -62,6 +61,10 @@ def generate_temporary_password() -> str:
     # token_urlsafe provides upper/lower case and digits. Appending punctuation
     # satisfies common Auth0 complexity policies without reducing entropy.
     return f"{secrets.token_urlsafe(48)}!aA7"
+
+
+class Auth0PasswordRejected(Exception):
+    """Auth0 rejected a proposed password under the connection policy."""
 
 
 class Auth0OnboardingClient:
@@ -174,24 +177,21 @@ class Auth0OnboardingClient:
         response.raise_for_status()
         return str(response.json()["user_id"])
 
-    def create_password_ticket(self, *, user_id: str) -> str:
+    def set_initial_password(self, *, user_id: str, password: str) -> None:
+        """Set a database user's chosen password without logging either value."""
+
         response = self._request(
-            "POST",
-            f"{self.base_url}/api/v2/tickets/password-change",
+            "PATCH",
+            f"{self.base_url}/api/v2/users/{quote(user_id, safe='')}",
             headers=self._headers(),
             json={
-                "user_id": user_id,
-                "result_url": self.settings.invitation_return_url,
-                "ttl_sec": self.settings.ticket_ttl_seconds,
-                # Clicking the emailed, single-use link proves control of the
-                # mailbox before the registration can be claimed.
-                "mark_email_as_verified": True,
-                "includeEmailInRedirect": False,
+                "password": password,
+                "connection": self.settings.database_connection,
+                # Possession of the single-use setup capability delivered to
+                # the registration address proves control of that mailbox.
+                "email_verified": True,
             },
         )
+        if response.status_code == 400:
+            raise Auth0PasswordRejected
         response.raise_for_status()
-        ticket = str(response.json()["ticket"])
-        parsed = urlparse(ticket)
-        if parsed.scheme != "https" or not parsed.netloc:
-            raise RuntimeError("Auth0 returned an invalid password ticket")
-        return ticket

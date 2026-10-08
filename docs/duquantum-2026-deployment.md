@@ -8,7 +8,7 @@ private change record.
 ## 1. Preflight and staging
 
 1. Confirm the worktree does not contain the private CSV, environment files,
-   database dumps, Auth0 tickets, or email exports. `git check-ignore` must
+   database dumps, account setup tokens, or email exports. `git check-ignore` must
    identify `data/private/`.
 2. Run backend tests and a clean frontend production build.
 3. Build the backend image from the exact release SHA and tag it with that SHA;
@@ -32,7 +32,8 @@ printing values:
 
 - Database: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
 - Backend/Auth0: `AUTH0_DOMAIN`, `AUTH0_API_AUDIENCE`, Management API client
-  credentials, database connection, and HTTPS invitation return URL.
+  credentials, database connection, and `ACCOUNT_SETUP_TTL_SECONDS`. The M2M
+  client needs exactly `read:users`, `create:users`, and `update:users`.
 - Frontend: `REACT_APP_AUTH0_DOMAIN`, `REACT_APP_AUTH0_CLIENT_ID`,
   `REACT_APP_AUTH0_AUDIENCE`, and `REACT_APP_BACKEND_URL`.
 - Web: `FRONTEND_URL` must exactly match the production portal origin used by
@@ -138,7 +139,10 @@ label them:
 - Active pass, malformed pass, wrong-event pass, revocation, first scan, and
   duplicate scan per checkpoint.
 - Synthetic SES test, database delivery audit, and already-sent skip.
-- No attendee values, database URLs, Auth0 tickets, or JWTs in logs/Sentry.
+- Single-use portal account setup, expired/reused token rejection, Auth0 login,
+  and verified-email registration claim.
+- No attendee values, database URLs, setup tokens, passwords, or JWTs in
+  logs/Sentry.
 
 Only after smoke tests pass should operators send the attendee campaign.
 
@@ -157,5 +161,5 @@ traffic. Never overwrite the only production database or backup in place.
 
 If an email batch has begun, it cannot be recalled. Stop subsequent sends,
 retain delivery audit rows, and communicate corrections through an approved
-operational campaign. Revoke compromised passes or Auth0 tickets individually;
+operational campaign. Revoke compromised passes or setup links individually;
 do not delete attendee records as a first response.
