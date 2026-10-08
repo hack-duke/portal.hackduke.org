@@ -19,6 +19,15 @@ from models.user import User
 from models.user_role import RoleEnum
 from routers.roles import require_admin, require_check_in
 from services.auth0_management import get_auth0_management_client
+from services.auth0_onboarding import (
+    Auth0OnboardingClient,
+    Auth0OnboardingSettings,
+    Auth0PasswordRejected,
+)
+from services.account_setup import (
+    InvalidAccountSetupToken,
+    lock_valid_account_setup,
+)
 
 
 router = APIRouter()
@@ -153,6 +162,16 @@ class EventCheckInListResponse(BaseModel):
     total: int
 
 
+class AccountSetupRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=256)
+    password: str = Field(min_length=12, max_length=128)
+
+
+class AccountSetupResponse(BaseModel):
+    login_email: str
+    message: str
+
+
 def normalize_email(email: str) -> str:
     """Normalize only casing and surrounding whitespace; do not rewrite providers."""
 
@@ -245,6 +264,10 @@ def registration_is_pass_eligible(event: Event, registration: EventRegistration)
     return registration.rsvp_status != "declined"
 
 
+def get_auth0_onboarding_client() -> Auth0OnboardingClient:
+    return Auth0OnboardingClient(Auth0OnboardingSettings.from_environment())
+
+
 def _pass_response(event_pass: Optional[EventPass]) -> Optional[PassResponse]:
     if event_pass is None:
         return None
@@ -330,6 +353,72 @@ def _admin_registration_response(
             )
             for item in registration.email_deliveries
         ],
+    )
+
+
+@router.post("/{slug}/account-setup", response_model=AccountSetupResponse)
+def complete_event_account_setup(
+    slug: str,
+    request: AccountSetupRequest,
+    db: Session = Depends(get_db),
+):
+    """Consume a portal setup capability and set the attendee's Auth0 password."""
+
+    event = get_event_or_404(db, slug)
+    if event.state != "active":
+        raise HTTPException(status_code=409, detail="Account setup is not active")
+
+    try:
+        setup = lock_valid_account_setup(
+            db,
+            event_id=event.id,
+            token=request.token,
+        )
+    except InvalidAccountSetupToken:
+        raise HTTPException(
+            status_code=410,
+            detail="This account setup link is invalid or has expired",
+        )
+
+    registration = setup.registration
+    if not registration_is_pass_eligible(event, registration):
+        raise HTTPException(
+            status_code=403,
+            detail="This registration is not eligible for portal access",
+        )
+
+    try:
+        with get_auth0_onboarding_client() as auth0_client:
+            auth0_client.set_initial_password(
+                user_id=setup.auth0_user_id,
+                password=request.password,
+            )
+    except Auth0PasswordRejected:
+        db.rollback()
+        raise HTTPException(
+            status_code=422,
+            detail="Choose a stronger password that meets all listed requirements",
+        )
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Account setup is temporarily unavailable. Please try again.",
+        )
+
+    setup.consumed_at = datetime.now(timezone.utc)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Account setup is temporarily unavailable. Please try again.",
+        )
+
+    return AccountSetupResponse(
+        login_email=registration.email,
+        message="Your password is set. Continue to sign in to your attendee portal.",
     )
 
 

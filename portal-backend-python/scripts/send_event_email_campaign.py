@@ -33,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--test-email",
         help="send one synthetic preview to this address; never uses attendee data",
     )
+    parser.add_argument(
+        "--test-first-name",
+        default="Test Attendee",
+        help="name used only for a synthetic test email",
+    )
     parser.add_argument("--limit", type=int)
     return parser
 
@@ -53,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         rendered = render_campaign(
             args.campaign,
-            first_name="Test Attendee",
+            first_name=args.test_first_name,
             portal_url=settings.portal_url,
         )
         try:

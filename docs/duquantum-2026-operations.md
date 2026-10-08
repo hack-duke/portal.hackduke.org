@@ -16,7 +16,7 @@ if ($LASTEXITCODE -ne 0) { throw "Private CSV is not ignored" }
 git status --short --ignored data/private
 ```
 
-Never paste CSV rows, attendee emails, phone numbers, Auth0 tickets, database
+Never paste CSV rows, attendee emails, phone numbers, setup tokens, database
 exceptions, or email provider request bodies into logs or issue trackers. Do
 not use this file as a test fixture. Delete the production-host copy after the
 import totals have been reconciled and an encrypted database backup exists.
@@ -76,15 +76,14 @@ guessable or reused. The onboarding tool cannot create such passwords.
 
 If organizers decide that pre-provisioning is necessary, configure a dedicated
 Auth0 database connection and a Management API machine-to-machine client with
-only `read:users`, `create:users`, and `create:user_tickets`. Configure:
+only `read:users`, `create:users`, and `update:users`. Configure:
 
 ```text
 AUTH0_DOMAIN
 AUTH0_MGMT_CLIENT_ID
 AUTH0_MGMT_CLIENT_SECRET
 AUTH0_DB_CONNECTION
-AUTH0_INVITATION_RETURN_URL=https://portal.hackduke.org/events/duquantum-2026
-AUTH0_INVITATION_TTL_SECONDS=604800
+ACCOUNT_SETUP_TTL_SECONDS=604800
 ```
 
 Inventory first. This reads Auth0 but creates nothing:
@@ -94,10 +93,12 @@ python -m scripts.onboard_event_auth0
 ```
 
 Use a small controlled batch first. Provisioning creates a cryptographically
-random temporary password that is never printed or stored, creates a
-single-use password-change ticket that verifies mailbox ownership, and sends
-that ticket through the configured SES sender. All four safety flags are
-required:
+random internal password that is never printed, stored by the portal, or sent
+to the attendee. It then stores only the hash of a single-use setup capability
+and emails a portal link whose secret is carried in the URL fragment so it does
+not enter access logs or referrer headers. The attendee creates their private
+password directly on the portal; successful use verifies mailbox ownership and
+invalidates the link. All four safety flags are required:
 
 ```powershell
 python -m scripts.onboard_event_auth0 `
@@ -109,6 +110,8 @@ Reconcile the aggregate result before removing the limit. An account that this
 tool created but failed to invite remains tagged in Auth0 and can be safely
 re-invited on a later explicit run. Existing unrelated accounts are never
 assigned a new password or sent a reset link by this tool.
+Never email a default password or derive one from an attendee's name, phone
+number, birth date, or other registration data.
 
 ## SES operational campaigns
 

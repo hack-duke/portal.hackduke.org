@@ -83,6 +83,12 @@ class EventRegistration(Base):
         cascade="all, delete-orphan",
         order_by="EmailDelivery.created_at.desc()",
     )
+    account_setup = relationship(
+        "EventAccountSetup",
+        back_populates="registration",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint(

@@ -11,8 +11,13 @@ import html
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import formataddr
 from typing import Any
 from urllib.parse import urlparse
+
+
+EVENT_SLUG = "duquantum-2026"
+DEFAULT_SENDER_NAME = "DuQuantum 2026"
 
 
 @dataclass(frozen=True)
@@ -28,6 +33,7 @@ class SesSettings:
     sender: str
     portal_url: str
     configuration_set: str | None = None
+    sender_name: str = DEFAULT_SENDER_NAME
 
     @classmethod
     def from_environment(cls) -> "SesSettings":
@@ -43,14 +49,171 @@ class SesSettings:
             sender=sender,
             portal_url=portal_url,
             configuration_set=os.getenv("SES_CONFIGURATION_SET") or None,
+            sender_name=os.getenv("SES_FROM_NAME", DEFAULT_SENDER_NAME).strip()
+            or DEFAULT_SENDER_NAME,
         )
 
 
 CAMPAIGN_TEMPLATE_VERSIONS = {
-    "pass-ready": "duquantum-pass-ready-v1",
-    "event-reminder": "duquantum-event-reminder-v1",
-    "auth0-invitation": "duquantum-auth0-invitation-v1",
+    "pass-ready": "duquantum-pass-ready-v2",
+    "event-reminder": "duquantum-event-reminder-v2",
+    "auth0-invitation": "duquantum-auth0-invitation-v2",
 }
+
+
+def _render_branded_html(
+    *,
+    first_name: str,
+    eyebrow: str,
+    heading: str,
+    intro: str,
+    detail_label: str,
+    detail_value: str,
+    supporting_text: str,
+    action_text: str,
+    action_url: str,
+    event_url: str,
+    logo_url: str,
+    font_url: str,
+) -> str:
+    safe_name = html.escape(first_name.strip() or "Attendee")
+    safe_eyebrow = html.escape(eyebrow)
+    safe_heading = html.escape(heading)
+    safe_intro = html.escape(intro)
+    safe_detail_label = html.escape(detail_label)
+    safe_detail_value = html.escape(detail_value)
+    safe_supporting_text = html.escape(supporting_text)
+    safe_action_text = html.escape(action_text)
+    safe_action_url = html.escape(action_url, quote=True)
+    safe_event_url = html.escape(event_url, quote=True)
+    safe_logo_url = html.escape(logo_url, quote=True)
+    safe_font_url = html.escape(font_url, quote=True)
+
+    return f"""<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>{safe_heading}</title>
+    <style>
+      @font-face {{
+        font-family: "Edge of the Galaxy";
+        font-style: normal;
+        font-weight: 400;
+        src: url("{safe_font_url}") format("opentype");
+      }}
+      @keyframes duq-glow {{
+        0%, 100% {{ box-shadow: 0 0 0 rgba(243,181,98,0), 0 20px 55px rgba(0,0,0,.35); }}
+        50% {{ box-shadow: 0 0 34px rgba(243,181,98,.15), 0 20px 55px rgba(0,0,0,.35); }}
+      }}
+      @keyframes duq-float {{
+        0%, 100% {{ transform: translateY(0); }}
+        50% {{ transform: translateY(-3px); }}
+      }}
+      @keyframes duq-signal {{
+        0%, 100% {{ opacity: .45; }}
+        50% {{ opacity: 1; }}
+      }}
+      .duq-card {{ animation: duq-glow 5s ease-in-out infinite; }}
+      .duq-logo {{ animation: duq-float 4s ease-in-out infinite; }}
+      .duq-signal {{ animation: duq-signal 2.4s ease-in-out infinite; }}
+      .duq-button:hover {{ background-color: #ffd07b !important; }}
+      @media only screen and (max-width: 620px) {{
+        .duq-shell {{ padding: 18px 10px !important; }}
+        .duq-card-cell {{ padding: 30px 22px !important; }}
+        .duq-heading {{ font-size: 30px !important; line-height: 34px !important; }}
+      }}
+      @media (prefers-reduced-motion: reduce) {{
+        .duq-card, .duq-logo, .duq-signal {{ animation: none !important; }}
+      }}
+    </style>
+  </head>
+  <body style="background-color:#0e0525;margin:0;padding:0;width:100%;">
+    <div style="display:none;font-size:1px;color:#0e0525;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+      {safe_intro}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0e0525;width:100%;">
+      <tr>
+        <td class="duq-shell" align="center" style="padding:36px 16px;">
+          <table class="duq-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#161027;border:1px solid #573b64;border-radius:22px;max-width:640px;overflow:hidden;">
+            <tr>
+              <td style="background-color:#0a0517;border-bottom:1px solid #432c50;padding:26px 30px 22px;text-align:center;">
+                <a href="{safe_event_url}" style="text-decoration:none;" target="_blank">
+                  <img class="duq-logo" src="{safe_logo_url}" width="520" alt="DuQuantum 2026" style="border:0;display:block;height:auto;margin:0 auto;max-width:100%;width:520px;">
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td class="duq-card-cell" style="padding:42px 46px 38px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="font-family:Oxygen,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2.2px;line-height:18px;padding-bottom:14px;text-transform:uppercase;color:#f3b562;">
+                      <span class="duq-signal" style="color:#f3b562;">●</span>&nbsp;&nbsp;{safe_eyebrow}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="duq-heading" style="color:#fffaf0;font-family:'Edge of the Galaxy','Trebuchet MS',Arial,sans-serif;font-size:38px;font-weight:400;letter-spacing:.6px;line-height:43px;padding-bottom:18px;">
+                      {safe_heading}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="color:#fffaf0;font-family:Oxygen,Arial,sans-serif;font-size:17px;line-height:28px;padding-bottom:12px;">
+                      Hi {safe_name},
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="color:#d9c9de;font-family:Oxygen,Arial,sans-serif;font-size:16px;line-height:26px;padding-bottom:26px;">
+                      {safe_intro}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom:28px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0a0517;border-left:4px solid #f3b562;border-radius:10px;">
+                        <tr>
+                          <td style="padding:17px 19px;">
+                            <div style="color:#c7a983;font-family:Oxygen,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.7px;line-height:17px;text-transform:uppercase;">{safe_detail_label}</div>
+                            <div style="color:#fffaf0;font-family:Oxygen,Arial,sans-serif;font-size:16px;font-weight:700;line-height:24px;padding-top:3px;">{safe_detail_value}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="left" style="padding-bottom:27px;">
+                      <!--[if mso]>
+                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{safe_action_url}" style="height:52px;v-text-anchor:middle;width:250px;" arcsize="18%" stroke="f" fillcolor="#f3b562">
+                        <w:anchorlock/>
+                        <center style="color:#211538;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">{safe_action_text}</center>
+                      </v:roundrect>
+                      <![endif]-->
+                      <!--[if !mso]><!-- -->
+                      <a class="duq-button" href="{safe_action_url}" target="_blank" style="background-color:#f3b562;border-radius:9px;color:#211538;display:inline-block;font-family:Oxygen,Arial,sans-serif;font-size:15px;font-weight:700;line-height:20px;padding:16px 23px;text-decoration:none;">{safe_action_text}&nbsp;&nbsp;→</a>
+                      <!--<![endif]-->
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="color:#bbaac3;font-family:Oxygen,Arial,sans-serif;font-size:14px;line-height:23px;">
+                      {safe_supporting_text}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:#0a0517;border-top:1px solid #432c50;padding:23px 30px;text-align:center;">
+                <p style="color:#c7a983;font-family:Oxygen,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;line-height:18px;margin:0 0 7px;text-transform:uppercase;">HackDuke × Duke Quantum Information Society</p>
+                <p style="color:#927f9e;font-family:Oxygen,Arial,sans-serif;font-size:12px;line-height:19px;margin:0;">Your attendee pass and personal information stay protected inside the portal.</p>
+                <p style="font-family:Oxygen,Arial,sans-serif;font-size:12px;line-height:19px;margin:8px 0 0;"><a href="{safe_event_url}" style="color:#f3b562;text-decoration:underline;">portal.hackduke.org</a></p>
+              </td>
+            </tr>
+          </table>
+          <p style="color:#786887;font-family:Arial,sans-serif;font-size:11px;line-height:18px;margin:16px auto 0;max-width:600px;text-align:center;">If you did not expect this message, contact the DuQuantum organizers.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
 
 
 def render_campaign(
@@ -58,60 +221,99 @@ def render_campaign(
     *,
     first_name: str,
     portal_url: str,
-    password_ticket_url: str | None = None,
+    account_setup_url: str | None = None,
+    login_email: str | None = None,
 ) -> RenderedEmail:
-    safe_name = html.escape(first_name.strip() or "Attendee")
-    safe_portal_url = html.escape(portal_url, quote=True)
+    base_portal_url = portal_url.strip().rstrip("/")
+    parsed_portal = urlparse(base_portal_url)
+    if parsed_portal.scheme != "https" or not parsed_portal.netloc:
+        raise ValueError("portal URL must be HTTPS")
+
+    event_url = f"{base_portal_url}/events/{EVENT_SLUG}"
+    logo_url = f"{base_portal_url}/duquantum-2026/logo-email.png"
+    font_url = f"{base_portal_url}/duquantum-2026/edge-of-the-galaxy.otf"
+    display_name = first_name.strip() or "Attendee"
 
     if campaign_key == "pass-ready":
         subject = "Your DuQuantum 2026 attendee pass is ready"
-        intro = "Your DuQuantum 2026 attendee pass is ready in the portal."
-        action_text = "Open the attendee portal"
-        action_url = portal_url
+        eyebrow = "Attendee access confirmed"
+        heading = "Your pass is ready"
+        intro = "Your DuQuantum 2026 attendee pass is ready and waiting securely in the portal."
+        detail_label = "Event"
+        detail_value = "DuQuantum 2026 · October 24–25 · Duke University"
+        supporting_text = (
+            "Sign in before you arrive to confirm that your pass loads correctly. "
+            "For your privacy, the pass itself is never included in email."
+        )
+        action_text = "Open my attendee portal"
+        action_url = event_url
     elif campaign_key == "event-reminder":
         subject = "DuQuantum 2026 attendee reminder"
+        eyebrow = "The countdown is on"
+        heading = "Get ready for DuQuantum"
         intro = (
-            "DuQuantum 2026 is October 24–25. Sign in to the portal before "
-            "arrival and make sure your attendee pass is available."
+            "DuQuantum 2026 is coming up soon. Take a moment to sign in and make "
+            "sure your attendee pass is available before you arrive."
         )
-        action_text = "Review your attendee details"
-        action_url = portal_url
+        detail_label = "Save the date"
+        detail_value = "October 24–25, 2026 · Duke University"
+        supporting_text = (
+            "Keep this portal link handy on event day. Your pass remains protected "
+            "behind your account sign-in."
+        )
+        action_text = "Review my attendee details"
+        action_url = event_url
     elif campaign_key == "auth0-invitation":
-        if not password_ticket_url:
-            raise ValueError("password ticket URL is required for an invitation")
-        parsed_ticket = urlparse(password_ticket_url)
-        if parsed_ticket.scheme != "https" or not parsed_ticket.netloc:
-            raise ValueError("password ticket URL must be HTTPS")
+        if not account_setup_url:
+            raise ValueError("account setup URL is required for an invitation")
+        parsed_setup = urlparse(account_setup_url)
+        if parsed_setup.scheme != "https" or not parsed_setup.netloc:
+            raise ValueError("account setup URL must be HTTPS")
+        normalized_login_email = (login_email or "").strip()
+        if not normalized_login_email or "@" not in normalized_login_email:
+            raise ValueError("login email is required for an invitation")
         subject = "Set up your DuQuantum 2026 portal account"
+        eyebrow = "Your portal invitation"
+        heading = "Welcome to DuQuantum"
         intro = (
             "An account has been reserved for your DuQuantum 2026 registration. "
-            "Use the secure, single-use link below to choose your own password."
+            "Use the secure, single-use link below to create your private password "
+            "directly on the HackDuke portal."
         )
-        action_text = "Set up my portal account"
-        action_url = password_ticket_url
+        detail_label = "Your portal login email"
+        detail_value = normalized_login_email
+        supporting_text = (
+            "No temporary password is sent or stored. Create your password, then "
+            "sign in with the email above to view your attendee pass. This setup "
+            "link is unique to you, expires after seven days, and can only be used once."
+        )
+        action_text = "Create my password"
+        action_url = account_setup_url
     else:
         raise ValueError("unknown email campaign")
 
-    safe_action_url = html.escape(action_url, quote=True)
     text_body = (
-        f"Hi {first_name.strip() or 'Attendee'},\n\n{intro}\n\n"
+        f"Hi {display_name},\n\n{intro}\n\n"
+        f"{detail_label}: {detail_value}\n\n"
         f"{action_text}: {action_url}\n\n"
+        f"{supporting_text}\n\n"
+        "Organized by HackDuke and Duke Quantum Information Society.\n"
         "If you did not expect this message, contact the DuQuantum organizers."
     )
-    html_body = f"""<!doctype html>
-<html lang="en">
-  <body style="background:#140c24;color:#fff;font-family:Arial,sans-serif;margin:0;padding:32px">
-    <main style="background:#211538;border:1px solid #5b437d;border-radius:12px;max-width:600px;margin:auto;padding:32px">
-      <p style="color:#f3c969;font-weight:700;letter-spacing:.08em">DUQUANTUM 2026</p>
-      <h1 style="font-size:24px">Hi {safe_name},</h1>
-      <p style="font-size:16px;line-height:1.6">{html.escape(intro)}</p>
-      <p style="margin:28px 0">
-        <a href="{safe_action_url}" style="background:#f3c969;color:#211538;border-radius:8px;display:inline-block;font-weight:700;padding:14px 20px;text-decoration:none">{html.escape(action_text)}</a>
-      </p>
-      <p style="color:#cbbfdc;font-size:13px;line-height:1.5">If you did not expect this message, contact the DuQuantum organizers.</p>
-    </main>
-  </body>
-</html>"""
+    html_body = _render_branded_html(
+        first_name=display_name,
+        eyebrow=eyebrow,
+        heading=heading,
+        intro=intro,
+        detail_label=detail_label,
+        detail_value=detail_value,
+        supporting_text=supporting_text,
+        action_text=action_text,
+        action_url=action_url,
+        event_url=event_url,
+        logo_url=logo_url,
+        font_url=font_url,
+    )
     return RenderedEmail(subject=subject, text_body=text_body, html_body=html_body)
 
 
@@ -126,7 +328,9 @@ class SesEmailSender:
 
     def send(self, *, recipient: str, rendered: RenderedEmail) -> str:
         request: dict[str, Any] = {
-            "FromEmailAddress": self.settings.sender,
+            "FromEmailAddress": formataddr(
+                (self.settings.sender_name, self.settings.sender)
+            ),
             "Destination": {"ToAddresses": [recipient]},
             "Content": {
                 "Simple": {

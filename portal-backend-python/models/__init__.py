@@ -12,6 +12,7 @@ from .event_registration import EventRegistration
 from .event_pass import EventPass
 from .event_check_in import EventCheckIn
 from .email_delivery import EmailDelivery
+from .event_account_setup import EventAccountSetup
 
 # should this be dynamically generated?
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "EventPass",
     "EventCheckIn",
     "EmailDelivery",
+    "EventAccountSetup",
 ]

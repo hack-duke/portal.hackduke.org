@@ -22,11 +22,16 @@ from scripts.import_event_registrations import (
 from services.auth0_onboarding import (
     Auth0OnboardingClient,
     Auth0OnboardingSettings,
+    Auth0PasswordRejected,
     generate_temporary_password,
 )
 from services.event_email_campaign import render_campaign
 from services.event_email_campaign import (
+    CAMPAIGN_TEMPLATE_VERSIONS,
     OptionalEmailDeliveryAudit,
+    RenderedEmail,
+    SesEmailSender,
+    SesSettings,
     campaign_allows_registration,
     is_registration_eligible,
 )
@@ -127,7 +132,6 @@ def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
         management_client_id="client-id",
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
-        invitation_return_url="https://portal.example.org/events/test",
     )
     sleeps = []
     with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
@@ -145,6 +149,65 @@ def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
     assert sleeps == [0.1]
 
 
+def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(200, request=request, json={})
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            auth0_client.set_initial_password(
+                user_id="auth0|attendee",
+                password="A-strong-private-password-2026",
+            )
+
+    update_request = requests[-1]
+    assert update_request.method == "PATCH"
+    assert update_request.url.path.endswith("/api/v2/users/auth0|attendee")
+    assert b'"email_verified":true' in update_request.content
+    assert b'"connection":"Username-Password-Authentication"' in update_request.content
+    assert b'"password":"A-strong-private-password-2026"' in update_request.content
+
+
+def test_auth0_password_policy_rejection_has_a_safe_exception():
+    def handler(request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(400, request=request, json={"message": "details"})
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            with pytest.raises(Auth0PasswordRejected):
+                auth0_client.set_initial_password(
+                    user_id="auth0|attendee",
+                    password="rejected-password",
+                )
+
+
 def test_campaign_escapes_display_name_and_does_not_embed_a_pass():
     rendered = render_campaign(
         "pass-ready",
@@ -157,13 +220,95 @@ def test_campaign_escapes_display_name_and_does_not_embed_a_pass():
     assert "QR" not in rendered.text_body
 
 
-def test_invitation_requires_secure_ticket_url():
+def test_campaign_uses_duquantum_brand_with_email_safe_fallbacks():
+    rendered = render_campaign(
+        "pass-ready",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org/",
+    )
+
+    assert 'alt="DuQuantum 2026"' in rendered.html_body
+    assert (
+        'src="https://portal.example.org/duquantum-2026/logo-email.png"'
+        in rendered.html_body
+    )
+    assert "Edge of the Galaxy" in rendered.html_body
+    assert "#f3b562" in rendered.html_body
+    assert "@keyframes duq-glow" in rendered.html_body
+    assert "prefers-reduced-motion" in rendered.html_body
+    assert "HackDuke × Duke Quantum Information Society" in rendered.html_body
+    assert "October 24–25" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["pass-ready"].endswith("-v2")
+
+
+def test_all_campaigns_share_the_branded_email_shell():
+    setup_url = "https://portal.example.org/events/test/account-setup#token=secret"
+    for campaign in ("pass-ready", "event-reminder", "auth0-invitation"):
+        rendered = render_campaign(
+            campaign,
+            first_name="Mohammad",
+            portal_url="https://portal.example.org",
+            account_setup_url=setup_url if campaign == "auth0-invitation" else None,
+            login_email="attendee@example.org" if campaign == "auth0-invitation" else None,
+        )
+        assert "logo-email.png" in rendered.html_body
+        assert "duq-card" in rendered.html_body
+        assert "portal.hackduke.org" in rendered.html_body
+
+
+def test_invitation_explains_account_setup_without_exposing_a_pass():
+    rendered = render_campaign(
+        "auth0-invitation",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org",
+        account_setup_url=(
+            "https://portal.example.org/events/test/account-setup#token=secret"
+        ),
+        login_email="attendee@example.org",
+    )
+
+    assert "attendee@example.org" in rendered.html_body
+    assert "No temporary password is sent or stored" in rendered.html_body
+    assert "QR" not in rendered.html_body
+    assert "pass ID" not in rendered.html_body
+
+
+def test_ses_sender_uses_the_duquantum_display_name():
+    class FakeClient:
+        request = None
+
+        def send_email(self, **request):
+            self.request = request
+            return {"MessageId": "message-id"}
+
+    client = FakeClient()
+    sender = SesEmailSender(
+        SesSettings(
+            region="us-east-2",
+            sender="hackers@hackduke.org",
+            portal_url="https://portal.example.org",
+        ),
+        client=client,
+    )
+    message_id = sender.send(
+        recipient="attendee@example.org",
+        rendered=RenderedEmail(subject="Subject", text_body="Text", html_body="HTML"),
+    )
+
+    assert message_id == "message-id"
+    assert client.request["FromEmailAddress"] == (
+        "DuQuantum 2026 <hackers@hackduke.org>"
+    )
+
+
+def test_invitation_requires_secure_setup_url():
     with pytest.raises(ValueError):
         render_campaign(
             "auth0-invitation",
             first_name="Test",
             portal_url="https://portal.example.org",
-            password_ticket_url="http://example.org/ticket",
+            account_setup_url="http://example.org/account-setup#token=secret",
+            login_email="attendee@example.org",
         )
 
 

@@ -1,4 +1,5 @@
 from uuid import uuid4
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi import FastAPI
@@ -7,9 +8,12 @@ from fastapi.testclient import TestClient
 from db import get_db
 from models.event import Event
 from models.event_registration import EventRegistration
+from models.event_account_setup import EventAccountSetup
 from models.user import User
 from models.user_role import RoleEnum, UserRole
 from routers.events import auth, router
+from services.account_setup import issue_account_setup_link
+from services.auth0_onboarding import Auth0PasswordRejected
 
 
 app = FastAPI()
@@ -81,6 +85,20 @@ def claim(event):
     return client.post(f"/events/{event.slug}/claim")
 
 
+def _issue_setup_token(test_session, event, registration):
+    setup_url = issue_account_setup_link(
+        test_session,
+        event_id=event.id,
+        event_slug=event.slug,
+        registration_id=registration.id,
+        auth0_user_id="auth0|attendee",
+        portal_url="https://portal.example.org",
+        ttl_seconds=3600,
+    )
+    token = parse_qs(urlparse(setup_url).fragment)["token"][0]
+    return setup_url, token
+
+
 def test_claim_requires_verified_token_email(event, registration):
     set_token(
         {
@@ -94,6 +112,82 @@ def test_claim_requires_verified_token_email(event, registration):
 
     assert response.status_code == 403
     assert registration.user_id is None
+
+
+def test_account_setup_sets_password_marks_email_verified_and_is_single_use(
+    event, registration, test_session, monkeypatch
+):
+    setup_url, token = _issue_setup_token(test_session, event, registration)
+    setup = test_session.query(EventAccountSetup).one()
+
+    assert token not in setup.token_digest
+    assert setup_url.startswith(
+        f"https://portal.example.org/events/{event.slug}/account-setup#token="
+    )
+
+    calls = []
+
+    class FakeAuth0Client:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def set_initial_password(self, *, user_id, password):
+            calls.append((user_id, password))
+
+    monkeypatch.setattr(
+        "routers.events.get_auth0_onboarding_client",
+        lambda: FakeAuth0Client(),
+    )
+    response = client.post(
+        f"/events/{event.slug}/account-setup",
+        json={"token": token, "password": "A-strong-private-password-2026"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["login_email"] == registration.email
+    assert calls == [("auth0|attendee", "A-strong-private-password-2026")]
+    test_session.refresh(setup)
+    assert setup.consumed_at is not None
+
+    repeated = client.post(
+        f"/events/{event.slug}/account-setup",
+        json={"token": token, "password": "Another-strong-password-2026"},
+    )
+    assert repeated.status_code == 410
+    assert len(calls) == 1
+
+
+def test_account_setup_keeps_token_available_when_auth0_rejects_password(
+    event, registration, test_session, monkeypatch
+):
+    _, token = _issue_setup_token(test_session, event, registration)
+    setup = test_session.query(EventAccountSetup).one()
+
+    class RejectingAuth0Client:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def set_initial_password(self, **_kwargs):
+            raise Auth0PasswordRejected
+
+    monkeypatch.setattr(
+        "routers.events.get_auth0_onboarding_client",
+        lambda: RejectingAuth0Client(),
+    )
+    response = client.post(
+        f"/events/{event.slug}/account-setup",
+        json={"token": token, "password": "Rejected-password-2026"},
+    )
+
+    assert response.status_code == 422
+    test_session.refresh(setup)
+    assert setup.consumed_at is None
 
 
 def test_claim_falls_back_to_auth0_management_email(
