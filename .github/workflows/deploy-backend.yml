@@ -124,14 +124,14 @@ jobs:
               return 1
             }
 
-            # Failed releases can leave old images and build cache behind before
-            # the normal post-deploy prune runs. Reclaim only unused artifacts
-            # older than seven days; running containers and recent rollback
-            # images remain available.
+            # Failed and superseded releases can exhaust this small EC2 volume.
+            # Reclaim every unused image before pulling; Docker keeps images
+            # referenced by the running backend and Caddy containers, so the
+            # currently healthy release remains available for rollback.
             df -h /
             docker system df || true
-            docker image prune -af --filter "until=168h"
-            docker builder prune -af --filter "until=168h"
+            docker image prune -af
+            docker builder prune -af
             df -h /
 
             docker pull "$RELEASE_IMAGE"
@@ -222,5 +222,7 @@ jobs:
               exit 1
             fi
 
-            docker image prune -af --filter "until=168h"
+            # Once the new release has passed both health gates, remove its
+            # superseded image so the next deployment starts with free space.
+            docker image prune -af
           EOF
