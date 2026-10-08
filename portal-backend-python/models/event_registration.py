@@ -89,6 +89,11 @@ class EventRegistration(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    push_subscriptions = relationship(
+        "EventPushSubscription",
+        back_populates="registration",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint(

@@ -137,6 +137,50 @@ jobs:
             docker pull "$RELEASE_IMAGE"
             PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' $(docker-compose ps -q backend) 2>/dev/null || true)"
 
+            # Web Push uses a long-lived VAPID signing identity. Bootstrap it
+            # exactly once inside the release image and write it straight to
+            # Vault; neither key is printed in the Actions log, and subsequent
+            # deployments retain the same identity so device subscriptions
+            # remain valid.
+            export VAULT_ADDR="http://db:8200"
+            export VAULT_TOKEN
+            VAULT_TOKEN="$(vault login \
+              -method=aws \
+              -no-store \
+              -token-only \
+              role=backend-ec2)"
+
+            if vault kv get -field=VAPID_PUBLIC_KEY secrets/backend_prod > /dev/null 2>&1 \
+              && vault kv get -field=VAPID_PRIVATE_KEY secrets/backend_prod > /dev/null 2>&1 \
+              && vault kv get -field=VAPID_SUBJECT secrets/backend_prod > /dev/null 2>&1; then
+              if [ "$(vault kv get -field=EVENT_NOTIFICATIONS_ENABLED secrets/backend_prod 2>/dev/null || true)" != "true" ]; then
+                if ! vault kv patch -method=rw -format=json secrets/backend_prod EVENT_NOTIFICATIONS_ENABLED=true > /dev/null; then
+                  unset VAULT_TOKEN
+                  echo "Unable to enable event notifications in Vault" >&2
+                  exit 1
+                fi
+              fi
+              echo "Event notification signing identity is configured"
+            else
+              VAPID_TMP="$(mktemp vapid.XXXXXX.json)"
+              chmod 600 "$VAPID_TMP"
+              if ! docker run --rm "$RELEASE_IMAGE" python -c 'from py_vapid import Vapid02; from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, PublicFormat; import base64, json; key = Vapid02(); key.generate_keys(); encode = lambda value: base64.urlsafe_b64encode(value).rstrip(b"=").decode(); private_key = encode(key.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())); public_key = encode(key.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)); print(json.dumps({"VAPID_PUBLIC_KEY": public_key, "VAPID_PRIVATE_KEY": private_key, "VAPID_SUBJECT": "mailto:organizers@duquantum.org", "EVENT_NOTIFICATIONS_ENABLED": "true"}))' > "$VAPID_TMP"; then
+                rm -f -- "$VAPID_TMP"
+                unset VAULT_TOKEN
+                echo "Unable to generate the event notification signing identity" >&2
+                exit 1
+              fi
+              if ! vault kv patch -method=rw -format=json secrets/backend_prod @"$VAPID_TMP" > /dev/null; then
+                rm -f -- "$VAPID_TMP"
+                unset VAULT_TOKEN
+                echo "Unable to store the event notification signing identity" >&2
+                exit 1
+              fi
+              rm -f -- "$VAPID_TMP"
+              echo "Event notification signing identity was created in Vault"
+            fi
+            unset VAULT_TOKEN
+
             # Prefer a fresh Vault export. If Vault's AWS auth backend is
             # temporarily unavailable, retain the protected environment that
             # is already serving the current healthy backend. Never print its

@@ -30,7 +30,10 @@ class Auth0OnboardingSettings:
     @classmethod
     def from_environment(cls) -> "Auth0OnboardingSettings":
         settings = cls(
-            domain=os.getenv("AUTH0_DOMAIN", "").strip().removeprefix("https://").rstrip("/"),
+            domain=os.getenv("AUTH0_DOMAIN", "")
+            .strip()
+            .removeprefix("https://")
+            .rstrip("/"),
             management_client_id=os.getenv("AUTH0_MGMT_CLIENT_ID", "").strip(),
             management_client_secret=os.getenv("AUTH0_MGMT_CLIENT_SECRET", "").strip(),
             database_connection=os.getenv("AUTH0_DB_CONNECTION", "").strip(),
@@ -49,7 +52,9 @@ class Auth0OnboardingSettings:
                 settings.database_connection,
             )
         ):
-            raise ValueError("required Auth0 onboarding environment variables are missing")
+            raise ValueError(
+                "required Auth0 onboarding environment variables are missing"
+            )
         if not 300 <= settings.account_setup_ttl_seconds <= 604800:
             raise ValueError("account setup TTL must be between 5 minutes and 7 days")
         return settings
@@ -180,18 +185,49 @@ class Auth0OnboardingClient:
     def set_initial_password(self, *, user_id: str, password: str) -> None:
         """Set a database user's chosen password without logging either value."""
 
-        response = self._request(
+        password_response = self._request(
             "PATCH",
             f"{self.base_url}/api/v2/users/{quote(user_id, safe='')}",
             headers=self._headers(),
             json={
                 "password": password,
                 "connection": self.settings.database_connection,
-                # Possession of the single-use setup capability delivered to
-                # the registration address proves control of that mailbox.
-                "email_verified": True,
             },
         )
-        if response.status_code == 400:
-            raise Auth0PasswordRejected
-        response.raise_for_status()
+        if password_response.status_code == 400:
+            try:
+                payload = password_response.json()
+            except ValueError:
+                payload = {}
+            error_code = str(
+                payload.get("code") or payload.get("errorCode") or ""
+            ).casefold()
+            message = str(payload.get("message") or "").casefold()
+            password_error_codes = {
+                "invalid_password",
+                "password_dictionary_error",
+                "password_no_user_info_error",
+                "password_strength_error",
+                "passwordhistoryerror",
+            }
+            if error_code in password_error_codes or any(
+                marker in message
+                for marker in (
+                    "passwordstrengtherror",
+                    "password is too weak",
+                    "password has previously been used",
+                )
+            ):
+                raise Auth0PasswordRejected
+        password_response.raise_for_status()
+
+        # Auth0 rejects password and email_verified in the same PATCH. The
+        # setup capability was delivered to the registration mailbox, so mark
+        # it verified only after the password update succeeds.
+        verification_response = self._request(
+            "PATCH",
+            f"{self.base_url}/api/v2/users/{quote(user_id, safe='')}",
+            headers=self._headers(),
+            json={"email_verified": True},
+        )
+        verification_response.raise_for_status()

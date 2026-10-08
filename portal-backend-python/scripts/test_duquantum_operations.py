@@ -119,7 +119,10 @@ def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        if len([item for item in requests if item.url.path.endswith("users-by-email")]) == 1:
+        if (
+            len([item for item in requests if item.url.path.endswith("users-by-email")])
+            == 1
+        ):
             return httpx.Response(
                 429,
                 request=request,
@@ -175,12 +178,18 @@ def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
                 password="A-strong-private-password-2026",
             )
 
-    update_request = requests[-1]
-    assert update_request.method == "PATCH"
-    assert update_request.url.path.endswith("/api/v2/users/auth0|attendee")
-    assert b'"email_verified":true' in update_request.content
-    assert b'"connection":"Username-Password-Authentication"' in update_request.content
-    assert b'"password":"A-strong-private-password-2026"' in update_request.content
+    update_requests = [request for request in requests if request.method == "PATCH"]
+    assert len(update_requests) == 2
+    password_request, verification_request = update_requests
+    assert password_request.url.path.endswith("/api/v2/users/auth0|attendee")
+    assert b'"email_verified"' not in password_request.content
+    assert (
+        b'"connection":"Username-Password-Authentication"' in password_request.content
+    )
+    assert b'"password":"A-strong-private-password-2026"' in password_request.content
+    assert verification_request.url.path.endswith("/api/v2/users/auth0|attendee")
+    assert b'"email_verified":true' in verification_request.content
+    assert b'"password"' not in verification_request.content
 
 
 def test_auth0_password_policy_rejection_has_a_safe_exception():
@@ -191,7 +200,14 @@ def test_auth0_password_policy_rejection_has_a_safe_exception():
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        return httpx.Response(400, request=request, json={"message": "details"})
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "message": "PasswordStrengthError: Password is too weak",
+                "errorCode": "auth0_idp_error",
+            },
+        )
 
     settings = Auth0OnboardingSettings(
         domain="tenant.example.org",
@@ -205,6 +221,38 @@ def test_auth0_password_policy_rejection_has_a_safe_exception():
                 auth0_client.set_initial_password(
                     user_id="auth0|attendee",
                     password="rejected-password",
+                )
+
+
+def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
+    def handler(request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "message": "Cannot update password and email_verified simultaneously",
+                "errorCode": "operation_not_supported",
+            },
+        )
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            with pytest.raises(httpx.HTTPStatusError):
+                auth0_client.set_initial_password(
+                    user_id="auth0|attendee",
+                    password="A-strong-private-password-2026",
                 )
 
 
@@ -249,7 +297,9 @@ def test_all_campaigns_share_the_branded_email_shell():
             first_name="Mohammad",
             portal_url="https://portal.example.org",
             account_setup_url=setup_url if campaign == "auth0-invitation" else None,
-            login_email="attendee@example.org" if campaign == "auth0-invitation" else None,
+            login_email=(
+                "attendee@example.org" if campaign == "auth0-invitation" else None
+            ),
         )
         assert "logo-email.png" in rendered.html_body
         assert "duq-card" in rendered.html_body

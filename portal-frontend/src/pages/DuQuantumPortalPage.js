@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import { createGetAuthToken } from "../utils/authUtils";
+import DuQuantumMobileCompanion from "../components/DuQuantumMobileCompanion";
 import "./DuQuantumPortal.css";
 
 const EVENT_SLUG = "duquantum-2026";
@@ -382,6 +383,11 @@ const DuQuantumPortalPage = () => {
                   Refresh portal
                 </button>
               </article>
+            )}
+            {registration && passActive && (
+              <DuQuantumMobileCompanion
+                getAccessTokenSilently={getAccessTokenSilently}
+              />
             )}
           </>
         )}

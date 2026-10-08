@@ -13,6 +13,8 @@ from .event_pass import EventPass
 from .event_check_in import EventCheckIn
 from .email_delivery import EmailDelivery
 from .event_account_setup import EventAccountSetup
+from .event_push_subscription import EventPushSubscription
+from .event_notification_delivery import EventNotificationDelivery
 
 # should this be dynamically generated?
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "EventCheckIn",
     "EmailDelivery",
     "EventAccountSetup",
+    "EventPushSubscription",
+    "EventNotificationDelivery",
 ]

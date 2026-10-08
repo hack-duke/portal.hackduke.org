@@ -41,6 +41,10 @@ printing values:
   credentials.
 - Email: `SES_FROM_EMAIL`, `SES_REGION`, `PORTAL_PUBLIC_URL`, and optional SES
   configuration set.
+- Web Push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and
+  `EVENT_NOTIFICATIONS_ENABLED`. Keep the private key in Vault and preserve the
+  same VAPID identity across deployments so existing device subscriptions stay
+  valid.
 
 In Auth0, explicitly list the exact production and staging URLs under Allowed
 Callback URLs, Allowed Logout URLs, and Allowed Web Origins. Include the real
@@ -139,6 +143,10 @@ label them:
 - Active pass, malformed pass, wrong-event pass, revocation, first scan, and
   duplicate scan per checkpoint.
 - Synthetic SES test, database delivery audit, and already-sent skip.
+- Home Screen install on Android and iOS, explicit notification opt-in, local
+  confirmation notification, one synthetic Web Push delivery, unsubscribe,
+  and stale-subscription deactivation. Do not advance the production schedule
+  or send a real event alert during a smoke test.
 - Single-use portal account setup, expired/reused token rejection, Auth0 login,
   and verified-email registration claim.
 - No attendee values, database URLs, setup tokens, passwords, or JWTs in

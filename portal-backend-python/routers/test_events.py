@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from db import get_db
 from models.event import Event
 from models.event_registration import EventRegistration
+from models.event_push_subscription import EventPushSubscription
 from models.event_account_setup import EventAccountSetup
 from models.user import User
 from models.user_role import RoleEnum, UserRole
@@ -201,9 +202,7 @@ def test_account_setup_keeps_token_available_when_auth0_rejects_password(
     assert setup.consumed_at is None
 
 
-def test_claim_falls_back_to_auth0_management_email(
-    event, registration, monkeypatch
-):
+def test_claim_falls_back_to_auth0_management_email(event, registration, monkeypatch):
     class FakeManagementClient:
         def get_user_by_id(self, user_id):
             assert user_id == "auth0|attendee"
@@ -265,7 +264,10 @@ def test_admin_registration_list_is_role_protected_and_includes_private_fields(
     body = response.json()
     assert body["total"] == 1
     assert body["registrations"][0]["phone"] == "+15555550100"
-    assert body["registrations"][0]["source_data"]["form_response"]["example"] == "retained"
+    assert (
+        body["registrations"][0]["source_data"]["form_response"]["example"]
+        == "retained"
+    )
 
 
 def test_check_in_is_event_scoped_and_prevents_duplicate_checkpoint(
@@ -310,3 +312,58 @@ def test_check_in_is_event_scoped_and_prevents_duplicate_checkpoint(
     listing = client.get(f"/events/{event.slug}/check-ins")
     assert listing.status_code == 200
     assert listing.json()["total"] == 1
+
+
+def test_attendee_can_enable_and_disable_event_notifications(
+    event, registration, test_session, monkeypatch
+):
+    monkeypatch.setattr("routers.events.NOTIFICATION_EVENT_SLUG", event.slug)
+    claim_response = claim(event)
+    assert claim_response.status_code == 200
+    monkeypatch.setenv("EVENT_NOTIFICATIONS_ENABLED", "true")
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", "public-test-key")
+    monkeypatch.setenv("VAPID_PRIVATE_KEY", "private-test-key")
+    monkeypatch.setenv("VAPID_SUBJECT", "mailto:organizers@duquantum.org")
+
+    config = client.get(f"/events/{event.slug}/notifications")
+
+    assert config.status_code == 200
+    assert config.json()["enabled"] is True
+    assert config.json()["subscribed"] is False
+    assert config.json()["schedule_count"] == 14
+    assert config.json()["public_key"] == "public-test-key"
+
+    rejected = client.post(
+        f"/events/{event.slug}/notifications/subscriptions",
+        json={
+            "endpoint": "http://push.example.test/subscription",
+            "keys": {"p256dh": "a" * 88, "auth": "b" * 22},
+        },
+    )
+    assert rejected.status_code == 422
+
+    created = client.post(
+        f"/events/{event.slug}/notifications/subscriptions",
+        json={
+            "endpoint": "https://fcm.googleapis.com/fcm/send/subscription",
+            "keys": {"p256dh": "a" * 88, "auth": "b" * 22},
+        },
+        headers={"user-agent": "test-browser"},
+    )
+    assert created.status_code == 200
+    assert created.json()["subscribed"] is True
+
+    subscription = test_session.query(EventPushSubscription).one()
+    assert subscription.registration_id == registration.id
+    assert subscription.active is True
+    assert subscription.endpoint_hash != subscription.endpoint
+
+    disabled = client.request(
+        "DELETE",
+        f"/events/{event.slug}/notifications/subscriptions",
+        json={"endpoint": "https://fcm.googleapis.com/fcm/send/subscription"},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["subscribed"] is False
+    test_session.refresh(subscription)
+    assert subscription.active is False

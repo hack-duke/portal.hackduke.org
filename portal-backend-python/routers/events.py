@@ -1,10 +1,12 @@
+import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Security
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -14,6 +16,7 @@ from db import get_db
 from models.event import Event
 from models.event_check_in import EventCheckIn
 from models.event_pass import EventPass
+from models.event_push_subscription import EventPushSubscription
 from models.event_registration import EventRegistration
 from models.user import User
 from models.user_role import RoleEnum
@@ -28,6 +31,11 @@ from services.account_setup import (
     InvalidAccountSetupToken,
     lock_valid_account_setup,
 )
+from services.event_notifications import (
+    DUQUANTUM_NOTIFICATIONS,
+    EVENT_SLUG as NOTIFICATION_EVENT_SLUG,
+    WebPushSettings,
+)
 
 
 router = APIRouter()
@@ -35,6 +43,30 @@ auth = VerifyToken()
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 CHECKPOINT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,99}$")
+PUSH_KEY_PATTERN = r"^[A-Za-z0-9_-]+={0,2}$"
+PUSH_SERVICE_HOSTS = {
+    "fcm.googleapis.com",
+    "updates.push.services.mozilla.com",
+    "web.push.apple.com",
+}
+
+
+def validate_push_endpoint(value: str) -> str:
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").casefold()
+    recognized_service = hostname in PUSH_SERVICE_HOSTS or hostname.endswith(
+        (".push.apple.com", ".notify.windows.com")
+    )
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+        or not recognized_service
+    ):
+        raise ValueError("A valid HTTPS push endpoint is required")
+    return value
 
 
 class EventResponse(BaseModel):
@@ -172,6 +204,44 @@ class AccountSetupResponse(BaseModel):
     message: str
 
 
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str = Field(min_length=80, max_length=200, pattern=PUSH_KEY_PATTERN)
+    auth: str = Field(min_length=16, max_length=100, pattern=PUSH_KEY_PATTERN)
+
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str = Field(min_length=16, max_length=4096)
+    keys: PushSubscriptionKeys
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str) -> str:
+        return validate_push_endpoint(value)
+
+
+class PushUnsubscriptionRequest(BaseModel):
+    endpoint: str = Field(min_length=16, max_length=4096)
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str) -> str:
+        return validate_push_endpoint(value)
+
+
+class NotificationConfigResponse(BaseModel):
+    enabled: bool
+    subscribed: bool
+    public_key: Optional[str]
+    schedule_count: int
+    first_notification_at: datetime
+    last_notification_at: datetime
+
+
+class PushSubscriptionResponse(BaseModel):
+    subscribed: bool
+    message: str
+
+
 def normalize_email(email: str) -> str:
     """Normalize only casing and surrounding whitespace; do not rewrite providers."""
 
@@ -217,9 +287,7 @@ def get_verified_email(auth_payload: Dict[str, Any]) -> str:
             detail="Unable to verify the account email at this time",
         )
     management_email = auth0_user.get("email") if auth0_user else None
-    management_email_verified = (
-        auth0_user.get("email_verified") if auth0_user else None
-    )
+    management_email_verified = auth0_user.get("email_verified") if auth0_user else None
     if not isinstance(management_email, str) or not EMAIL_PATTERN.match(
         management_email.strip()
     ):
@@ -249,6 +317,13 @@ def get_event_or_404(db: Session, slug: str) -> Event:
     return event
 
 
+def get_notification_event_or_404(db: Session, slug: str) -> Event:
+    event = get_event_or_404(db, slug)
+    if event.slug != NOTIFICATION_EVENT_SLUG:
+        raise HTTPException(status_code=404, detail="Event notifications not found")
+    return event
+
+
 def get_role_user(auth_payload: Dict[str, Any], db: Session) -> User:
     user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
     if user is None:
@@ -256,7 +331,37 @@ def get_role_user(auth_payload: Dict[str, Any], db: Session) -> User:
     return user
 
 
-def registration_is_pass_eligible(event: Event, registration: EventRegistration) -> bool:
+def get_claimed_registration(
+    db: Session,
+    *,
+    event: Event,
+    auth_payload: Dict[str, Any],
+) -> EventRegistration:
+    user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="No claimed registration was found")
+    registration = (
+        db.query(EventRegistration)
+        .options(joinedload(EventRegistration.event_pass))
+        .filter(
+            EventRegistration.event_id == event.id,
+            EventRegistration.user_id == user.id,
+        )
+        .first()
+    )
+    if registration is None:
+        raise HTTPException(status_code=404, detail="No claimed registration was found")
+    if not registration_is_pass_eligible(event, registration):
+        raise HTTPException(
+            status_code=403,
+            detail="This registration is not eligible for event notifications",
+        )
+    return registration
+
+
+def registration_is_pass_eligible(
+    event: Event, registration: EventRegistration
+) -> bool:
     if registration.admission_status != "accepted":
         return False
     if event.pass_eligibility == "confirmed":
@@ -288,7 +393,9 @@ def _check_in_response(check_in: EventCheckIn) -> CheckInResponse:
     )
 
 
-def _my_registration_response(registration: EventRegistration) -> MyRegistrationResponse:
+def _my_registration_response(
+    registration: EventRegistration,
+) -> MyRegistrationResponse:
     return MyRegistrationResponse(
         id=registration.id,
         email=registration.email,
@@ -463,7 +570,9 @@ async def get_my_event_registration(
         claimed=registration is not None,
         claim_required=registration is None,
         registration=(
-            _my_registration_response(registration) if registration is not None else None
+            _my_registration_response(registration)
+            if registration is not None
+            else None
         ),
     )
 
@@ -476,7 +585,9 @@ async def claim_event_registration(
 ):
     event = get_event_or_404(db, slug)
     if event.state != "active":
-        raise HTTPException(status_code=409, detail="Event registration claiming is not active")
+        raise HTTPException(
+            status_code=409, detail="Event registration claiming is not active"
+        )
 
     auth0_id = get_subject(auth_payload)
     normalized_email = get_verified_email(auth_payload)
@@ -509,7 +620,9 @@ async def claim_event_registration(
         user.email = registration.email
 
     if registration.user_id is not None and registration.user_id != user.id:
-        raise HTTPException(status_code=409, detail="Registration has already been claimed")
+        raise HTTPException(
+            status_code=409, detail="Registration has already been claimed"
+        )
 
     other_registration = (
         db.query(EventRegistration)
@@ -533,7 +646,10 @@ async def claim_event_registration(
     if registration_is_pass_eligible(event, registration):
         if registration.event_pass is None:
             registration.event_pass = EventPass()
-    elif registration.event_pass is not None and registration.event_pass.state == "active":
+    elif (
+        registration.event_pass is not None
+        and registration.event_pass.state == "active"
+    ):
         registration.event_pass.state = "revoked"
         registration.event_pass.revoked_at = datetime.now(timezone.utc)
 
@@ -560,6 +676,145 @@ async def claim_event_registration(
         claimed=True,
         claim_required=False,
         registration=_my_registration_response(registration),
+    )
+
+
+@router.get(
+    "/{slug}/notifications",
+    response_model=NotificationConfigResponse,
+)
+async def get_event_notification_config(
+    slug: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    try:
+        settings = WebPushSettings.from_environment()
+    except RuntimeError:
+        raise HTTPException(
+            status_code=503,
+            detail="Event notifications are temporarily unavailable",
+        )
+
+    subscribed = (
+        db.query(EventPushSubscription.id)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.registration_id == registration.id,
+            EventPushSubscription.active.is_(True),
+        )
+        .first()
+        is not None
+    )
+    return NotificationConfigResponse(
+        enabled=settings.enabled,
+        subscribed=subscribed,
+        public_key=settings.public_key if settings.enabled else None,
+        schedule_count=len(DUQUANTUM_NOTIFICATIONS),
+        first_notification_at=DUQUANTUM_NOTIFICATIONS[0].scheduled_for,
+        last_notification_at=DUQUANTUM_NOTIFICATIONS[-1].scheduled_for,
+    )
+
+
+@router.post(
+    "/{slug}/notifications/subscriptions",
+    response_model=PushSubscriptionResponse,
+)
+async def create_event_push_subscription(
+    slug: str,
+    request: PushSubscriptionRequest,
+    user_agent: Optional[str] = Header(default=None, max_length=500),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    try:
+        settings = WebPushSettings.from_environment()
+    except RuntimeError:
+        settings = None
+    if settings is None or not settings.enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Event notifications are not available yet",
+        )
+
+    endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
+    subscription = (
+        db.query(EventPushSubscription)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.endpoint_hash == endpoint_hash,
+        )
+        .with_for_update()
+        .first()
+    )
+    if subscription is None:
+        subscription = EventPushSubscription(
+            event_id=event.id,
+            registration_id=registration.id,
+            endpoint=request.endpoint,
+            endpoint_hash=endpoint_hash,
+        )
+        db.add(subscription)
+    else:
+        subscription.registration_id = registration.id
+        subscription.endpoint = request.endpoint
+
+    subscription.p256dh = request.keys.p256dh
+    subscription.auth = request.keys.auth
+    subscription.user_agent = user_agent
+    subscription.active = True
+    subscription.disabled_at = None
+    subscription.last_error = None
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This browser notification subscription could not be saved",
+        )
+
+    return PushSubscriptionResponse(
+        subscribed=True,
+        message="DuQuantum event alerts are enabled on this device.",
+    )
+
+
+@router.delete(
+    "/{slug}/notifications/subscriptions",
+    response_model=PushSubscriptionResponse,
+)
+async def delete_event_push_subscriptions(
+    slug: str,
+    request: PushUnsubscriptionRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
+    subscription = (
+        db.query(EventPushSubscription)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.registration_id == registration.id,
+            EventPushSubscription.endpoint_hash == endpoint_hash,
+            EventPushSubscription.active.is_(True),
+        )
+        .first()
+    )
+    if subscription is not None:
+        subscription.active = False
+        subscription.disabled_at = datetime.now(timezone.utc)
+        subscription.last_error = "user_unsubscribed"
+    db.commit()
+    return PushSubscriptionResponse(
+        subscribed=False,
+        message="DuQuantum event alerts are disabled.",
     )
 
 
@@ -651,11 +906,15 @@ async def create_event_check_in(
         .first()
     )
     if event_pass is None:
-        raise HTTPException(status_code=404, detail="Active pass not found for this event")
+        raise HTTPException(
+            status_code=404, detail="Active pass not found for this event"
+        )
 
     registration = event_pass.registration
     if not registration_is_pass_eligible(event, registration):
-        raise HTTPException(status_code=403, detail="Registration is not eligible for check-in")
+        raise HTTPException(
+            status_code=403, detail="Registration is not eligible for check-in"
+        )
 
     existing = (
         db.query(EventCheckIn)

@@ -43,7 +43,8 @@
   inset: 0 0 auto auto;
   width: min(62vw, 920px);
   height: 620px;
-  background: url("../assets/duquantum-2026/circuit.svg") top right / contain no-repeat;
+  background: url("../assets/duquantum-2026/circuit.svg") top right / contain
+    no-repeat;
   opacity: 0.12;
   pointer-events: none;
 }
@@ -52,7 +53,8 @@
   content: "";
   position: absolute;
   inset: 10% 0 0 25%;
-  background: url("../assets/duquantum-2026/dots.svg") top right / 72% auto no-repeat;
+  background: url("../assets/duquantum-2026/dots.svg") top right / 72% auto
+    no-repeat;
   opacity: 0.6;
 }
 
@@ -163,7 +165,7 @@
   margin: 0;
   color: var(--dq-white);
   font:
-    400 clamp(2.55rem, 6vw, 5.7rem)/0.98 "Edge of the Galaxy",
+    400 clamp(2.55rem, 6vw, 5.7rem) / 0.98 "Edge of the Galaxy",
     "Urbanist",
     sans-serif;
   letter-spacing: 0.01em;
@@ -475,6 +477,10 @@
   letter-spacing: 0.08em;
 }
 
+.dq-mobile-companion {
+  display: none;
+}
+
 @keyframes dq-spin {
   to {
     transform: rotate(360deg);
@@ -503,6 +509,61 @@
 
   .dq-event-meta div {
     border-top: 1px solid var(--dq-border);
+  }
+
+  .dq-mobile-companion {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding: 1.35rem;
+  }
+
+  .dq-app-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    box-shadow: 5px 5px 0 var(--dq-red);
+  }
+
+  .dq-app-copy h2 {
+    font-family: "Urbanist", sans-serif;
+    font-size: 1.55rem;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .dq-app-copy > p:not(.dq-terminal-label) {
+    color: #e4d8c5;
+    line-height: 1.55;
+  }
+
+  .dq-install-steps {
+    color: #e4d8c5;
+    line-height: 1.55;
+    padding-left: 1.2rem;
+  }
+
+  .dq-install-hint,
+  .dq-app-privacy {
+    font-size: 0.82rem;
+  }
+
+  .dq-app-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .dq-app-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .dq-app-message {
+    border-left: 3px solid var(--dq-yellow);
+    padding-left: 0.8rem;
   }
 }
 
@@ -537,6 +598,10 @@
 
   .dq-qr-code {
     box-shadow: 7px 7px 0 var(--dq-red);
+  }
+
+  .dq-mobile-companion {
+    grid-template-columns: 1fr;
   }
 }
 
