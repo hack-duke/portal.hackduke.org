@@ -95,6 +95,9 @@ def _issue_setup_token(test_session, event, registration):
         portal_url="https://portal.example.org",
         ttl_seconds=3600,
     )
+    # The real onboarding command commits the setup capability before SES
+    # delivery; the API request always begins in a separate transaction.
+    test_session.commit()
     token = parse_qs(urlparse(setup_url).fragment)["token"][0]
     return setup_url, token
 
