@@ -118,7 +118,11 @@ def test_account_setup_sets_password_marks_email_verified_and_is_single_use(
     event, registration, test_session, monkeypatch
 ):
     setup_url, token = _issue_setup_token(test_session, event, registration)
-    setup = test_session.query(EventAccountSetup).one()
+    setup = (
+        test_session.query(EventAccountSetup)
+        .filter(EventAccountSetup.registration_id == registration.id)
+        .one()
+    )
 
     assert token not in setup.token_digest
     assert setup_url.startswith(
@@ -164,7 +168,11 @@ def test_account_setup_keeps_token_available_when_auth0_rejects_password(
     event, registration, test_session, monkeypatch
 ):
     _, token = _issue_setup_token(test_session, event, registration)
-    setup = test_session.query(EventAccountSetup).one()
+    setup = (
+        test_session.query(EventAccountSetup)
+        .filter(EventAccountSetup.registration_id == registration.id)
+        .one()
+    )
 
     class RejectingAuth0Client:
         def __enter__(self):
