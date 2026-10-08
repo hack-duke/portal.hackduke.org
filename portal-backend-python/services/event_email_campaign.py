@@ -57,7 +57,7 @@ class SesSettings:
 CAMPAIGN_TEMPLATE_VERSIONS = {
     "pass-ready": "duquantum-pass-ready-v2",
     "event-reminder": "duquantum-event-reminder-v2",
-    "auth0-invitation": "duquantum-auth0-invitation-v2",
+    "auth0-invitation": "duquantum-auth0-invitation-v3",
 }
 
 
@@ -75,6 +75,7 @@ def _render_branded_html(
     event_url: str,
     logo_url: str,
     font_url: str,
+    next_steps: tuple[str, ...] = (),
 ) -> str:
     safe_name = html.escape(first_name.strip() or "Attendee")
     safe_eyebrow = html.escape(eyebrow)
@@ -88,6 +89,36 @@ def _render_branded_html(
     safe_event_url = html.escape(event_url, quote=True)
     safe_logo_url = html.escape(logo_url, quote=True)
     safe_font_url = html.escape(font_url, quote=True)
+    safe_next_steps = tuple(html.escape(step) for step in next_steps)
+    next_steps_html = ""
+    if safe_next_steps:
+        step_rows = "".join(
+            f"""
+                        <tr>
+                          <td width="34" valign="top" style="padding:0 10px 13px 0;">
+                            <span style="background-color:#f3b562;border-radius:999px;color:#211538;display:inline-block;font-family:Arial,sans-serif;font-size:12px;font-weight:700;line-height:24px;text-align:center;width:24px;">{index}</span>
+                          </td>
+                          <td valign="top" style="color:#e4d8c5;font-family:Oxygen,Arial,sans-serif;font-size:14px;line-height:22px;padding:1px 0 13px;">{step}</td>
+                        </tr>"""
+            for index, step in enumerate(safe_next_steps, start=1)
+        )
+        next_steps_html = f"""
+                  <tr>
+                    <td style="padding:0 0 27px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#120a24;border:1px solid #573b64;border-radius:12px;">
+                        <tr>
+                          <td style="color:#f3b562;font-family:Oxygen,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.7px;line-height:17px;padding:18px 18px 13px;text-transform:uppercase;">After you create your password</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0 18px 5px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                              {step_rows}
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>"""
 
     return f"""<!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -192,6 +223,7 @@ def _render_branded_html(
                       <!--<![endif]-->
                     </td>
                   </tr>
+                  {next_steps_html}
                   <tr>
                     <td style="color:#bbaac3;font-family:Oxygen,Arial,sans-serif;font-size:14px;line-height:23px;">
                       {safe_supporting_text}
@@ -233,6 +265,7 @@ def render_campaign(
     logo_url = f"{base_portal_url}/duquantum-2026/logo-email.png"
     font_url = f"{base_portal_url}/duquantum-2026/edge-of-the-galaxy.otf"
     display_name = first_name.strip() or "Attendee"
+    next_steps: tuple[str, ...] = ()
 
     if campaign_key == "pass-ready":
         subject = "Your DuQuantum 2026 attendee pass is ready"
@@ -287,16 +320,28 @@ def render_campaign(
             "sign in with the email above to view your attendee pass. This setup "
             "link is unique to you, expires after seven days, and can only be used once."
         )
+        next_steps = (
+            "Sign in at portal.hackduke.org with the email shown above and open your attendee pass.",
+            "On your phone, use the browser Share or menu button and choose Add to Home Screen or Install app.",
+            "Open the new DuQuantum icon from your Home Screen, tap Enable event alerts, and allow notifications.",
+            "Keep notifications enabled during the event for live schedule reminders and organizer updates.",
+        )
         action_text = "Create my password"
         action_url = account_setup_url
     else:
         raise ValueError("unknown email campaign")
 
+    next_steps_text = ""
+    if next_steps:
+        next_steps_text = "\n\nAfter you create your password:\n" + "\n".join(
+            f"{index}. {step}" for index, step in enumerate(next_steps, start=1)
+        )
+
     text_body = (
         f"Hi {display_name},\n\n{intro}\n\n"
         f"{detail_label}: {detail_value}\n\n"
         f"{action_text}: {action_url}\n\n"
-        f"{supporting_text}\n\n"
+        f"{supporting_text}{next_steps_text}\n\n"
         "Organized by HackDuke and Duke Quantum Information Society.\n"
         "If you did not expect this message, contact the DuQuantum organizers."
     )
@@ -313,6 +358,7 @@ def render_campaign(
         event_url=event_url,
         logo_url=logo_url,
         font_url=font_url,
+        next_steps=next_steps,
     )
     return RenderedEmail(subject=subject, text_body=text_body, html_body=html_body)
 
@@ -368,7 +414,9 @@ class OptionalEmailDeliveryAudit:
     def available(self) -> bool:
         return self.model is not None
 
-    def already_sent(self, *, event_id: Any, registration_id: Any, campaign_key: str) -> bool:
+    def already_sent(
+        self, *, event_id: Any, registration_id: Any, campaign_key: str
+    ) -> bool:
         """Return true for sent or uncertain queued rows.
 
         A process can exit after SES accepted a message but before ``sent`` was

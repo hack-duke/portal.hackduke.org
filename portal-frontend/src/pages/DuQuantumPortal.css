@@ -261,6 +261,7 @@
 .dq-claim-card h2,
 .dq-empty-card h2,
 .dq-status-card h2,
+.dq-community-card h2,
 .dq-support-card h2 {
   font-family: "Urbanist", sans-serif;
   font-size: clamp(1.5rem, 3vw, 2.25rem);
@@ -362,6 +363,7 @@
 }
 
 .dq-status-card,
+.dq-community-card,
 .dq-support-card {
   padding: 1.5rem;
 }
@@ -386,6 +388,7 @@
 }
 
 .dq-support-card p:not(.dq-terminal-label),
+.dq-community-card > p,
 .dq-claim-card > p:not(.dq-terminal-label),
 .dq-empty-card p {
   color: #e4d8c5;
@@ -397,6 +400,386 @@
   color: var(--dq-yellow);
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.dq-community-card {
+  overflow: hidden;
+}
+
+.dq-community-card::after {
+  content: "";
+  position: absolute;
+  right: -2.2rem;
+  bottom: -2.5rem;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgba(88, 101, 242, 0.42);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.4rem rgba(88, 101, 242, 0.08),
+    0 0 0 2.8rem rgba(88, 101, 242, 0.04);
+  pointer-events: none;
+}
+
+.dq-community-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  position: relative;
+  z-index: 1;
+}
+
+.dq-community-heading > .dq-discord-mark {
+  width: 48px;
+  height: 38px;
+  flex: 0 0 auto;
+  color: #8b94ff;
+  filter: drop-shadow(0 0 14px rgba(88, 101, 242, 0.35));
+}
+
+.dq-community-heading .dq-terminal-label {
+  margin-bottom: 0.35rem;
+}
+
+.dq-discord-link {
+  position: relative;
+  z-index: 1;
+  min-height: 48px;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #5865f2;
+  border: 1px solid #8b94ff;
+  box-shadow: 5px 5px 0 #282f83;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dq-discord-link:hover {
+  background: #6875f5;
+}
+
+.dq-discord-link .dq-discord-mark {
+  width: 26px;
+  height: 20px;
+}
+
+.dq-discord-link:focus-visible,
+.dq-schedule-day-tab:focus-visible,
+.dq-schedule-event:focus-visible,
+.dq-schedule-frame-heading a:focus-visible,
+.dq-schedule-details button:focus-visible {
+  outline: 3px solid var(--dq-yellow);
+  outline-offset: 4px;
+}
+
+.dq-schedule-section {
+  margin-top: clamp(2.5rem, 6vw, 5.5rem);
+}
+
+.dq-schedule-tabs {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+  padding: 0 clamp(1rem, 5vw, 4rem);
+  margin-bottom: -0.35rem;
+}
+
+.dq-schedule-tabs > div[role="tablist"] {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.dq-schedule-label-tab,
+.dq-schedule-day-tab {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.dq-schedule-label-tab {
+  width: min(29vw, 330px);
+  min-width: 220px;
+  color: var(--dq-ink);
+}
+
+.dq-schedule-label-tab h2 {
+  margin: 0;
+  transform: translateY(-0.08em);
+  font:
+    400 clamp(1.6rem, 4vw, 3.2rem) / 1 "Edge of the Galaxy",
+    sans-serif;
+  text-transform: uppercase;
+}
+
+.dq-schedule-day-tab {
+  width: min(22vw, 255px);
+  min-width: 170px;
+  padding: 0.6rem 1.8rem;
+  flex-direction: column;
+  border: 0;
+  background-color: transparent;
+  color: #d96d62;
+  cursor: pointer;
+  font-family: "Urbanist", sans-serif;
+}
+
+.dq-schedule-day-tab.is-active {
+  color: var(--dq-ink);
+}
+
+.dq-schedule-day-tab span {
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dq-schedule-day-tab small {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dq-schedule-frame {
+  position: relative;
+  min-height: 620px;
+  padding: clamp(3rem, 6vw, 5rem) clamp(1.25rem, 6vw, 5rem)
+    clamp(6rem, 12vw, 10rem);
+  background-color: #0a0517;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  overflow: hidden;
+}
+
+.dq-schedule-frame-heading {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1.5rem;
+  padding-bottom: 1.2rem;
+}
+
+.dq-schedule-frame-heading h3 {
+  margin: 0;
+  color: var(--dq-white);
+  font:
+    700 clamp(1.3rem, 3vw, 2rem) / 1.15 "Urbanist",
+    sans-serif;
+}
+
+.dq-schedule-frame-heading a {
+  color: var(--dq-yellow);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dq-schedule-scroll {
+  position: relative;
+  z-index: 2;
+  overflow-x: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(243, 181, 98, 0.2);
+  border-bottom: 1px solid rgba(243, 181, 98, 0.2);
+  scrollbar-color: var(--dq-red) var(--dq-panel);
+}
+
+.dq-schedule-grid {
+  position: relative;
+  min-width: 760px;
+  display: grid;
+  grid-template-columns: 108px repeat(2, minmax(280px, 1fr));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(50% - 0.5px),
+    rgba(62, 29, 35, 0.72) calc(50% - 0.5px),
+    rgba(62, 29, 35, 0.72) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  background-size: calc((100% - 108px) / 2) 100%;
+  background-position: 108px 0;
+}
+
+.dq-schedule-hour-line {
+  z-index: 0;
+  border-top: 1px solid rgba(99, 35, 35, 0.78);
+  pointer-events: none;
+}
+
+.dq-schedule-hour {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  align-self: start;
+  padding: 0.35rem 0.8rem 0.35rem 0;
+  transform: translateY(-50%);
+  background: #0a0517;
+  color: #d96d62;
+  font:
+    400 0.9rem/1 "Edge of the Galaxy",
+    monospace;
+  text-align: right;
+}
+
+.dq-schedule-event {
+  position: relative;
+  z-index: 2;
+  margin: 2px;
+  padding: 0.35rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  border: 3px solid #371313;
+  background: rgba(139, 59, 59, 0.62);
+  color: var(--dq-amber);
+  cursor: pointer;
+  font-family: "Oxygen", sans-serif;
+  text-align: center;
+}
+
+.dq-schedule-event:hover,
+.dq-schedule-event.is-selected {
+  border-color: var(--dq-yellow);
+  background: rgba(139, 59, 59, 0.85);
+}
+
+.dq-schedule-event.is-milestone {
+  border-color: var(--dq-yellow);
+  background: rgba(224, 178, 109, 0.75);
+  color: var(--dq-panel);
+}
+
+.dq-schedule-event.is-open-ended {
+  background: linear-gradient(
+    180deg,
+    rgba(139, 59, 59, 0.68) 0%,
+    rgba(139, 59, 59, 0.24) 65%,
+    transparent 100%
+  );
+  border-bottom-color: transparent;
+}
+
+.dq-schedule-event strong {
+  color: #ffd08a;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.dq-schedule-event.is-milestone strong {
+  color: var(--dq-panel);
+  text-shadow: none;
+}
+
+.dq-schedule-event span {
+  max-width: 100%;
+  margin-top: 0.16rem;
+  overflow: hidden;
+  color: #f1d3ad;
+  font-size: 0.68rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dq-schedule-event small {
+  position: absolute;
+  right: 0.3rem;
+  bottom: 0.16rem;
+  color: rgba(255, 250, 240, 0.65);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+}
+
+.dq-schedule-details {
+  position: relative;
+  z-index: 4;
+  max-width: 760px;
+  margin: 1.3rem 0 0 108px;
+  padding: 1.2rem 3rem 1.2rem 1.3rem;
+  border: 3px solid var(--dq-yellow);
+  background: #120a24;
+  box-shadow: 7px 7px 0 var(--dq-red);
+}
+
+.dq-schedule-details h4 {
+  margin: 0;
+  color: var(--dq-yellow);
+  font:
+    700 1.25rem/1.2 "Urbanist",
+    sans-serif;
+}
+
+.dq-schedule-details p:last-child {
+  margin-bottom: 0;
+  color: #e4d8c5;
+  line-height: 1.55;
+}
+
+.dq-schedule-when {
+  margin: 0.4rem 0 0;
+  color: var(--dq-muted);
+  font-size: 0.84rem;
+}
+
+.dq-schedule-details > button {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--dq-red);
+  cursor: pointer;
+  font-size: 1.8rem;
+}
+
+.dq-schedule-corner {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: min(35%, 390px);
+  height: auto;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.dq-schedule-lights {
+  position: absolute;
+  z-index: 5;
+  right: clamp(2rem, 6vw, 5rem);
+  top: clamp(2rem, 5vw, 4rem);
+  display: grid;
+  grid-template-columns: repeat(2, 26px);
+  gap: 0.45rem;
+}
+
+.dq-schedule-lights span {
+  width: 26px;
+  height: 8px;
+  background: var(--dq-red);
+}
+
+.dq-schedule-lights span:nth-child(1),
+.dq-schedule-lights span:nth-child(4) {
+  background: var(--dq-yellow);
+  animation: dq-signal 3.2s ease-in-out infinite;
 }
 
 .dq-primary-button,
@@ -487,6 +870,17 @@
   }
 }
 
+@keyframes dq-signal {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 14px rgba(243, 181, 98, 0.55);
+  }
+}
+
 @media (max-width: 850px) {
   .dq-header,
   .dq-hero,
@@ -565,6 +959,22 @@
     border-left: 3px solid var(--dq-yellow);
     padding-left: 0.8rem;
   }
+
+  .dq-schedule-tabs {
+    padding-inline: 0.5rem;
+  }
+
+  .dq-schedule-label-tab {
+    min-width: 180px;
+  }
+
+  .dq-schedule-day-tab {
+    min-width: 145px;
+  }
+
+  .dq-schedule-frame {
+    padding-inline: 1.5rem;
+  }
 }
 
 @media (max-width: 620px) {
@@ -603,10 +1013,68 @@
   .dq-mobile-companion {
     grid-template-columns: 1fr;
   }
+
+  .dq-community-heading {
+    align-items: flex-start;
+  }
+
+  .dq-schedule-tabs {
+    display: block;
+    margin-bottom: 0;
+    padding: 0;
+  }
+
+  .dq-schedule-tabs > div[role="tablist"] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .dq-schedule-label-tab,
+  .dq-schedule-day-tab {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dq-schedule-label-tab {
+    min-height: 68px;
+  }
+
+  .dq-schedule-day-tab {
+    min-height: 64px;
+    padding-inline: 1rem;
+  }
+
+  .dq-schedule-frame {
+    min-height: 0;
+    padding: 2rem 1rem 5rem;
+    border: 4px solid var(--dq-red);
+    background-color: #0a0517;
+    background-image: none !important;
+  }
+
+  .dq-schedule-frame-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dq-schedule-lights {
+    top: 1.15rem;
+    right: 1rem;
+  }
+
+  .dq-schedule-details {
+    margin-left: 0;
+  }
+
+  .dq-schedule-corner {
+    width: 55%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dq-loader {
+  .dq-loader,
+  .dq-schedule-lights span {
     animation-duration: 1.8s;
   }
 }

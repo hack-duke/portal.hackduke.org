@@ -319,6 +319,11 @@ def test_invitation_explains_account_setup_without_exposing_a_pass():
 
     assert "attendee@example.org" in rendered.html_body
     assert "No temporary password is sent or stored" in rendered.html_body
+    assert "After you create your password" in rendered.html_body
+    assert "Add to Home Screen or Install app" in rendered.html_body
+    assert "Enable event alerts" in rendered.html_body
+    assert "live schedule reminders" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation"].endswith("-v3")
     assert "QR" not in rendered.html_body
     assert "pass ID" not in rendered.html_body
 

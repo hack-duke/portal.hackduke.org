@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import { createGetAuthToken } from "../utils/authUtils";
+import DuQuantumCommunityCard from "../components/DuQuantumCommunityCard";
 import DuQuantumMobileCompanion from "../components/DuQuantumMobileCompanion";
+import DuQuantumSchedule from "../components/DuQuantumSchedule";
 import "./DuQuantumPortal.css";
 
 const EVENT_SLUG = "duquantum-2026";
@@ -175,7 +177,14 @@ const DuQuantumPortalPage = () => {
           <span>ATTENDEE PORTAL</span>
         </Link>
         <nav className="dq-header-actions" aria-label="Portal navigation">
-          <Link to="/application">HackDuke applications</Link>
+          <a href="#duquantum-schedule">Schedule</a>
+          <a
+            href="https://discord.gg/mqQNBDXkd"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Discord
+          </a>
           <a href="https://duquantum.org/" target="_blank" rel="noreferrer">
             Event site
           </a>
@@ -353,6 +362,7 @@ const DuQuantumPortalPage = () => {
                       </div>
                     </dl>
                   </article>
+                  <DuQuantumCommunityCard />
                   <article className="dq-panel dq-support-card">
                     <p className="dq-terminal-label">SUPPORT_CHANNEL // OPEN</p>
                     <h2>Need help?</h2>
@@ -385,9 +395,12 @@ const DuQuantumPortalPage = () => {
               </article>
             )}
             {registration && passActive && (
-              <DuQuantumMobileCompanion
-                getAccessTokenSilently={getAccessTokenSilently}
-              />
+              <>
+                <DuQuantumSchedule />
+                <DuQuantumMobileCompanion
+                  getAccessTokenSilently={getAccessTokenSilently}
+                />
+              </>
             )}
           </>
         )}
