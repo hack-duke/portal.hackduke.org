@@ -1,0 +1,74 @@
+name: Send DuQuantum Test Invitation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_event:
+        description: Type duquantum-2026 to confirm the single test send
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duquantum-test-invitation
+  cancel-in-progress: false
+
+jobs:
+  send-test-invitation:
+    name: Send one production-backed test invitation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate confirmation and protected recipient
+        env:
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+          RECIPIENT_EMAIL: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_EMAIL }}
+          RECIPIENT_NAME: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_NAME }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_EVENT" = "duquantum-2026"
+          test -n "$RECIPIENT_EMAIL"
+          test -n "$RECIPIENT_NAME"
+
+      - name: Issue fresh setup link and send test invitation
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          EC2_USER: ec2-user
+          RECIPIENT_EMAIL: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_EMAIL }}
+          RECIPIENT_NAME: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_NAME }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+
+          remote_script="send_duquantum_test_invitation-${GITHUB_RUN_ID}.py"
+          scp -i key.pem -o StrictHostKeyChecking=no \
+            .github/scripts/send_duquantum_test_invitation.py \
+            "$EC2_USER@$EC2_IP:~/$remote_script"
+
+          email_b64="$(printf '%s' "$RECIPIENT_EMAIL" | base64 -w0)"
+          name_b64="$(printf '%s' "$RECIPIENT_NAME" | base64 -w0)"
+          ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
+            bash -s -- "$remote_script" "$email_b64" "$name_b64" << 'EOF'
+            set -euo pipefail
+            remote_script="$1"
+            recipient_email="$(printf '%s' "$2" | base64 -d)"
+            recipient_name="$(printf '%s' "$3" | base64 -d)"
+            script_path="$HOME/$remote_script"
+            trap 'rm -f -- "$script_path"' EXIT
+
+            backend_id="$(docker-compose ps -q backend)"
+            test -n "$backend_id"
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy"
+
+            docker exec -i "$backend_id" python - \
+              --recipient-email "$recipient_email" \
+              --recipient-name "$recipient_name" \
+              --confirm-event duquantum-2026 < "$script_path"
+          EOF
