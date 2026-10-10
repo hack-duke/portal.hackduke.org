@@ -235,6 +235,10 @@ const isClaimed = (registration) =>
       registration.user,
   );
 
+const isCurrentParticipant = (registration) =>
+  registration.admission_status === "accepted" &&
+  registration.rsvp_status === "confirmed";
+
 const passFor = (registration) =>
   registration.pass || registration.event_pass || null;
 
@@ -299,7 +303,7 @@ const DuQuantumAdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("eligible");
   const [expanded, setExpanded] = useState(null);
 
   const loadRegistrations = useCallback(async () => {
@@ -336,21 +340,25 @@ const DuQuantumAdminPage = () => {
     loadRegistrations();
   }, [loadRegistrations]);
 
-  const stats = useMemo(
-    () => ({
-      total: registrations.length,
-      invited: registrations.filter(hasInvitation).length,
-      claimed: registrations.filter(isClaimed).length,
-      passes: registrations.filter(hasPass).length,
-      checkedIn: registrations.filter(isCheckedIn).length,
-    }),
-    [registrations],
-  );
+  const stats = useMemo(() => {
+    const current = registrations.filter(isCurrentParticipant);
+    return {
+      total: current.length,
+      invited: current.filter(hasInvitation).length,
+      claimed: current.filter(isClaimed).length,
+      passes: current.filter(hasPass).length,
+      checkedIn: current.filter(isCheckedIn).length,
+    };
+  }, [registrations]);
 
   const filteredRegistrations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return registrations
       .filter((registration) => {
+        if (filter === "eligible" && !isCurrentParticipant(registration))
+          return false;
+        if (filter === "excluded" && isCurrentParticipant(registration))
+          return false;
         if (filter === "claimed" && !isClaimed(registration)) return false;
         if (
           filter === "awaiting-account" &&
@@ -442,7 +450,7 @@ const DuQuantumAdminPage = () => {
 
         <section className="dq-admin-stats" aria-label="Attendee totals">
           <article>
-            <span>Total confirmations</span>
+            <span>Current participants</span>
             <strong>{stats.total}</strong>
           </article>
           <article>
@@ -521,7 +529,9 @@ const DuQuantumAdminPage = () => {
                   value={filter}
                   onChange={(event) => setFilter(event.target.value)}
                 >
-                  <option value="all">All attendees</option>
+                  <option value="eligible">Current participants</option>
+                  <option value="all">All stored records</option>
+                  <option value="excluded">Excluded / archived</option>
                   <option value="claimed">Account completed</option>
                   <option value="awaiting-account">
                     Invited, not completed
@@ -534,13 +544,13 @@ const DuQuantumAdminPage = () => {
                   <option value="not-checked-in">Not checked in</option>
                 </select>
               </label>
-              {(query || filter !== "all") && (
+              {(query || filter !== "eligible") && (
                 <button
                   className="dq-clear-filters"
                   type="button"
                   onClick={() => {
                     setQuery("");
-                    setFilter("all");
+                    setFilter("eligible");
                   }}
                 >
                   Clear filters

@@ -30,6 +30,8 @@ const registrations = [
     degree_program: "Graduate",
     pass_state: "active",
     check_ins: [{ id: "check-in-1", checkpoint: "arrival" }],
+    admission_status: "accepted",
+    rsvp_status: "confirmed",
     created_at: "2026-10-01T12:00:00Z",
     email_deliveries: [
       {
@@ -77,6 +79,20 @@ const registrations = [
     university: "Duke University",
     degree_program: "Undergraduate",
     created_at: "2026-10-05T12:00:00Z",
+    admission_status: "accepted",
+    rsvp_status: "confirmed",
+    email_deliveries: [],
+  },
+  {
+    id: "archived",
+    email: "archived@example.org",
+    first_name: "Archived",
+    last_name: "Respondent",
+    university: "Duke University",
+    degree_program: "Undergraduate",
+    created_at: "2026-10-06T12:00:00Z",
+    admission_status: "revoked",
+    rsvp_status: "declined",
     email_deliveries: [],
   },
 ];
@@ -85,7 +101,7 @@ describe("DuQuantumAdminPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetAccessTokenSilently.mockResolvedValue("admin-token");
-    axios.get.mockResolvedValue({ data: { registrations, total: 3 } });
+    axios.get.mockResolvedValue({ data: { registrations, total: 4 } });
   });
 
   test("separates account states and exposes complete participant details", async () => {
@@ -100,8 +116,19 @@ describe("DuQuantumAdminPage", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Invited Participant")).toBeInTheDocument();
     expect(screen.getByText("Pending Participant")).toBeInTheDocument();
+    expect(screen.queryByText("Archived Respondent")).not.toBeInTheDocument();
     expect(screen.getAllByText("Invitation sent")).toHaveLength(1);
     expect(screen.getAllByText("Not invited")).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText("Filter status"), {
+      target: { value: "excluded" },
+    });
+    expect(screen.getByText("Archived Respondent")).toBeInTheDocument();
+    expect(screen.queryByText("Connected Participant")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Connected Participant")).toBeInTheDocument();
+    expect(screen.queryByText("Archived Respondent")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Filter status"), {
       target: { value: "awaiting-account" },

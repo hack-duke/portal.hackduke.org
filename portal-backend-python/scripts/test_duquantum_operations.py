@@ -19,7 +19,9 @@ from scripts.import_event_registrations import (
     HEADER_UNIVERSITY,
     normalize_email,
     parse_csv,
+    sync_database,
 )
+from models import Event, EventPass, EventRegistration
 from services.auth0_onboarding import (
     Auth0OnboardingClient,
     Auth0OnboardingSettings,
@@ -129,9 +131,107 @@ def test_csv_import_uses_latest_response_before_applying_eligibility(tmp_path):
     assert result.invalid_rows == 0
     assert result.ineligible_rows == 1
     assert result.registrations == ()
+    assert len(result.ineligible_registrations) == 1
+    assert result.ineligible_registrations[0].attendance_commitment is False
     assert result.ineligible_reasons == {
         "latest response declined: attendance_commitment": 1
     }
+
+
+def test_database_sync_archives_records_outside_the_final_manifest(
+    tmp_path, test_sessionmaker, monkeypatch
+):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    declined = {
+        **rows[-1],
+        HEADER_EMAIL: "declined@example.edu",
+        HEADER_TIMESTAMP: "10/03/2026 09:00:00",
+        CONSENT_HEADER_PREFIXES[
+            "photo_release_consent"
+        ]: "I do not consent to the photo release",
+    }
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows([*rows, declined])
+    result = parse_csv(source)
+
+    setup = test_sessionmaker()
+    event = Event(slug="duquantum-2026", name="DuQuantum 2026", state="active")
+    setup.add(event)
+    setup.flush()
+    event_id = event.id
+    included = EventRegistration(
+        event_id=event.id,
+        email="person@example.edu",
+        normalized_email="person@example.edu",
+        first_name="Old",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    ineligible = EventRegistration(
+        event_id=event.id,
+        email="declined@example.edu",
+        normalized_email="declined@example.edu",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    stale = EventRegistration(
+        event_id=event.id,
+        email="stale@example.edu",
+        normalized_email="stale@example.edu",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    setup.add_all([included, ineligible, stale])
+    setup.flush()
+    setup.add_all(
+        [
+            EventPass(registration_id=ineligible.id, state="active"),
+            EventPass(registration_id=stale.id, state="active"),
+        ]
+    )
+    setup.commit()
+    setup.close()
+
+    monkeypatch.setattr("db.get_local_session", test_sessionmaker)
+    try:
+        counts = sync_database(result, commit=True)
+        assert counts == {
+            "updated": 1,
+            "ineligible_updated": 1,
+            "stale_archived": 1,
+            "passes_revoked": 2,
+        }
+
+        verify = test_sessionmaker()
+        try:
+            records = {
+                item.normalized_email: item
+                for item in verify.query(EventRegistration)
+                .filter(EventRegistration.event_id == event_id)
+                .all()
+            }
+            assert records["person@example.edu"].first_name == "Updated"
+            assert records["person@example.edu"].admission_status == "accepted"
+            assert records["declined@example.edu"].admission_status == "revoked"
+            assert records["declined@example.edu"].rsvp_status == "declined"
+            assert records["declined@example.edu"].event_pass.state == "revoked"
+            assert records["stale@example.edu"].admission_status == "revoked"
+            assert records["stale@example.edu"].rsvp_status == "declined"
+            assert records["stale@example.edu"].event_pass.state == "revoked"
+        finally:
+            verify.close()
+    finally:
+        cleanup = test_sessionmaker()
+        cleanup.query(Event).filter(Event.slug == "duquantum-2026").delete()
+        cleanup.commit()
+        cleanup.close()
 
 
 def test_email_normalization_does_not_rewrite_provider_specific_addressing():

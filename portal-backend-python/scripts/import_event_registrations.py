@@ -24,7 +24,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
 
@@ -129,6 +129,7 @@ class ParsedRegistration:
 class ParseResult:
     raw_rows: int
     registrations: tuple[ParsedRegistration, ...]
+    ineligible_registrations: tuple[ParsedRegistration, ...]
     duplicate_groups: int
     superseded_rows: int
     invalid_reasons: Mapping[str, int]
@@ -332,6 +333,7 @@ def parse_csv(path: Path) -> ParseResult:
     superseded_rows = sum(count - 1 for count in seen_counts.values() if count > 1)
     ineligible_reasons: Counter[str] = Counter()
     eligible: list[ParsedRegistration] = []
+    ineligible: list[ParsedRegistration] = []
     for registration in latest_by_email.values():
         missing_required = sorted(
             name for name in REQUIRED_TRUE_CONSENTS if not getattr(registration, name)
@@ -339,12 +341,16 @@ def parse_csv(path: Path) -> ParseResult:
         if missing_required:
             reason = "latest response declined: " + ", ".join(missing_required)
             ineligible_reasons[reason] += 1
+            ineligible.append(registration)
             continue
         eligible.append(registration)
     registrations = tuple(sorted(eligible, key=lambda item: item.normalized_email))
     return ParseResult(
         raw_rows=raw_rows,
         registrations=registrations,
+        ineligible_registrations=tuple(
+            sorted(ineligible, key=lambda item: item.normalized_email)
+        ),
         duplicate_groups=duplicate_groups,
         superseded_rows=superseded_rows,
         invalid_reasons=dict(invalid_reasons),
@@ -352,25 +358,11 @@ def parse_csv(path: Path) -> ParseResult:
     )
 
 
-def _existing_submitted_at(source_data: Any) -> datetime | None:
-    if not isinstance(source_data, dict):
-        return None
-    metadata = source_data.get("_import")
-    if not isinstance(metadata, dict):
-        return None
-    value = metadata.get("submitted_at")
-    if not isinstance(value, str):
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def _registration_values(item: ParsedRegistration) -> dict[str, Any]:
+def _registration_values(
+    item: ParsedRegistration,
+    *,
+    eligible: bool = True,
+) -> dict[str, Any]:
     return {
         "email": item.email,
         "normalized_email": item.normalized_email,
@@ -381,8 +373,8 @@ def _registration_values(item: ParsedRegistration) -> dict[str, Any]:
         "university": item.university,
         "degree_program": item.degree_program,
         "country": item.country,
-        "admission_status": "accepted",
-        "rsvp_status": "confirmed",
+        "admission_status": "accepted" if eligible else "revoked",
+        "rsvp_status": "confirmed" if eligible else "declined",
         "source": "google_forms_csv",
         "source_record_id": item.source_record_id,
         "source_data": item.source_data,
@@ -395,9 +387,16 @@ def _registration_values(item: ParsedRegistration) -> dict[str, Any]:
     }
 
 
-def sync_database(
-    registrations: Iterable[ParsedRegistration], *, commit: bool
-) -> Counter[str]:
+def _revoke_pass(registration: Any) -> bool:
+    event_pass = getattr(registration, "event_pass", None)
+    if event_pass is None or event_pass.state != "active":
+        return False
+    event_pass.state = "revoked"
+    event_pass.revoked_at = datetime.now(timezone.utc)
+    return True
+
+
+def sync_database(result: ParseResult, *, commit: bool) -> Counter[str]:
     # Imports stay inside this function so offline validation remains usable on
     # an operator laptop without a configured database.
     from db import get_local_session
@@ -412,20 +411,36 @@ def sync_database(
                 "DuQuantum event seed is missing; apply the event migration first"
             )
 
-        for item in registrations:
-            existing = (
-                session.query(EventRegistration)
-                .filter(
-                    EventRegistration.event_id == event.id,
-                    EventRegistration.normalized_email == item.normalized_email,
-                )
-                .one_or_none()
-            )
+        current_emails = {
+            item.normalized_email
+            for item in (*result.registrations, *result.ineligible_registrations)
+        }
+        existing_rows = list(
+            session.query(EventRegistration)
+            .filter(EventRegistration.event_id == event.id)
+            .all()
+        )
+        existing_by_email = {item.normalized_email: item for item in existing_rows}
+
+        # The final workbook is the authoritative event manifest. Older and
+        # manual test rows remain auditable, but cannot receive an invitation,
+        # claim a pass, or check in.
+        for existing in existing_rows:
+            if existing.normalized_email in current_emails:
+                continue
+            if (
+                existing.admission_status != "revoked"
+                or existing.rsvp_status != "declined"
+            ):
+                existing.admission_status = "revoked"
+                existing.rsvp_status = "declined"
+                counts["stale_archived"] += 1
+            if _revoke_pass(existing):
+                counts["passes_revoked"] += 1
+
+        for item in result.registrations:
+            existing = existing_by_email.get(item.normalized_email)
             if existing is not None:
-                prior_timestamp = _existing_submitted_at(existing.source_data)
-                if prior_timestamp is not None and prior_timestamp > item.submitted_at:
-                    counts["newer_existing"] += 1
-                    continue
                 for key, value in _registration_values(item).items():
                     setattr(existing, key, value)
                 counts["updated"] += 1
@@ -434,6 +449,19 @@ def sync_database(
                     EventRegistration(event_id=event.id, **_registration_values(item))
                 )
                 counts["created"] += 1
+
+        for item in result.ineligible_registrations:
+            existing = existing_by_email.get(item.normalized_email)
+            values = _registration_values(item, eligible=False)
+            if existing is None:
+                session.add(EventRegistration(event_id=event.id, **values))
+                counts["ineligible_created"] += 1
+                continue
+            for key, value in values.items():
+                setattr(existing, key, value)
+            counts["ineligible_updated"] += 1
+            if _revoke_pass(existing):
+                counts["passes_revoked"] += 1
 
         if commit:
             session.commit()
@@ -461,9 +489,10 @@ def _print_summary(result: ParseResult, db_counts: Mapping[str, int] | None) -> 
     if db_counts is not None:
         print(f"Database creates: {db_counts.get('created', 0)}")
         print(f"Database updates: {db_counts.get('updated', 0)}")
-        print(
-            f"Skipped because database row is newer: {db_counts.get('newer_existing', 0)}"
-        )
+        print(f"Ineligible records created: {db_counts.get('ineligible_created', 0)}")
+        print(f"Ineligible records updated: {db_counts.get('ineligible_updated', 0)}")
+        print(f"Stale records archived: {db_counts.get('stale_archived', 0)}")
+        print(f"Passes revoked: {db_counts.get('passes_revoked', 0)}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -535,7 +564,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.commit or args.database_check:
         try:
-            db_counts = sync_database(result.registrations, commit=args.commit)
+            db_counts = sync_database(result, commit=args.commit)
         except Exception as exc:
             # Do not stringify database exceptions: parameterized statements can
             # include attendee PII in their exception representation.
