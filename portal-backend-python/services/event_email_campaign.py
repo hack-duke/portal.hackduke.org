@@ -58,6 +58,7 @@ CAMPAIGN_TEMPLATE_VERSIONS = {
     "pass-ready": "duquantum-pass-ready-v2",
     "event-reminder": "duquantum-event-reminder-v2",
     "auth0-invitation": "duquantum-auth0-invitation-v3",
+    "auth0-invitation-existing": "duquantum-auth0-existing-account-v1",
     "admin-invitation": "duquantum-admin-invitation-v1",
 }
 
@@ -77,6 +78,7 @@ def _render_branded_html(
     logo_url: str,
     font_url: str,
     next_steps: tuple[str, ...] = (),
+    next_steps_heading: str = "Next steps",
 ) -> str:
     safe_name = html.escape(first_name.strip() or "Attendee")
     safe_eyebrow = html.escape(eyebrow)
@@ -91,6 +93,7 @@ def _render_branded_html(
     safe_logo_url = html.escape(logo_url, quote=True)
     safe_font_url = html.escape(font_url, quote=True)
     safe_next_steps = tuple(html.escape(step) for step in next_steps)
+    safe_next_steps_heading = html.escape(next_steps_heading)
     next_steps_html = ""
     if safe_next_steps:
         step_rows = "".join(
@@ -108,7 +111,7 @@ def _render_branded_html(
                     <td style="padding:0 0 27px;">
                       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#120a24;border:1px solid #573b64;border-radius:12px;">
                         <tr>
-                          <td style="color:#f3b562;font-family:Oxygen,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.7px;line-height:17px;padding:18px 18px 13px;text-transform:uppercase;">After you create your password</td>
+                          <td style="color:#f3b562;font-family:Oxygen,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.7px;line-height:17px;padding:18px 18px 13px;text-transform:uppercase;">{safe_next_steps_heading}</td>
                         </tr>
                         <tr>
                           <td style="padding:0 18px 5px;">
@@ -267,6 +270,7 @@ def render_campaign(
     font_url = f"{base_portal_url}/duquantum-2026/edge-of-the-galaxy.otf"
     display_name = first_name.strip() or "Attendee"
     next_steps: tuple[str, ...] = ()
+    next_steps_heading = "Next steps"
 
     if campaign_key == "pass-ready":
         subject = "Your DuQuantum 2026 attendee pass is ready"
@@ -327,8 +331,35 @@ def render_campaign(
             "Open the new DuQuantum icon from your Home Screen, tap Enable event alerts, and allow notifications.",
             "Keep notifications enabled during the event for live schedule reminders and organizer updates.",
         )
+        next_steps_heading = "After you create your password"
         action_text = "Create my password"
         action_url = account_setup_url
+    elif campaign_key == "auth0-invitation-existing":
+        normalized_login_email = (login_email or "").strip()
+        if not normalized_login_email or "@" not in normalized_login_email:
+            raise ValueError("login email is required for an invitation")
+        subject = "Your DuQuantum 2026 participant portal is ready"
+        eyebrow = "Your participant portal"
+        heading = "Your DuQuantum portal is ready"
+        intro = (
+            "Your existing HackDuke account is connected to your DuQuantum 2026 "
+            "registration. Sign in to view your private attendee information and pass."
+        )
+        detail_label = "Your portal login email"
+        detail_value = normalized_login_email
+        supporting_text = (
+            "Use your existing portal password. If you do not remember it, choose "
+            "Forgot password on the sign-in screen to receive a secure Auth0 reset link."
+        )
+        next_steps = (
+            "Sign in and open your DuQuantum attendee pass.",
+            "On your phone, use the browser Share or menu button and choose Add to Home Screen or Install app.",
+            "Open the DuQuantum icon from your Home Screen, tap Enable event alerts, and allow notifications.",
+            "Keep notifications enabled during the event for live schedule reminders and organizer updates.",
+        )
+        next_steps_heading = "Next steps"
+        action_text = "Open participant portal"
+        action_url = f"{base_portal_url}/events/{EVENT_SLUG}"
     elif campaign_key == "admin-invitation":
         if not account_setup_url:
             raise ValueError("account setup URL is required for an invitation")
@@ -359,6 +390,7 @@ def render_campaign(
             "Use Attendee manifest to search participants and review registration, pass, invitation, and check-in status.",
             "Open Check-in scanner on your phone and allow camera access to scan attendee passes.",
         )
+        next_steps_heading = "After you create your password"
         action_text = "Create admin password"
         action_url = account_setup_url
     else:
@@ -366,7 +398,7 @@ def render_campaign(
 
     next_steps_text = ""
     if next_steps:
-        next_steps_text = "\n\nAfter you create your password:\n" + "\n".join(
+        next_steps_text = f"\n\n{next_steps_heading}:\n" + "\n".join(
             f"{index}. {step}" for index, step in enumerate(next_steps, start=1)
         )
 
@@ -392,6 +424,7 @@ def render_campaign(
         logo_url=logo_url,
         font_url=font_url,
         next_steps=next_steps,
+        next_steps_heading=next_steps_heading,
     )
     return RenderedEmail(subject=subject, text_body=text_body, html_body=html_body)
 

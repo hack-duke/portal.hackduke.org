@@ -138,8 +138,9 @@ def test_csv_import_uses_latest_response_before_applying_eligibility(tmp_path):
     }
 
 
+@pytest.mark.parametrize("include_ineligible", [False, True])
 def test_database_sync_archives_records_outside_the_final_manifest(
-    tmp_path, test_sessionmaker, monkeypatch
+    tmp_path, test_sessionmaker, monkeypatch, include_ineligible
 ):
     source = tmp_path / "responses.csv"
     _write_synthetic_csv(source)
@@ -201,12 +202,19 @@ def test_database_sync_archives_records_outside_the_final_manifest(
 
     monkeypatch.setattr("db.get_local_session", test_sessionmaker)
     try:
-        counts = sync_database(result, commit=True)
+        counts = sync_database(
+            result,
+            commit=True,
+            include_ineligible=include_ineligible,
+        )
+        expected_exception_key = (
+            "consent_override_updated" if include_ineligible else "ineligible_updated"
+        )
         assert counts == {
             "updated": 1,
-            "ineligible_updated": 1,
+            expected_exception_key: 1,
             "stale_archived": 1,
-            "passes_revoked": 2,
+            "passes_revoked": 1 if include_ineligible else 2,
         }
 
         verify = test_sessionmaker()
@@ -219,9 +227,15 @@ def test_database_sync_archives_records_outside_the_final_manifest(
             }
             assert records["person@example.edu"].first_name == "Updated"
             assert records["person@example.edu"].admission_status == "accepted"
-            assert records["declined@example.edu"].admission_status == "revoked"
-            assert records["declined@example.edu"].rsvp_status == "declined"
-            assert records["declined@example.edu"].event_pass.state == "revoked"
+            assert records["declined@example.edu"].admission_status == (
+                "accepted" if include_ineligible else "revoked"
+            )
+            assert records["declined@example.edu"].rsvp_status == (
+                "confirmed" if include_ineligible else "declined"
+            )
+            assert records["declined@example.edu"].event_pass.state == (
+                "active" if include_ineligible else "revoked"
+            )
             assert records["stale@example.edu"].admission_status == "revoked"
             assert records["stale@example.edu"].rsvp_status == "declined"
             assert records["stale@example.edu"].event_pass.state == "revoked"
@@ -491,6 +505,7 @@ def test_all_campaigns_share_the_branded_email_shell():
         "pass-ready",
         "event-reminder",
         "auth0-invitation",
+        "auth0-invitation-existing",
         "admin-invitation",
     ):
         rendered = render_campaign(
@@ -504,7 +519,12 @@ def test_all_campaigns_share_the_branded_email_shell():
             ),
             login_email=(
                 "attendee@example.org"
-                if campaign in ("auth0-invitation", "admin-invitation")
+                if campaign
+                in (
+                    "auth0-invitation",
+                    "auth0-invitation-existing",
+                    "admin-invitation",
+                )
                 else None
             ),
         )
@@ -533,6 +553,23 @@ def test_invitation_explains_account_setup_without_exposing_a_pass():
     assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation"].endswith("-v3")
     assert "QR" not in rendered.html_body
     assert "pass ID" not in rendered.html_body
+
+
+def test_existing_account_invitation_preserves_the_users_password():
+    rendered = render_campaign(
+        "auth0-invitation-existing",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org",
+        login_email="attendee@example.org",
+    )
+
+    assert rendered.subject == "Your DuQuantum 2026 participant portal is ready"
+    assert "Use your existing portal password" in rendered.html_body
+    assert "Forgot password" in rendered.text_body
+    assert "Open participant portal" in rendered.text_body
+    assert "Add to Home Screen or Install app" in rendered.html_body
+    assert "Enable event alerts" in rendered.html_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation-existing"].endswith("-v1")
 
 
 def test_admin_invitation_links_to_private_operations_and_scanner():

@@ -396,7 +396,12 @@ def _revoke_pass(registration: Any) -> bool:
     return True
 
 
-def sync_database(result: ParseResult, *, commit: bool) -> Counter[str]:
+def sync_database(
+    result: ParseResult,
+    *,
+    commit: bool,
+    include_ineligible: bool = False,
+) -> Counter[str]:
     # Imports stay inside this function so offline validation remains usable on
     # an operator laptop without a configured database.
     from db import get_local_session
@@ -452,15 +457,16 @@ def sync_database(result: ParseResult, *, commit: bool) -> Counter[str]:
 
         for item in result.ineligible_registrations:
             existing = existing_by_email.get(item.normalized_email)
-            values = _registration_values(item, eligible=False)
+            values = _registration_values(item, eligible=include_ineligible)
+            count_prefix = "consent_override" if include_ineligible else "ineligible"
             if existing is None:
                 session.add(EventRegistration(event_id=event.id, **values))
-                counts["ineligible_created"] += 1
+                counts[f"{count_prefix}_created"] += 1
                 continue
             for key, value in values.items():
                 setattr(existing, key, value)
-            counts["ineligible_updated"] += 1
-            if _revoke_pass(existing):
+            counts[f"{count_prefix}_updated"] += 1
+            if not include_ineligible and _revoke_pass(existing):
                 counts["passes_revoked"] += 1
 
         if commit:
@@ -491,6 +497,10 @@ def _print_summary(result: ParseResult, db_counts: Mapping[str, int] | None) -> 
         print(f"Database updates: {db_counts.get('updated', 0)}")
         print(f"Ineligible records created: {db_counts.get('ineligible_created', 0)}")
         print(f"Ineligible records updated: {db_counts.get('ineligible_updated', 0)}")
+        print(
+            "Consent-exception records activated: "
+            f"{db_counts.get('consent_override_created', 0) + db_counts.get('consent_override_updated', 0)}"
+        )
         print(f"Stale records archived: {db_counts.get('stale_archived', 0)}")
         print(f"Passes revoked: {db_counts.get('passes_revoked', 0)}")
 
@@ -507,6 +517,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--commit",
         action="store_true",
         help="write the validated import to the database",
+    )
+    parser.add_argument(
+        "--include-ineligible",
+        action="store_true",
+        help=(
+            "activate the latest response for every unique email even when a "
+            "required consent is false; requires the normal commit confirmation"
+        ),
     )
     parser.add_argument(
         "--confirm-event",
@@ -564,7 +582,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.commit or args.database_check:
         try:
-            db_counts = sync_database(result, commit=args.commit)
+            db_counts = sync_database(
+                result,
+                commit=args.commit,
+                include_ineligible=args.include_ineligible,
+            )
         except Exception as exc:
             # Do not stringify database exceptions: parameterized statements can
             # include attendee PII in their exception representation.
@@ -574,6 +596,11 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     _print_summary(result, db_counts)
+    if args.include_ineligible:
+        print(
+            "Organizer override activates all unique latest responses: "
+            f"{len(result.registrations) + len(result.ineligible_registrations)}"
+        )
     print(
         "Import committed" if args.commit else "Dry run only; no database changes made"
     )

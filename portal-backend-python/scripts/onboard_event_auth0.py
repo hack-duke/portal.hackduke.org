@@ -23,13 +23,19 @@ from services.event_email_campaign import (
 
 
 EVENT_SLUG = "duquantum-2026"
-CAMPAIGN_KEY = "auth0-invitation"
+SETUP_CAMPAIGN_KEY = "auth0-invitation"
+EXISTING_ACCOUNT_CAMPAIGN_KEY = "auth0-invitation-existing"
+INVITATION_CAMPAIGN_KEYS = (
+    SETUP_CAMPAIGN_KEY,
+    EXISTING_ACCOUNT_CAMPAIGN_KEY,
+)
 
 
 @dataclass(frozen=True)
 class PlannedInvitation:
     registration: Any
     auth0_user_id: str | None
+    email_verified: bool
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -126,23 +132,28 @@ def main(argv: list[str] | None = None) -> int:
                 if len(matches) > 1:
                     counts["ambiguous"] += 1
                     continue
-                if matches and matches[0].get("email_verified") is True:
-                    counts["existing_verified"] += 1
-                    continue
-                if audit.already_sent(
-                    event_id=event.id,
-                    registration_id=registration.id,
-                    campaign_key=CAMPAIGN_KEY,
+                if any(
+                    audit.already_sent(
+                        event_id=event.id,
+                        registration_id=registration.id,
+                        campaign_key=campaign_key,
+                    )
+                    for campaign_key in INVITATION_CAMPAIGN_KEYS
                 ):
                     counts["invitation_already_recorded"] += 1
                     continue
 
                 if matches:
-                    counts["existing_needs_invitation"] += 1
+                    email_verified = matches[0].get("email_verified") is True
+                    if email_verified:
+                        counts["existing_verified"] += 1
+                    else:
+                        counts["existing_needs_invitation"] += 1
                     plan.append(
                         PlannedInvitation(
                             registration=registration,
                             auth0_user_id=str(matches[0]["user_id"]),
+                            email_verified=email_verified,
                         )
                     )
                 else:
@@ -151,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
                         PlannedInvitation(
                             registration=registration,
                             auth0_user_id=None,
+                            email_verified=False,
                         )
                     )
 
@@ -183,29 +195,41 @@ def main(argv: list[str] | None = None) -> int:
                             last_name=registration.last_name or "",
                         )
                         account_result = "created_and_invited"
-                    else:
+                    elif not item.email_verified:
                         account_result = "existing_reinvited"
+                    else:
+                        account_result = "existing_verified_notified"
 
-                    setup_url = issue_account_setup_link(
-                        session,
-                        event_id=event.id,
-                        event_slug=event.slug,
-                        registration_id=registration.id,
-                        auth0_user_id=auth0_user_id,
-                        portal_url=mail_settings.portal_url,
-                        ttl_seconds=auth_settings.account_setup_ttl_seconds,
-                    )
-                    rendered = render_campaign(
-                        CAMPAIGN_KEY,
-                        first_name=registration.first_name or "Attendee",
-                        portal_url=mail_settings.portal_url,
-                        account_setup_url=setup_url,
-                        login_email=registration.email,
-                    )
+                    if item.email_verified:
+                        campaign_key = EXISTING_ACCOUNT_CAMPAIGN_KEY
+                        rendered = render_campaign(
+                            campaign_key,
+                            first_name=registration.first_name or "Attendee",
+                            portal_url=mail_settings.portal_url,
+                            login_email=registration.email,
+                        )
+                    else:
+                        campaign_key = SETUP_CAMPAIGN_KEY
+                        setup_url = issue_account_setup_link(
+                            session,
+                            event_id=event.id,
+                            event_slug=event.slug,
+                            registration_id=registration.id,
+                            auth0_user_id=auth0_user_id,
+                            portal_url=mail_settings.portal_url,
+                            ttl_seconds=auth_settings.account_setup_ttl_seconds,
+                        )
+                        rendered = render_campaign(
+                            campaign_key,
+                            first_name=registration.first_name or "Attendee",
+                            portal_url=mail_settings.portal_url,
+                            account_setup_url=setup_url,
+                            login_email=registration.email,
+                        )
                     delivery = audit.queued(
                         event_id=event.id,
                         registration_id=registration.id,
-                        campaign_key=CAMPAIGN_KEY,
+                        campaign_key=campaign_key,
                         recipient=registration.email,
                     )
                     # Persist the rotated single-use setup capability and queued
@@ -257,6 +281,10 @@ def _print_summary(
     print(f"Planned invitation recipients: {counts['planned_recipients']}")
     print(f"Accounts created and invitations sent: {counts['created_and_invited']}")
     print(f"Existing accounts re-invited: {counts['existing_reinvited']}")
+    print(
+        "Existing verified accounts notified: "
+        f"{counts['existing_verified_notified']}"
+    )
     print(f"Provisioning failures: {counts['failed']}")
     if not provisioning:
         print("Inventory only; no accounts, setup links, or emails were created")

@@ -108,7 +108,7 @@ jobs:
             test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy"
             docker cp "$source_csv" "$backend_id:$container_csv"
 
-            common_args="--input $container_csv --expect-rows 193 --expect-eligible 154 --expect-ineligible 8 --expect-duplicate-groups 29 --expect-superseded 31"
+            common_args="--input $container_csv --expect-rows 193 --expect-eligible 154 --expect-ineligible 8 --expect-duplicate-groups 29 --expect-superseded 31 --include-ineligible"
             if [ "$operation" = "commit" ]; then
               docker exec "$backend_id" sh -c \
                 "python -m scripts.import_event_registrations $common_args --commit --confirm-event duquantum-2026"
@@ -127,7 +127,8 @@ jobs:
             echo ""
             echo "- Operation: $OPERATION"
             echo "- Source rows: 193"
-            echo "- Eligible latest responses: 154"
-            echo "- Ineligible latest responses excluded: 8"
+            echo "- Unique latest responses activated: 162"
+            echo "- Fully eligible latest responses: 154"
+            echo "- Consent-exception latest responses included by organizer direction: 8"
             echo "- Protected source retained on the application host"
           } >> "$GITHUB_STEP_SUMMARY"
