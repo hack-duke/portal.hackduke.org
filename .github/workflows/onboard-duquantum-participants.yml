@@ -62,7 +62,7 @@ jobs:
             bash -s -- "$OPERATION" "$EXPECTED_RECIPIENT_COUNT" << 'EOF'
             set -euo pipefail
             operation="$1"
-            expected_recipient_count="$2"
+            expected_recipient_count="${2:-}"
             backend_id="$(docker-compose ps -q backend)"
             test -n "$backend_id"
             test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy"
