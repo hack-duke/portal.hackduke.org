@@ -16,7 +16,7 @@
 .dq-admin-title-row h1 {
   margin: 0;
   font:
-    400 clamp(2.5rem, 5vw, 5rem)/1 "Edge of the Galaxy",
+    400 clamp(2.5rem, 5vw, 5rem) / 1 "Edge of the Galaxy",
     "Urbanist",
     sans-serif;
 }
@@ -40,7 +40,7 @@
 
 .dq-admin-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 1rem;
   margin: 1.25rem 0;
 }
@@ -75,6 +75,55 @@
     sans-serif;
 }
 
+.dq-operations-strip {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  align-items: center;
+  gap: 2rem;
+  margin: 1.25rem 0;
+  padding: 1.2rem;
+  border: 1px solid var(--dq-border);
+  background: rgba(10, 5, 23, 0.94);
+}
+
+.dq-operations-strip > div:first-child > strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--dq-white);
+  font:
+    700 1.25rem/1.25 "Urbanist",
+    sans-serif;
+}
+
+.dq-progress-track {
+  max-width: 560px;
+  height: 8px;
+  margin-top: 0.8rem;
+  overflow: hidden;
+  background: #251732;
+}
+
+.dq-progress-track span {
+  height: 100%;
+  display: block;
+  background: linear-gradient(90deg, var(--dq-red), var(--dq-yellow));
+  transition: width 220ms ease;
+}
+
+.dq-operation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.dq-operation-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .dq-manifest-panel {
   background: rgba(10, 5, 23, 0.98);
   border: 1px solid var(--dq-border);
@@ -100,6 +149,18 @@
   display: grid;
   grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.6fr);
   gap: 0.75rem;
+}
+
+.dq-clear-filters {
+  min-height: 36px;
+  align-self: end;
+  justify-self: end;
+  border: 0;
+  background: transparent;
+  color: var(--dq-yellow);
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .dq-manifest-controls label {
@@ -208,6 +269,18 @@
   color: #c6b9a8;
 }
 
+.dq-admin-chip.pending {
+  background: rgba(185, 149, 221, 0.14);
+  border-color: rgba(185, 149, 221, 0.48);
+  color: #e9dbf7;
+}
+
+.dq-admin-chip.warning {
+  background: rgba(213, 108, 105, 0.14);
+  border-color: rgba(213, 108, 105, 0.48);
+  color: #ffe4de;
+}
+
 .dq-detail-button {
   min-width: 76px;
   display: inline-flex;
@@ -242,6 +315,10 @@
   grid-column: span 2;
 }
 
+.dq-record-details .dq-delivery-history {
+  grid-column: span 2;
+}
+
 .dq-record-details h3 {
   color: var(--dq-yellow);
   font-size: 0.78rem;
@@ -272,6 +349,37 @@
   color: var(--dq-white);
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.dq-inline-operation {
+  display: inline-flex;
+  margin-top: 1rem;
+  color: var(--dq-yellow);
+  font-weight: 700;
+}
+
+.dq-delivery-history ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dq-delivery-history li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.1);
+}
+
+.dq-delivery-history li span {
+  color: var(--dq-yellow);
+  text-transform: capitalize;
+}
+
+.dq-delivery-history time,
+.dq-delivery-history p {
+  color: var(--dq-muted);
 }
 
 .dq-admin-loading,
@@ -315,6 +423,14 @@
     align-items: stretch;
     flex-direction: column;
   }
+
+  .dq-operations-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .dq-operation-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 620px) {
@@ -331,6 +447,20 @@
 
   .dq-record-details .dq-source-responses {
     grid-column: auto;
+  }
+
+  .dq-record-details .dq-delivery-history {
+    grid-column: auto;
+  }
+
+  .dq-operation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dq-delivery-history li {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
   }
 }
 

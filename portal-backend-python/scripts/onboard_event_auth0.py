@@ -1,18 +1,19 @@
 """Inventory or explicitly provision Auth0 accounts for an event.
 
-The safe default is claim-only inventory: no accounts, setup links, or emails are
-created. Account creation requires all of ``--create-missing``, ``--commit``,
-``--send-invitations``, and the exact event confirmation. Never pass attendee
-data on the command line.
+The safe default is a read-only inventory. Account creation and invitation
+delivery require every confirmation flag plus the exact preflight recipient
+count. Attendee values and one-time links are never printed.
 """
 
 from __future__ import annotations
 
 import argparse
 from collections import Counter
+from dataclasses import dataclass
+from typing import Any
 
-from services.auth0_onboarding import Auth0OnboardingClient, Auth0OnboardingSettings
 from services.account_setup import issue_account_setup_link
+from services.auth0_onboarding import Auth0OnboardingClient, Auth0OnboardingSettings
 from services.event_email_campaign import (
     OptionalEmailDeliveryAudit,
     SesEmailSender,
@@ -22,6 +23,13 @@ from services.event_email_campaign import (
 
 
 EVENT_SLUG = "duquantum-2026"
+CAMPAIGN_KEY = "auth0-invitation"
+
+
+@dataclass(frozen=True)
+class PlannedInvitation:
+    registration: Any
+    auth0_user_id: str | None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,11 +39,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--send-invitations", action="store_true")
     parser.add_argument("--confirm-event")
     parser.add_argument(
-        "--limit",
+        "--expected-recipient-count",
         type=int,
-        help="limit the number processed for a controlled staged batch",
+        help="exact preflight invitation count required for a send",
     )
     return parser
+
+
+def database_users(
+    users: list[dict[str, Any]], connection: str
+) -> list[dict[str, Any]]:
+    """Return only identities owned by the configured Auth0 database."""
+
+    return [
+        user
+        for user in users
+        if any(
+            identity.get("connection") == connection
+            for identity in user.get("identities", [])
+        )
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,14 +69,17 @@ def main(argv: list[str] | None = None) -> int:
         and args.commit
         and args.send_invitations
         and args.confirm_event == EVENT_SLUG
+        and args.expected_recipient_count is not None
+        and args.expected_recipient_count >= 0
     ):
         print(
             "Refusing provisioning: require --create-missing --commit "
-            f"--send-invitations --confirm-event {EVENT_SLUG}"
+            f"--send-invitations --confirm-event {EVENT_SLUG} and a nonnegative "
+            "--expected-recipient-count"
         )
         return 2
-    if args.limit is not None and args.limit < 1:
-        print("--limit must be a positive integer")
+    if not provisioning and args.expected_recipient_count is not None:
+        print("--expected-recipient-count is only valid for a confirmed send")
         return 2
 
     from db import get_local_session
@@ -66,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         if event is None:
             print("Event seed is missing; apply migrations first")
             return 1
-        query = (
+        registrations = list(
             session.query(EventRegistration)
             .filter(
                 EventRegistration.event_id == event.id,
@@ -74,126 +100,121 @@ def main(argv: list[str] | None = None) -> int:
                 EventRegistration.rsvp_status == "confirmed",
             )
             .order_by(EventRegistration.created_at, EventRegistration.id)
+            .all()
         )
-        if args.limit:
-            query = query.limit(args.limit)
-        registrations = list(query.all())
 
         auth_settings = Auth0OnboardingSettings.from_environment()
-        mailer = None
-        mail_settings = None
         audit = OptionalEmailDeliveryAudit(session)
-        if args.create_missing:
-            if not audit.available:
-                print("Refusing provisioning without database delivery auditing")
-                return 2
-            mail_settings = SesSettings.from_environment()
-            mailer = SesEmailSender(mail_settings)
+        if provisioning and not audit.available:
+            print("Refusing provisioning without database delivery auditing")
+            return 2
 
+        plan: list[PlannedInvitation] = []
         with Auth0OnboardingClient(auth_settings) as auth0:
+            # Complete all read-only Auth0 checks before creating an account,
+            # rotating a capability, or asking SES to send anything.
             for registration in registrations:
                 try:
-                    users = auth0.find_users_by_email(registration.normalized_email)
-                    if len(users) == 1:
-                        counts["existing"] += 1
-                        existing = users[0]
-                        provisioned_for = (existing.get("app_metadata") or {}).get(
-                            "provisioned_for_event"
-                        )
-                        if (
-                            args.create_missing
-                            and provisioned_for == EVENT_SLUG
-                            and not existing.get("email_verified", False)
-                        ):
-                            if audit.already_sent(
-                                event_id=event.id,
-                                registration_id=registration.id,
-                                campaign_key="auth0-invitation",
-                            ):
-                                counts["invitation_already_recorded"] += 1
-                                continue
-                            account_setup_url = issue_account_setup_link(
-                                session,
-                                event_id=event.id,
-                                event_slug=event.slug,
-                                registration_id=registration.id,
-                                auth0_user_id=str(existing["user_id"]),
-                                portal_url=mail_settings.portal_url,
-                                ttl_seconds=auth_settings.account_setup_ttl_seconds,
-                            )
-                            assert mailer is not None and mail_settings is not None
-                            rendered = render_campaign(
-                                "auth0-invitation",
-                                first_name=registration.first_name or "Attendee",
-                                portal_url=mail_settings.portal_url,
-                                account_setup_url=account_setup_url,
-                                login_email=registration.email,
-                            )
-                            delivery = audit.queued(
-                                event_id=event.id,
-                                registration_id=registration.id,
-                                campaign_key="auth0-invitation",
-                                recipient=registration.email,
-                            )
-                            session.commit()
-                            try:
-                                message_id = mailer.send(
-                                    recipient=registration.email, rendered=rendered
-                                )
-                                audit.mark_sent(delivery, message_id)
-                                session.commit()
-                            except Exception as exc:
-                                audit.mark_failed(delivery, exc)
-                                session.commit()
-                                raise
-                            counts["existing_reinvited"] += 1
-                        continue
-                    if len(users) > 1:
-                        counts["ambiguous"] += 1
-                        continue
-                    counts["missing"] += 1
-                    if not args.create_missing:
-                        continue
-
-                    user_id = auth0.create_user(
-                        email=registration.email,
-                        first_name=registration.first_name or "",
-                        last_name=registration.last_name or "",
+                    matches = database_users(
+                        auth0.find_users_by_email(registration.normalized_email),
+                        auth_settings.database_connection,
                     )
-                    if audit.already_sent(
-                        event_id=event.id,
-                        registration_id=registration.id,
-                        campaign_key="auth0-invitation",
-                    ):
-                        counts["invitation_already_recorded"] += 1
-                        continue
-                    account_setup_url = issue_account_setup_link(
+                except Exception:
+                    counts["inventory_failed"] += 1
+                    continue
+
+                if len(matches) > 1:
+                    counts["ambiguous"] += 1
+                    continue
+                if matches and matches[0].get("email_verified") is True:
+                    counts["existing_verified"] += 1
+                    continue
+                if audit.already_sent(
+                    event_id=event.id,
+                    registration_id=registration.id,
+                    campaign_key=CAMPAIGN_KEY,
+                ):
+                    counts["invitation_already_recorded"] += 1
+                    continue
+
+                if matches:
+                    counts["existing_needs_invitation"] += 1
+                    plan.append(
+                        PlannedInvitation(
+                            registration=registration,
+                            auth0_user_id=str(matches[0]["user_id"]),
+                        )
+                    )
+                else:
+                    counts["missing"] += 1
+                    plan.append(
+                        PlannedInvitation(
+                            registration=registration,
+                            auth0_user_id=None,
+                        )
+                    )
+
+            counts["planned_recipients"] = len(plan)
+            if counts["inventory_failed"] or counts["ambiguous"]:
+                print("Inventory could not be reconciled; no changes were made")
+                _print_summary(len(registrations), counts, provisioning=False)
+                return 1
+
+            if not provisioning:
+                _print_summary(len(registrations), counts, provisioning=False)
+                return 0
+
+            assert args.expected_recipient_count is not None
+            if len(plan) != args.expected_recipient_count:
+                print("Recipient count changed after preflight; no changes were made")
+                _print_summary(len(registrations), counts, provisioning=False)
+                return 2
+
+            mail_settings = SesSettings.from_environment()
+            mailer = SesEmailSender(mail_settings)
+            for item in plan:
+                registration = item.registration
+                try:
+                    auth0_user_id = item.auth0_user_id
+                    if auth0_user_id is None:
+                        auth0_user_id = auth0.create_user(
+                            email=registration.email,
+                            first_name=registration.first_name or "",
+                            last_name=registration.last_name or "",
+                        )
+                        account_result = "created_and_invited"
+                    else:
+                        account_result = "existing_reinvited"
+
+                    setup_url = issue_account_setup_link(
                         session,
                         event_id=event.id,
                         event_slug=event.slug,
                         registration_id=registration.id,
-                        auth0_user_id=user_id,
+                        auth0_user_id=auth0_user_id,
                         portal_url=mail_settings.portal_url,
                         ttl_seconds=auth_settings.account_setup_ttl_seconds,
                     )
                     rendered = render_campaign(
-                        "auth0-invitation",
+                        CAMPAIGN_KEY,
                         first_name=registration.first_name or "Attendee",
                         portal_url=mail_settings.portal_url,
-                        account_setup_url=account_setup_url,
+                        account_setup_url=setup_url,
                         login_email=registration.email,
                     )
-                    assert mailer is not None
                     delivery = audit.queued(
                         event_id=event.id,
                         registration_id=registration.id,
-                        campaign_key="auth0-invitation",
+                        campaign_key=CAMPAIGN_KEY,
                         recipient=registration.email,
                     )
+                    # Persist the rotated single-use setup capability and queued
+                    # audit before delivery. A queued row is never auto-retried.
                     session.commit()
                     try:
                         message_id = mailer.send(
-                            recipient=registration.email, rendered=rendered
+                            recipient=registration.email,
+                            rendered=rendered,
                         )
                         audit.mark_sent(delivery, message_id)
                         session.commit()
@@ -201,26 +222,44 @@ def main(argv: list[str] | None = None) -> int:
                         audit.mark_failed(delivery, exc)
                         session.commit()
                         raise
-                    counts["created_and_invited"] += 1
+                    counts[account_result] += 1
                 except Exception:
-                    # Never stringify HTTP/SES exceptions; request payloads can
-                    # contain attendee data or one-time invitation URLs.
+                    # Never stringify exceptions: request payloads may contain
+                    # attendee data or one-time invitation capabilities.
                     session.rollback()
                     counts["failed"] += 1
 
-        print(f"Eligible registrations checked: {len(registrations)}")
-        print(f"Existing Auth0 accounts: {counts['existing']}")
-        print(f"Missing Auth0 accounts: {counts['missing']}")
-        print(f"Ambiguous Auth0 matches: {counts['ambiguous']}")
-        print(f"Accounts created and invitations sent: {counts['created_and_invited']}")
-        print(f"Previously provisioned accounts re-invited: {counts['existing_reinvited']}")
-        print(f"Existing invitation audits skipped: {counts['invitation_already_recorded']}")
-        print(f"Failures: {counts['failed']}")
-        if not args.create_missing:
-            print("Inventory only; no accounts, setup links, or emails were created")
-        return 1 if counts["failed"] or counts["ambiguous"] else 0
+        _print_summary(len(registrations), counts, provisioning=True)
+        return 1 if counts["failed"] else 0
     finally:
         session.close()
+
+
+def _print_summary(
+    eligible_registration_count: int,
+    counts: Counter[str],
+    *,
+    provisioning: bool,
+) -> None:
+    print(f"Eligible registrations checked: {eligible_registration_count}")
+    print(f"Existing verified database accounts: {counts['existing_verified']}")
+    print(
+        "Existing database accounts needing invitation: "
+        f"{counts['existing_needs_invitation']}"
+    )
+    print(f"Missing database accounts: {counts['missing']}")
+    print(f"Ambiguous database matches: {counts['ambiguous']}")
+    print(f"Inventory failures: {counts['inventory_failed']}")
+    print(
+        "Existing queued or sent invitation audits skipped: "
+        f"{counts['invitation_already_recorded']}"
+    )
+    print(f"Planned invitation recipients: {counts['planned_recipients']}")
+    print(f"Accounts created and invitations sent: {counts['created_and_invited']}")
+    print(f"Existing accounts re-invited: {counts['existing_reinvited']}")
+    print(f"Provisioning failures: {counts['failed']}")
+    if not provisioning:
+        print("Inventory only; no accounts, setup links, or emails were created")
 
 
 if __name__ == "__main__":

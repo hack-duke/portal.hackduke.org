@@ -230,9 +230,9 @@ const registrationKey = (registration, index) =>
 const isClaimed = (registration) =>
   Boolean(
     registration.user_id ||
-    registration.claimed_at ||
-    registration.is_claimed ||
-    registration.user,
+      registration.claimed_at ||
+      registration.is_claimed ||
+      registration.user,
   );
 
 const passFor = (registration) =>
@@ -248,6 +248,33 @@ const passStateFor = (registration) =>
 
 const hasPass = (registration) => Boolean(passStateFor(registration));
 
+const emailDeliveriesFor = (registration) => {
+  const deliveries = registration.email_deliveries || [];
+  return Array.isArray(deliveries) ? deliveries : [];
+};
+
+const invitationFor = (registration) =>
+  emailDeliveriesFor(registration).find((delivery) =>
+    String(delivery.campaign_key || "").startsWith("auth0-invitation"),
+  );
+
+const hasInvitation = (registration) =>
+  invitationFor(registration)?.status === "sent";
+
+const invitationLabel = (invitation) => {
+  if (!invitation) return "Not invited";
+  if (invitation.status === "sent") return "Invitation sent";
+  if (invitation.status === "queued") return "Sending";
+  if (invitation.status === "failed") return "Send failed";
+  return "Not invited";
+};
+
+const humanizeCampaign = (value) =>
+  String(value || "Portal email")
+    .replace(/-test-\d+-.+$/, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
 const checkInsFor = (registration) => {
   const records =
     registration.check_ins ||
@@ -260,10 +287,10 @@ const checkInsFor = (registration) => {
 const isCheckedIn = (registration) =>
   Boolean(
     registration.checked_in ||
-    registration.checked_in_at ||
-    registration.check_in_at ||
-    registration.check_in_count > 0 ||
-    checkInsFor(registration).length,
+      registration.checked_in_at ||
+      registration.check_in_at ||
+      registration.check_in_count > 0 ||
+      checkInsFor(registration).length,
   );
 
 const DuQuantumAdminPage = () => {
@@ -312,6 +339,7 @@ const DuQuantumAdminPage = () => {
   const stats = useMemo(
     () => ({
       total: registrations.length,
+      invited: registrations.filter(hasInvitation).length,
       claimed: registrations.filter(isClaimed).length,
       passes: registrations.filter(hasPass).length,
       checkedIn: registrations.filter(isCheckedIn).length,
@@ -324,9 +352,23 @@ const DuQuantumAdminPage = () => {
     return registrations
       .filter((registration) => {
         if (filter === "claimed" && !isClaimed(registration)) return false;
-        if (filter === "unclaimed" && isClaimed(registration)) return false;
+        if (
+          filter === "awaiting-account" &&
+          (!hasInvitation(registration) || isClaimed(registration))
+        )
+          return false;
+        if (filter === "not-invited" && hasInvitation(registration))
+          return false;
+        if (
+          filter === "invitation-failed" &&
+          invitationFor(registration)?.status !== "failed"
+        )
+          return false;
         if (filter === "pass" && !hasPass(registration)) return false;
+        if (filter === "no-pass" && hasPass(registration)) return false;
         if (filter === "checked-in" && !isCheckedIn(registration)) return false;
+        if (filter === "not-checked-in" && isCheckedIn(registration))
+          return false;
         if (!normalizedQuery) return true;
         return JSON.stringify(registration)
           .toLowerCase()
@@ -352,7 +394,8 @@ const DuQuantumAdminPage = () => {
           <span>ADMIN // ATTENDEES</span>
         </Link>
         <nav className="dq-header-actions" aria-label="Admin navigation">
-          <Link to="/admin">HackDuke admin</Link>
+          <Link to="/admin/events/duquantum-2026/check-in">Scanner</Link>
+          <Link to="/admin/roles">Staff access</Link>
           <Link to="/events/duquantum-2026">Participant view</Link>
           <button
             type="button"
@@ -403,7 +446,11 @@ const DuQuantumAdminPage = () => {
             <strong>{stats.total}</strong>
           </article>
           <article>
-            <span>Accounts connected</span>
+            <span>Invitations sent</span>
+            <strong>{stats.invited}</strong>
+          </article>
+          <article>
+            <span>Accounts completed</span>
             <strong>{stats.claimed}</strong>
           </article>
           <article>
@@ -414,6 +461,37 @@ const DuQuantumAdminPage = () => {
             <span>Checked in</span>
             <strong>{stats.checkedIn}</strong>
           </article>
+        </section>
+
+        <section className="dq-operations-strip" aria-label="Event operations">
+          <div>
+            <p className="dq-terminal-label">ARRIVAL_PROGRESS // LIVE</p>
+            <strong>
+              {stats.total
+                ? `${Math.round((stats.checkedIn / stats.total) * 100)}% checked in`
+                : "Waiting for roster"}
+            </strong>
+            <div className="dq-progress-track" aria-hidden="true">
+              <span
+                style={{
+                  width: stats.total
+                    ? `${(stats.checkedIn / stats.total) * 100}%`
+                    : "0%",
+                }}
+              />
+            </div>
+          </div>
+          <div className="dq-operation-actions">
+            <Link
+              className="dq-primary-button"
+              to="/admin/events/duquantum-2026/check-in"
+            >
+              Open phone scanner
+            </Link>
+            <Link className="dq-secondary-button" to="/admin/roles">
+              Manage staff access
+            </Link>
+          </div>
         </section>
 
         <section
@@ -444,12 +522,30 @@ const DuQuantumAdminPage = () => {
                   onChange={(event) => setFilter(event.target.value)}
                 >
                   <option value="all">All attendees</option>
-                  <option value="claimed">Account connected</option>
-                  <option value="unclaimed">Not connected</option>
+                  <option value="claimed">Account completed</option>
+                  <option value="awaiting-account">
+                    Invited, not completed
+                  </option>
+                  <option value="not-invited">Invitation not sent</option>
+                  <option value="invitation-failed">Invitation failed</option>
                   <option value="pass">Pass issued</option>
+                  <option value="no-pass">Pass not issued</option>
                   <option value="checked-in">Checked in</option>
+                  <option value="not-checked-in">Not checked in</option>
                 </select>
               </label>
+              {(query || filter !== "all") && (
+                <button
+                  className="dq-clear-filters"
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setFilter("all");
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           </div>
 
@@ -483,6 +579,8 @@ const DuQuantumAdminPage = () => {
                     const passId = passIdFor(registration);
                     const passState = passStateFor(registration);
                     const checkIns = checkInsFor(registration);
+                    const invitation = invitationFor(registration);
+                    const deliveries = emailDeliveriesFor(registration);
                     const sourceData = flattenObject(
                       sourceDataFor(registration),
                     );
@@ -523,12 +621,23 @@ const DuQuantumAdminPage = () => {
                           </td>
                           <td>
                             <span
-                              className={`dq-admin-chip ${isClaimed(registration) ? "success" : "neutral"}`}
+                              className={`dq-admin-chip ${
+                                isClaimed(registration)
+                                  ? "success"
+                                  : invitation?.status === "sent"
+                                    ? "pending"
+                                    : "warning"
+                              }`}
                             >
                               {isClaimed(registration)
                                 ? "Connected"
-                                : "Unclaimed"}
+                                : invitationLabel(invitation)}
                             </span>
+                            {invitation?.sent_at && (
+                              <small>
+                                {formatDateTime(invitation.sent_at)}
+                              </small>
+                            )}
                           </td>
                           <td>
                             <span
@@ -669,7 +778,51 @@ const DuQuantumAdminPage = () => {
                                           (isCheckedIn(registration) ? 1 : 0)}
                                       </dd>
                                     </div>
+                                    <div>
+                                      <dt>Invitation status</dt>
+                                      <dd>
+                                        {invitation
+                                          ? `${invitationLabel(invitation)} ${formatDateTime(invitation.sent_at || invitation.created_at)}`
+                                          : "Not sent"}
+                                      </dd>
+                                    </div>
                                   </dl>
+                                  <Link
+                                    className="dq-inline-operation"
+                                    to="/admin/events/duquantum-2026/check-in"
+                                  >
+                                    Open check-in scanner
+                                  </Link>
+                                </section>
+                                <section className="dq-delivery-history">
+                                  <h3>Email delivery history</h3>
+                                  {deliveries.length ? (
+                                    <ol>
+                                      {deliveries.map((delivery) => (
+                                        <li key={delivery.id}>
+                                          <strong>
+                                            {humanizeCampaign(
+                                              delivery.campaign_key,
+                                            )}
+                                          </strong>
+                                          <span>{delivery.status}</span>
+                                          <time
+                                            dateTime={
+                                              delivery.sent_at ||
+                                              delivery.created_at
+                                            }
+                                          >
+                                            {formatDateTime(
+                                              delivery.sent_at ||
+                                                delivery.created_at,
+                                            )}
+                                          </time>
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  ) : (
+                                    <p>No portal emails recorded.</p>
+                                  )}
                                 </section>
                               </div>
                             </td>

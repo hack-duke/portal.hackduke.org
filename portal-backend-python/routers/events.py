@@ -117,6 +117,17 @@ class MyRegistrationResponse(BaseModel):
     first_name: Optional[str]
     last_name: Optional[str]
     preferred_name: Optional[str]
+    phone: Optional[str]
+    age: Optional[int]
+    university: Optional[str]
+    degree_program: Optional[str]
+    country: Optional[str]
+    attendance_commitment: Optional[bool]
+    photo_release_consent: Optional[bool]
+    mlh_code_of_conduct_consent: Optional[bool]
+    mlh_privacy_policy_consent: Optional[bool]
+    data_sharing_consent: Optional[bool]
+    mlh_marketing_opt_in: Optional[bool]
     admission_status: str
     rsvp_status: str
     claimed_at: Optional[datetime]
@@ -402,6 +413,17 @@ def _my_registration_response(
         first_name=registration.first_name,
         last_name=registration.last_name,
         preferred_name=registration.preferred_name,
+        phone=registration.phone,
+        age=registration.age,
+        university=registration.university,
+        degree_program=registration.degree_program,
+        country=registration.country,
+        attendance_commitment=registration.attendance_commitment,
+        photo_release_consent=registration.photo_release_consent,
+        mlh_code_of_conduct_consent=registration.mlh_code_of_conduct_consent,
+        mlh_privacy_policy_consent=registration.mlh_privacy_policy_consent,
+        data_sharing_consent=registration.data_sharing_consent,
+        mlh_marketing_opt_in=registration.mlh_marketing_opt_in,
         admission_status=registration.admission_status,
         rsvp_status=registration.rsvp_status,
         claimed_at=registration.claimed_at,

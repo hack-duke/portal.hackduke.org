@@ -860,6 +860,117 @@
   letter-spacing: 0.08em;
 }
 
+.dq-confirmation-drawer {
+  margin-top: 1.25rem;
+  border: 1px solid var(--dq-border);
+  background: rgba(10, 5, 23, 0.98);
+  color: var(--dq-white);
+}
+
+.dq-confirmation-drawer summary {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dq-confirmation-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.dq-confirmation-drawer summary:focus-visible {
+  outline: 3px solid var(--dq-yellow);
+  outline-offset: 3px;
+}
+
+.dq-confirmation-drawer summary strong,
+.dq-confirmation-drawer summary small {
+  display: block;
+}
+
+.dq-confirmation-drawer summary strong {
+  font:
+    700 1rem/1.3 "Urbanist",
+    sans-serif;
+}
+
+.dq-confirmation-drawer summary small {
+  margin-top: 0.18rem;
+  color: var(--dq-muted);
+  line-height: 1.4;
+}
+
+.dq-menu-mark {
+  width: 32px;
+  display: grid;
+  gap: 5px;
+}
+
+.dq-menu-mark i {
+  height: 2px;
+  display: block;
+  background: var(--dq-yellow);
+}
+
+.dq-drawer-toggle {
+  color: var(--dq-yellow);
+  font-size: 1.7rem;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+
+.dq-confirmation-drawer[open] .dq-drawer-toggle {
+  transform: rotate(45deg);
+}
+
+.dq-confirmation-content {
+  padding: 0 1.15rem 1.35rem;
+  border-top: 1px solid rgba(243, 181, 98, 0.14);
+}
+
+.dq-confirmation-content > p {
+  max-width: 760px;
+  color: var(--dq-muted);
+  line-height: 1.6;
+}
+
+.dq-confirmation-content dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 1rem 0 1.25rem;
+  border-top: 1px solid rgba(243, 181, 98, 0.12);
+}
+
+.dq-confirmation-content dl div {
+  min-width: 0;
+  padding: 0.85rem 1rem 0.85rem 0;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.12);
+}
+
+.dq-confirmation-content dt {
+  color: var(--dq-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dq-confirmation-content dd {
+  margin: 0.28rem 0 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dq-confirmation-content > a {
+  color: var(--dq-yellow);
+  font-weight: 700;
+}
+
 .dq-mobile-companion {
   display: none;
 }
@@ -1011,6 +1122,10 @@
   }
 
   .dq-mobile-companion {
+    grid-template-columns: 1fr;
+  }
+
+  .dq-confirmation-content dl {
     grid-template-columns: 1fr;
   }
 

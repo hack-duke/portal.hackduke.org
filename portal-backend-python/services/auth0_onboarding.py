@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -181,6 +181,42 @@ class Auth0OnboardingClient:
         )
         response.raise_for_status()
         return str(response.json()["user_id"])
+
+    def create_password_change_ticket(
+        self,
+        *,
+        user_id: str,
+        result_url: str,
+        ttl_seconds: int = 604800,
+    ) -> str:
+        """Create a single-use Auth0 password ticket without logging its URL."""
+
+        parsed_result = urlparse(result_url)
+        if parsed_result.scheme != "https" or not parsed_result.netloc:
+            raise ValueError("password ticket result URL must be HTTPS")
+        if not 300 <= ttl_seconds <= 604800:
+            raise ValueError("password ticket TTL must be between 5 minutes and 7 days")
+        if not user_id:
+            raise ValueError("Auth0 user ID is required")
+
+        response = self._request(
+            "POST",
+            f"{self.base_url}/api/v2/tickets/password-change",
+            headers=self._headers(),
+            json={
+                "user_id": user_id,
+                "result_url": result_url,
+                "ttl_sec": ttl_seconds,
+                "mark_email_as_verified": True,
+                "includeEmailInRedirect": False,
+            },
+        )
+        response.raise_for_status()
+        ticket = str(response.json().get("ticket") or "")
+        parsed_ticket = urlparse(ticket)
+        if parsed_ticket.scheme != "https" or not parsed_ticket.netloc:
+            raise RuntimeError("Auth0 returned an invalid password ticket")
+        return ticket
 
     def set_initial_password(self, *, user_id: str, password: str) -> None:
         """Set a database user's chosen password without logging either value."""

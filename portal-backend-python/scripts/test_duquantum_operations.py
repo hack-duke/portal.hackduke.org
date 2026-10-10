@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -91,6 +92,46 @@ def test_csv_import_keeps_latest_and_preserves_marketing_opt_out(tmp_path):
     assert registration.first_name == "Updated"
     assert registration.mlh_marketing_opt_in is False
     assert registration.source_data["consents"]["mlh_marketing_opt_in"] is False
+
+
+def test_csv_import_accepts_a_clear_free_form_age(tmp_path):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    rows[-1][HEADER_AGE] = "Turn 20 that day!"
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = parse_csv(source)
+
+    assert result.invalid_rows == 0
+    assert result.registrations[0].age == 20
+
+
+def test_csv_import_uses_latest_response_before_applying_eligibility(tmp_path):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    attendance_header = CONSENT_HEADER_PREFIXES["attendance_commitment"]
+    rows[-1][attendance_header] = "No, I will not attend"
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = parse_csv(source)
+
+    assert result.raw_rows == 2
+    assert result.duplicate_groups == 1
+    assert result.superseded_rows == 1
+    assert result.invalid_rows == 0
+    assert result.ineligible_rows == 1
+    assert result.registrations == ()
+    assert result.ineligible_reasons == {
+        "latest response declined: attendance_commitment": 1
+    }
 
 
 def test_email_normalization_does_not_rewrite_provider_specific_addressing():
@@ -256,6 +297,61 @@ def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
                 )
 
 
+def test_auth0_password_change_ticket_is_secure_and_bounded():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(
+            201,
+            request=request,
+            json={"ticket": "https://tenant.example.org/lo/reset?ticket=single-use"},
+        )
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            ticket = client.create_password_change_ticket(
+                user_id="auth0|organizers",
+                result_url=(
+                    "https://portal.hackduke.org/admin/events/"
+                    "duquantum-2026/attendees"
+                ),
+            )
+
+    assert ticket.endswith("ticket=single-use")
+    ticket_request = requests[-1]
+    assert ticket_request.url.path == "/api/v2/tickets/password-change"
+    assert json.loads(ticket_request.content) == {
+        "user_id": "auth0|organizers",
+        "result_url": (
+            "https://portal.hackduke.org/admin/events/duquantum-2026/attendees"
+        ),
+        "ttl_sec": 604800,
+        "mark_email_as_verified": True,
+        "includeEmailInRedirect": False,
+    }
+
+    with pytest.raises(ValueError):
+        with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+            with Auth0OnboardingClient(settings, http_client=http_client) as client:
+                client.create_password_change_ticket(
+                    user_id="auth0|organizers",
+                    result_url="http://portal.example.org/admin",
+                )
+
+
 def test_campaign_escapes_display_name_and_does_not_embed_a_pass():
     rendered = render_campaign(
         "pass-ready",
@@ -291,14 +387,25 @@ def test_campaign_uses_duquantum_brand_with_email_safe_fallbacks():
 
 def test_all_campaigns_share_the_branded_email_shell():
     setup_url = "https://portal.example.org/events/test/account-setup#token=secret"
-    for campaign in ("pass-ready", "event-reminder", "auth0-invitation"):
+    for campaign in (
+        "pass-ready",
+        "event-reminder",
+        "auth0-invitation",
+        "admin-invitation",
+    ):
         rendered = render_campaign(
             campaign,
             first_name="Mohammad",
             portal_url="https://portal.example.org",
-            account_setup_url=setup_url if campaign == "auth0-invitation" else None,
+            account_setup_url=(
+                setup_url
+                if campaign in ("auth0-invitation", "admin-invitation")
+                else None
+            ),
             login_email=(
-                "attendee@example.org" if campaign == "auth0-invitation" else None
+                "attendee@example.org"
+                if campaign in ("auth0-invitation", "admin-invitation")
+                else None
             ),
         )
         assert "logo-email.png" in rendered.html_body
@@ -326,6 +433,26 @@ def test_invitation_explains_account_setup_without_exposing_a_pass():
     assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation"].endswith("-v3")
     assert "QR" not in rendered.html_body
     assert "pass ID" not in rendered.html_body
+
+
+def test_admin_invitation_links_to_private_operations_and_scanner():
+    setup_url = "https://tenant.example.org/reset?ticket=one-time"
+    rendered = render_campaign(
+        "admin-invitation",
+        first_name="DuQuantum Organizers",
+        portal_url="https://portal.hackduke.org",
+        account_setup_url=setup_url,
+        login_email="organizers@duquantum.org",
+    )
+
+    assert rendered.subject == "Set up your DuQuantum 2026 admin account"
+    assert setup_url in rendered.html_body
+    assert setup_url in rendered.text_body
+    assert "organizers@duquantum.org" in rendered.html_body
+    assert "Attendee manifest" in rendered.text_body
+    assert "Check-in scanner" in rendered.text_body
+    assert "private information" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["admin-invitation"].endswith("-v1")
 
 
 def test_ses_sender_uses_the_duquantum_display_name():

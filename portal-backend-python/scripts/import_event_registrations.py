@@ -132,10 +132,15 @@ class ParseResult:
     duplicate_groups: int
     superseded_rows: int
     invalid_reasons: Mapping[str, int]
+    ineligible_reasons: Mapping[str, int]
 
     @property
     def invalid_rows(self) -> int:
         return sum(self.invalid_reasons.values())
+
+    @property
+    def ineligible_rows(self) -> int:
+        return sum(self.ineligible_reasons.values())
 
 
 def normalize_email(value: str) -> str:
@@ -210,6 +215,26 @@ def _source_record_id(normalized_email: str, submitted_at: datetime) -> str:
     return hashlib.sha256(source_key.encode("utf-8")).hexdigest()
 
 
+def parse_age(value: str) -> int:
+    """Accept a plain integer or the first plausible age in free-form text."""
+
+    raw = value.strip()
+    try:
+        age = int(raw)
+    except ValueError:
+        age = next(
+            (
+                int(candidate)
+                for candidate in re.findall(r"\b\d{1,3}\b", raw)
+                if 13 <= int(candidate) <= 120
+            ),
+            -1,
+        )
+    if not 13 <= age <= 120:
+        raise ImportValidationError("age is outside allowed range")
+    return age
+
+
 def parse_row(
     row: Mapping[str, str],
     *,
@@ -223,23 +248,12 @@ def parse_row(
     if not EMAIL_PATTERN.fullmatch(normalized_email):
         raise ImportValidationError("invalid email format")
 
-    try:
-        age = int(_required_text(row, HEADER_AGE))
-    except ValueError as exc:
-        raise ImportValidationError("age is not an integer") from exc
-    if not 13 <= age <= 120:
-        raise ImportValidationError("age is outside allowed range")
+    age = parse_age(_required_text(row, HEADER_AGE))
 
     consents = {
         field_name: parse_consent(row.get(header, ""))
         for field_name, header in consent_headers.items()
     }
-    missing_required = [
-        name for name in REQUIRED_TRUE_CONSENTS if not consents[name]
-    ]
-    if missing_required:
-        raise ImportValidationError("required consent is not affirmative")
-
     # Exact question/answer pairs are deliberately retained for auditability.
     # This object is private PII and must never be emitted to application logs.
     source_data = {
@@ -316,15 +330,25 @@ def parse_csv(path: Path) -> ParseResult:
 
     duplicate_groups = sum(1 for count in seen_counts.values() if count > 1)
     superseded_rows = sum(count - 1 for count in seen_counts.values() if count > 1)
-    registrations = tuple(
-        sorted(latest_by_email.values(), key=lambda item: item.normalized_email)
-    )
+    ineligible_reasons: Counter[str] = Counter()
+    eligible: list[ParsedRegistration] = []
+    for registration in latest_by_email.values():
+        missing_required = sorted(
+            name for name in REQUIRED_TRUE_CONSENTS if not getattr(registration, name)
+        )
+        if missing_required:
+            reason = "latest response declined: " + ", ".join(missing_required)
+            ineligible_reasons[reason] += 1
+            continue
+        eligible.append(registration)
+    registrations = tuple(sorted(eligible, key=lambda item: item.normalized_email))
     return ParseResult(
         raw_rows=raw_rows,
         registrations=registrations,
         duplicate_groups=duplicate_groups,
         superseded_rows=superseded_rows,
         invalid_reasons=dict(invalid_reasons),
+        ineligible_reasons=dict(ineligible_reasons),
     )
 
 
@@ -366,6 +390,7 @@ def _registration_values(item: ParsedRegistration) -> dict[str, Any]:
         "photo_release_consent": item.photo_release_consent,
         "mlh_code_of_conduct_consent": item.mlh_code_of_conduct_consent,
         "data_sharing_consent": item.data_sharing_consent,
+        "mlh_privacy_policy_consent": item.data_sharing_consent,
         "mlh_marketing_opt_in": item.mlh_marketing_opt_in,
     }
 
@@ -430,10 +455,15 @@ def _print_summary(result: ParseResult, db_counts: Mapping[str, int] | None) -> 
     print(f"Invalid rows: {result.invalid_rows}")
     for reason, count in sorted(result.invalid_reasons.items()):
         print(f"  {reason}: {count}")
+    print(f"Latest responses excluded as ineligible: {result.ineligible_rows}")
+    for reason, count in sorted(result.ineligible_reasons.items()):
+        print(f"  {reason}: {count}")
     if db_counts is not None:
         print(f"Database creates: {db_counts.get('created', 0)}")
         print(f"Database updates: {db_counts.get('updated', 0)}")
-        print(f"Skipped because database row is newer: {db_counts.get('newer_existing', 0)}")
+        print(
+            f"Skipped because database row is newer: {db_counts.get('newer_existing', 0)}"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -445,12 +475,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="compare with the database and roll back; still makes no changes",
     )
     parser.add_argument(
-        "--commit", action="store_true", help="write the validated import to the database"
+        "--commit",
+        action="store_true",
+        help="write the validated import to the database",
     )
     parser.add_argument(
         "--confirm-event",
         help=f"required with --commit; must equal {EVENT_SLUG}",
     )
+    parser.add_argument("--expect-rows", type=int)
+    parser.add_argument("--expect-eligible", type=int)
+    parser.add_argument("--expect-ineligible", type=int)
+    parser.add_argument("--expect-duplicate-groups", type=int)
+    parser.add_argument("--expect-superseded", type=int)
     return parser
 
 
@@ -470,6 +507,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Validation failed: {exc}")
         return 2
 
+    expected_counts = {
+        "rows": (args.expect_rows, result.raw_rows),
+        "eligible": (args.expect_eligible, len(result.registrations)),
+        "ineligible": (args.expect_ineligible, result.ineligible_rows),
+        "duplicate groups": (
+            args.expect_duplicate_groups,
+            result.duplicate_groups,
+        ),
+        "superseded rows": (args.expect_superseded, result.superseded_rows),
+    }
+    mismatches = [
+        label
+        for label, (expected, actual) in expected_counts.items()
+        if expected is not None and expected != actual
+    ]
+    if mismatches:
+        _print_summary(result, None)
+        print(f"Count guard failed for {len(mismatches)} aggregate value(s)")
+        return 2
+
     db_counts: Counter[str] | None = None
     if result.invalid_rows and args.commit:
         _print_summary(result, None)
@@ -482,11 +539,15 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             # Do not stringify database exceptions: parameterized statements can
             # include attendee PII in their exception representation.
-            print(f"Database operation failed ({type(exc).__name__}); transaction rolled back")
+            print(
+                f"Database operation failed ({type(exc).__name__}); transaction rolled back"
+            )
             return 1
 
     _print_summary(result, db_counts)
-    print("Import committed" if args.commit else "Dry run only; no database changes made")
+    print(
+        "Import committed" if args.commit else "Dry run only; no database changes made"
+    )
     return 0
 
 

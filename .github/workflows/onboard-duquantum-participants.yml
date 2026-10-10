@@ -1,0 +1,80 @@
+name: Onboard DuQuantum Participants
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Inventory is read-only; send provisions pending accounts and invitations
+        required: true
+        default: inventory
+        type: choice
+        options:
+          - inventory
+          - send
+      confirm_event:
+        description: Type duquantum-2026
+        required: true
+        type: string
+      expected_recipient_count:
+        description: Exact pending count from the latest inventory (required for send)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duquantum-participant-onboarding
+  cancel-in-progress: false
+
+jobs:
+  onboard:
+    name: Reconcile participant accounts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate operator confirmation
+        env:
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+          OPERATION: ${{ inputs.operation }}
+          EXPECTED_RECIPIENT_COUNT: ${{ inputs.expected_recipient_count }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_EVENT" = "duquantum-2026"
+          if [ "$OPERATION" = "send" ]; then
+            test -n "$EXPECTED_RECIPIENT_COUNT"
+            printf '%s' "$EXPECTED_RECIPIENT_COUNT" | grep -Eq '^[0-9]+$'
+          fi
+
+      - name: Run production-backed account reconciliation
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          EC2_USER: ec2-user
+          OPERATION: ${{ inputs.operation }}
+          EXPECTED_RECIPIENT_COUNT: ${{ inputs.expected_recipient_count }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+
+          ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
+            bash -s -- "$OPERATION" "$EXPECTED_RECIPIENT_COUNT" << 'EOF'
+            set -euo pipefail
+            operation="$1"
+            expected_recipient_count="$2"
+            backend_id="$(docker-compose ps -q backend)"
+            test -n "$backend_id"
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy"
+
+            if [ "$operation" = "send" ]; then
+              docker exec "$backend_id" python -m scripts.onboard_event_auth0 \
+                --create-missing \
+                --commit \
+                --send-invitations \
+                --confirm-event duquantum-2026 \
+                --expected-recipient-count "$expected_recipient_count"
+            else
+              docker exec "$backend_id" python -m scripts.onboard_event_auth0
+            fi
+          EOF

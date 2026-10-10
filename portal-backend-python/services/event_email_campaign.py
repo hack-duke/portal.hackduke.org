@@ -58,6 +58,7 @@ CAMPAIGN_TEMPLATE_VERSIONS = {
     "pass-ready": "duquantum-pass-ready-v2",
     "event-reminder": "duquantum-event-reminder-v2",
     "auth0-invitation": "duquantum-auth0-invitation-v3",
+    "admin-invitation": "duquantum-admin-invitation-v1",
 }
 
 
@@ -327,6 +328,38 @@ def render_campaign(
             "Keep notifications enabled during the event for live schedule reminders and organizer updates.",
         )
         action_text = "Create my password"
+        action_url = account_setup_url
+    elif campaign_key == "admin-invitation":
+        if not account_setup_url:
+            raise ValueError("account setup URL is required for an invitation")
+        parsed_setup = urlparse(account_setup_url)
+        if parsed_setup.scheme != "https" or not parsed_setup.netloc:
+            raise ValueError("account setup URL must be HTTPS")
+        normalized_login_email = (login_email or "").strip()
+        if not normalized_login_email or "@" not in normalized_login_email:
+            raise ValueError("login email is required for an invitation")
+        admin_url = f"{base_portal_url}/admin/events/{EVENT_SLUG}/attendees"
+        subject = "Set up your DuQuantum 2026 admin account"
+        eyebrow = "Private organizer access"
+        heading = "Your admin workspace is ready"
+        intro = (
+            "Your DuQuantum 2026 organizer account has been prepared. Use the "
+            "secure, single-use link below to create a private password."
+        )
+        detail_label = "Admin login email"
+        detail_value = normalized_login_email
+        supporting_text = (
+            "This setup link expires after seven days and can only be used once. "
+            "Participant records contain private information; access them only "
+            "for event operations and never share this invitation."
+        )
+        next_steps = (
+            "Create a strong, unique password using the secure button above.",
+            f"Sign in at {admin_url} with the organizer email shown above.",
+            "Use Attendee manifest to search participants and review registration, pass, invitation, and check-in status.",
+            "Open Check-in scanner on your phone and allow camera access to scan attendee passes.",
+        )
+        action_text = "Create admin password"
         action_url = account_setup_url
     else:
         raise ValueError("unknown email campaign")

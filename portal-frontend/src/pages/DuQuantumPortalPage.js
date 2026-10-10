@@ -54,6 +54,33 @@ const humanize = (value) => {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+const formatRegistrationValue = (value) => {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  if (value === null || value === undefined || value === "") {
+    return "Not provided";
+  }
+  return String(value);
+};
+
+const CONFIRMATION_FIELDS = [
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+  { key: "age", label: "Age on October 24" },
+  { key: "university", label: "University" },
+  { key: "degree_program", label: "Degree program / level" },
+  { key: "country", label: "Country of residence" },
+  { key: "attendance_commitment", label: "Attendance commitment" },
+  { key: "photo_release_consent", label: "Photo and recording consent" },
+  {
+    key: "mlh_code_of_conduct_consent",
+    label: "MLH Code of Conduct agreement",
+  },
+  { key: "mlh_privacy_policy_consent", label: "MLH Privacy Policy agreement" },
+  { key: "data_sharing_consent", label: "MLH data-sharing agreement" },
+  { key: "mlh_marketing_opt_in", label: "MLH + DEV updates" },
+];
+
 const DuQuantumPortalPage = () => {
   const { getAccessTokenSilently, logout, user } = useAuth0();
   const [event, setEvent] = useState(FALLBACK_EVENT);
@@ -393,6 +420,46 @@ const DuQuantumPortalPage = () => {
                   Refresh portal
                 </button>
               </article>
+            )}
+            {registration && (
+              <details className="dq-confirmation-drawer">
+                <summary>
+                  <span className="dq-menu-mark" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span>
+                    <strong>Your confirmation information</strong>
+                    <small>
+                      Review the details imported from your response
+                    </small>
+                  </span>
+                  <span className="dq-drawer-toggle" aria-hidden="true">
+                    +
+                  </span>
+                </summary>
+                <div className="dq-confirmation-content">
+                  <p>
+                    These details are private and visible only from your
+                    signed-in portal. Contact the organizers if anything needs
+                    correction.
+                  </p>
+                  <dl>
+                    {CONFIRMATION_FIELDS.map((field) => (
+                      <div key={field.key}>
+                        <dt>{field.label}</dt>
+                        <dd>
+                          {formatRegistrationValue(registration[field.key])}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <a href="mailto:organizers@duquantum.org?subject=DuQuantum%20confirmation%20correction">
+                    Request a correction
+                  </a>
+                </div>
+              </details>
             )}
             {registration && passActive && (
               <>

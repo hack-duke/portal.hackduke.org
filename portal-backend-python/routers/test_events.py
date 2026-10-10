@@ -228,6 +228,13 @@ def test_claim_uses_namespaced_claim_and_issues_opaque_pass(
     assert response.status_code == 200
     body = response.json()
     assert body["claimed"] is True
+    assert body["registration"]["phone"] == "+15555550100"
+    assert body["registration"]["age"] == 20
+    assert body["registration"]["university"] == "Duke University"
+    assert body["registration"]["degree_program"] == "Undergraduate"
+    assert body["registration"]["country"] == "United States"
+    assert body["registration"]["attendance_commitment"] is True
+    assert body["registration"]["photo_release_consent"] is True
     public_id = body["registration"]["event_pass"]["public_id"]
     assert public_id.startswith("evt_")
 
@@ -270,16 +277,17 @@ def test_admin_registration_list_is_role_protected_and_includes_private_fields(
     )
 
 
+@pytest.mark.parametrize("scanner_role", [RoleEnum.CHECK_IN, RoleEnum.ADMIN])
 def test_check_in_is_event_scoped_and_prevents_duplicate_checkpoint(
-    event, registration, test_session
+    event, registration, test_session, scanner_role
 ):
     claim_response = claim(event)
     pass_id = claim_response.json()["registration"]["event_pass"]["public_id"]
 
-    scanner = User(auth0_id="auth0|scanner")
+    scanner = User(auth0_id=f"auth0|scanner-{scanner_role.value}")
     test_session.add(scanner)
     test_session.flush()
-    test_session.add(UserRole(user_id=scanner.id, role=RoleEnum.CHECK_IN))
+    test_session.add(UserRole(user_id=scanner.id, role=scanner_role))
     other_event = Event(
         slug=f"other-event-{uuid4()}",
         name="Other Event",

@@ -1,0 +1,133 @@
+name: Import DuQuantum Final Roster
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Validate is read-only for the database; commit imports after validation
+        required: true
+        default: validate
+        type: choice
+        options:
+          - validate
+          - commit
+      confirm_event:
+        description: Type duquantum-2026 to confirm the protected roster operation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duquantum-roster-import
+  cancel-in-progress: false
+
+jobs:
+  import-roster:
+    name: Validate and import the protected roster
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate operator confirmation
+        env:
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+          ROSTER_B64: ${{ secrets.DUQUANTUM_ROSTER_XLSX_B64 }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_EVENT" = "duquantum-2026"
+          test -n "$ROSTER_B64"
+
+      - name: Convert and validate the final workbook
+        env:
+          ROSTER_B64: ${{ secrets.DUQUANTUM_ROSTER_XLSX_B64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/duquantum-roster"
+          printf '%s' "$ROSTER_B64" | base64 --decode > "$RUNNER_TEMP/duquantum-roster/final.xlsx"
+          python -m pip install --disable-pip-version-check --quiet openpyxl==3.1.5
+          python .github/scripts/xlsx_to_duquantum_csv.py \
+            --input "$RUNNER_TEMP/duquantum-roster/final.xlsx" \
+            --output "$RUNNER_TEMP/duquantum-roster/final.csv"
+          python portal-backend-python/scripts/import_event_registrations.py \
+            --input "$RUNNER_TEMP/duquantum-roster/final.csv" \
+            --expect-rows 193 \
+            --expect-eligible 154 \
+            --expect-ineligible 8 \
+            --expect-duplicate-groups 29 \
+            --expect-superseded 31
+
+      - name: Store the protected source and run the database operation
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          EC2_USER: ec2-user
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f key.pem; rm -rf "$RUNNER_TEMP/duquantum-roster"' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+
+          remote_xlsx="duquantum-final-roster-${GITHUB_RUN_ID}.xlsx"
+          remote_csv="duquantum-final-roster-${GITHUB_RUN_ID}.csv"
+          scp -i key.pem -o StrictHostKeyChecking=no \
+            "$RUNNER_TEMP/duquantum-roster/final.xlsx" \
+            "$EC2_USER@$EC2_IP:~/$remote_xlsx"
+          scp -i key.pem -o StrictHostKeyChecking=no \
+            "$RUNNER_TEMP/duquantum-roster/final.csv" \
+            "$EC2_USER@$EC2_IP:~/$remote_csv"
+
+          ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
+            bash -s -- "$OPERATION" "$remote_xlsx" "$remote_csv" << 'EOF'
+            set -euo pipefail
+            operation="$1"
+            remote_xlsx="$2"
+            remote_csv="$3"
+            source_xlsx="$HOME/$remote_xlsx"
+            source_csv="$HOME/$remote_csv"
+            private_dir="$HOME/data/private/duquantum-2026"
+            container_csv="/tmp/$remote_csv"
+            backend_id=""
+            cleanup() {
+              rm -f -- "$source_xlsx" "$source_csv"
+              if [ -n "$backend_id" ]; then
+                docker exec "$backend_id" rm -f -- "$container_csv" >/dev/null 2>&1 || true
+              fi
+            }
+            trap cleanup EXIT
+
+            install -d -m 700 "$private_dir"
+            install -m 600 "$source_xlsx" "$private_dir/final_confirmation_responses.xlsx"
+
+            backend_id="$(docker-compose ps -q backend)"
+            test -n "$backend_id"
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy"
+            docker cp "$source_csv" "$backend_id:$container_csv"
+
+            common_args="--input $container_csv --expect-rows 193 --expect-eligible 154 --expect-ineligible 8 --expect-duplicate-groups 29 --expect-superseded 31"
+            if [ "$operation" = "commit" ]; then
+              docker exec "$backend_id" sh -c \
+                "python -m scripts.import_event_registrations $common_args --commit --confirm-event duquantum-2026"
+            else
+              docker exec "$backend_id" sh -c \
+                "python -m scripts.import_event_registrations $common_args --database-check"
+            fi
+          EOF
+
+      - name: Record safe completion summary
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          {
+            echo "### DuQuantum roster operation"
+            echo ""
+            echo "- Operation: $OPERATION"
+            echo "- Source rows: 193"
+            echo "- Eligible latest responses: 154"
+            echo "- Ineligible latest responses excluded: 8"
+            echo "- Protected source retained on the application host"
+          } >> "$GITHUB_STEP_SUMMARY"
