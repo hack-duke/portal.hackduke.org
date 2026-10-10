@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from email.utils import parseaddr
 
+import httpx
 from sqlalchemy import func
 
 from db import get_local_session
@@ -148,6 +149,30 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         account_result = run(args)
+    except httpx.HTTPStatusError as exc:
+        response = exc.response
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        error_code = str(
+            payload.get("errorCode")
+            or payload.get("code")
+            or payload.get("error")
+            or ""
+        )
+        safe_code = "".join(
+            character
+            for character in error_code
+            if character.isalnum() or character in "_-"
+        )[:80]
+        endpoint = exc.request.url.path
+        print(
+            "Organizer provisioning failed at Auth0 "
+            f"{endpoint} (HTTP {response.status_code}"
+            f"{f', {safe_code}' if safe_code else ''})"
+        )
+        return 1
     except Exception as exc:
         print(f"Organizer provisioning failed ({type(exc).__name__})")
         return 1
