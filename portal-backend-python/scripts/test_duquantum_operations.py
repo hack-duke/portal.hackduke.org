@@ -347,6 +347,36 @@ def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
     assert b'"password"' not in verification_request.content
 
 
+def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, request=request, text="reset email sent")
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="management-client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            client.request_password_reset(
+                email="Organizer@Example.org ",
+                client_id="portal-client-id",
+            )
+
+    request = requests[-1]
+    assert request.url.path == "/dbconnections/change_password"
+    assert json.loads(request.content) == {
+        "client_id": "portal-client-id",
+        "email": "organizer@example.org",
+        "connection": "Username-Password-Authentication",
+    }
+    assert "authorization" not in request.headers
+
+
 def test_auth0_password_policy_rejection_has_a_safe_exception():
     def handler(request):
         if request.url.path == "/oauth/token":

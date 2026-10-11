@@ -182,6 +182,26 @@ class Auth0OnboardingClient:
         response.raise_for_status()
         return str(response.json()["user_id"])
 
+    def request_password_reset(self, *, email: str, client_id: str) -> None:
+        """Ask Auth0 to email its single-use database password reset flow."""
+
+        normalized_email = email.strip().casefold()
+        normalized_client_id = client_id.strip()
+        if not normalized_email or "@" not in normalized_email:
+            raise ValueError("a valid email is required")
+        if not normalized_client_id:
+            raise ValueError("an Auth0 application client ID is required")
+        response = self._request(
+            "POST",
+            f"{self.base_url}/dbconnections/change_password",
+            json={
+                "client_id": normalized_client_id,
+                "email": normalized_email,
+                "connection": self.settings.database_connection,
+            },
+        )
+        response.raise_for_status()
+
     def create_password_change_ticket(
         self,
         *,

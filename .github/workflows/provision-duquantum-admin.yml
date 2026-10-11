@@ -41,6 +41,7 @@ jobs:
           EC2_USER: ec2-user
           RECIPIENT_EMAIL: ${{ secrets.DUQUANTUM_ADMIN_EMAIL }}
           RECIPIENT_NAME: ${{ secrets.DUQUANTUM_ADMIN_NAME }}
+          AUTH0_PORTAL_CLIENT_ID: ZXc9kypWOsuMvBE14BYqHAmxzKEYfuac
         run: |
           set -euo pipefail
           trap 'rm -f key.pem' EXIT
@@ -54,12 +55,14 @@ jobs:
 
           email_b64="$(printf '%s' "$RECIPIENT_EMAIL" | base64 -w0)"
           name_b64="$(printf '%s' "$RECIPIENT_NAME" | base64 -w0)"
+          client_id_b64="$(printf '%s' "$AUTH0_PORTAL_CLIENT_ID" | base64 -w0)"
           ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
-            bash -s -- "$remote_script" "$email_b64" "$name_b64" << 'EOF'
+            bash -s -- "$remote_script" "$email_b64" "$name_b64" "$client_id_b64" << 'EOF'
             set -euo pipefail
             remote_script="$1"
             recipient_email="$(printf '%s' "$2" | base64 -d)"
             recipient_name="$(printf '%s' "$3" | base64 -d)"
+            auth0_client_id="$(printf '%s' "$4" | base64 -d)"
             script_path="$HOME/$remote_script"
             trap 'rm -f -- "$script_path"' EXIT
 
@@ -69,5 +72,6 @@ jobs:
             docker exec -i "$backend_id" python - \
               --recipient-email "$recipient_email" \
               --recipient-name "$recipient_name" \
+              --auth0-client-id "$auth0_client_id" \
               --confirm-event duquantum-2026 < "$script_path"
           EOF

@@ -1,7 +1,7 @@
-"""Provision one DuQuantum organizer and send a private password ticket.
+"""Provision one DuQuantum organizer and request an Auth0 password reset.
 
 This operator script is streamed into the healthy production backend. It never
-prints the recipient, Auth0 identifier, password ticket, or SES message ID.
+prints the recipient, Auth0 identifier, or password reset capability.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from sqlalchemy import func
 from db import get_local_session
 from models import RoleEnum, User, UserRole
 from services.auth0_onboarding import Auth0OnboardingClient, Auth0OnboardingSettings
-from services.event_email_campaign import SesEmailSender, SesSettings, render_campaign
 
 
 EVENT_SLUG = "duquantum-2026"
@@ -26,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--recipient-email", required=True)
     parser.add_argument("--recipient-name", required=True)
     parser.add_argument("--confirm-event", required=True)
+    parser.add_argument("--auth0-client-id", required=True)
     return parser
 
 
@@ -64,10 +64,8 @@ def run(args: argparse.Namespace) -> str:
         raise ValueError(f"confirmation must exactly match {EVENT_SLUG}")
 
     email = validated_email(args.recipient_email)
-    display_name, first_name, last_name = split_name(args.recipient_name)
+    _, first_name, last_name = split_name(args.recipient_name)
     auth_settings = Auth0OnboardingSettings.from_environment()
-    mail_settings = SesSettings.from_environment()
-    admin_url = f"{mail_settings.portal_url}/admin/events/{EVENT_SLUG}/attendees"
     session = get_local_session()
     try:
         with Auth0OnboardingClient(auth_settings) as auth0:
@@ -122,21 +120,10 @@ def run(args: argparse.Namespace) -> str:
                 if existing is None:
                     session.add(UserRole(user_id=user.id, role=role))
             session.commit()
-
-            password_ticket = auth0.create_password_change_ticket(
-                user_id=auth0_user_id,
-                result_url=admin_url,
-                ttl_seconds=auth_settings.account_setup_ttl_seconds,
+            auth0.request_password_reset(
+                email=email,
+                client_id=args.auth0_client_id,
             )
-
-        rendered = render_campaign(
-            "admin-invitation",
-            first_name=display_name,
-            portal_url=mail_settings.portal_url,
-            account_setup_url=password_ticket,
-            login_email=email,
-        )
-        SesEmailSender(mail_settings).send(recipient=email, rendered=rendered)
         return account_result
     except Exception:
         session.rollback()
@@ -178,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print("DuQuantum organizer roles are active")
     print(f"Auth0 database account: {account_result}")
-    print("A seven-day single-use admin password email was accepted by SES")
+    print("A single-use Auth0 password reset email was requested")
     return 0
 
 
