@@ -24,23 +24,40 @@ jobs:
         env:
           CONFIRM_EVENT: ${{ inputs.confirm_event }}
         run: test "$CONFIRM_EVENT" = duquantum-2026
-      - uses: aws-actions/configure-aws-credentials@v6.3.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - name: Enable sender DKIM inheritance
+      - name: Configure and report SES authentication in production
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
         run: |
           set -euo pipefail
-          aws sesv2 put-email-identity-dkim-attributes --email-identity hackduke.org --signing-enabled
-          aws sesv2 put-email-identity-dkim-attributes --email-identity hackers@hackduke.org --signing-enabled
-      - name: Report authentication and account readiness
-        run: |
+          umask 077
+          trap 'rm -f -- key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s << 'REMOTE'
           set -euo pipefail
-          for identity in hackduke.org hackers@hackduke.org; do
-            aws sesv2 get-email-identity --email-identity "$identity" \
-              --query '{Verified:VerificationStatus,Dkim:DkimAttributes,MailFrom:MailFromAttributes}'
-          done
-          aws sesv2 get-account --query '{SendingEnabled:SendingEnabled,ProductionAccessEnabled:ProductionAccessEnabled,Suppression:SuppressionAttributes,EnforcementStatus:EnforcementStatus}'
-          aws sesv2 get-configuration-set --configuration-set-name duquantum-transactional
-          aws sesv2 get-configuration-set-event-destinations --configuration-set-name duquantum-transactional
+          backend_id="$(docker-compose ps -q backend)"
+          test -n "$backend_id"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
+          docker exec -i "$backend_id" python - << 'PY'
+          import json
+          from botocore.exceptions import ClientError
+          from services.event_email_campaign import SesSettings, SesEmailSender
+          from scripts.remind_event_accounts import validate_ses_delivery_posture
+          settings = SesSettings.from_environment()
+          client = SesEmailSender(settings).client
+          for identity in ('hackduke.org', 'hackers@hackduke.org'):
+              try:
+                  client.put_email_identity_dkim_attributes(EmailIdentity=identity, SigningEnabled=True)
+                  print('DKIM enabled:', identity)
+              except ClientError as error:
+                  print('DKIM configuration error:', identity, error.response['Error']['Code'])
+              state = client.get_email_identity(EmailIdentity=identity)
+              print(json.dumps({'identity': identity, 'verification': state.get('VerificationStatus'), 'dkim': state.get('DkimAttributes'), 'mail_from': state.get('MailFromAttributes')}, default=str))
+          account = client.get_account()
+          print(json.dumps({key: account.get(key) for key in ('SendingEnabled', 'ProductionAccessEnabled', 'SuppressionAttributes', 'EnforcementStatus')}))
+          try:
+              print('SES posture:', json.dumps(validate_ses_delivery_posture(client, settings)))
+          except RuntimeError as error:
+              raise SystemExit(str(error))
+          PY
+          REMOTE
