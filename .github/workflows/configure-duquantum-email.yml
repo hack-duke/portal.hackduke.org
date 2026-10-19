@@ -83,6 +83,7 @@ jobs:
       group: duquantum-account-reminders
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
       - name: Inventory and send the protected pending-account batch
         env:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -94,23 +95,41 @@ jobs:
           umask 077
           local_recipients="$(mktemp)"
           remote_recipients=".duquantum-reminders-${GITHUB_RUN_ID}.txt"
+          remote_filter=".duquantum-reminder-filter-${GITHUB_RUN_ID}.py"
           trap 'rm -f -- key.pem "$local_recipients"' EXIT
           printf '%s' "$PRIVATE_KEY" > key.pem
           printf '%s\n' "$RECIPIENT_EMAILS" > "$local_recipients"
           scp -i key.pem -o StrictHostKeyChecking=no "$local_recipients" "ec2-user@$EC2_IP:$remote_recipients"
-          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$remote_recipients" << 'REMOTE'
+          scp -i key.pem -o StrictHostKeyChecking=no .github/scripts/filter_pending_duquantum_recipients.py "ec2-user@$EC2_IP:$remote_filter"
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$remote_recipients" "$remote_filter" << 'REMOTE'
           set -euo pipefail
+          umask 077
           recipient_file="$1"
+          filter_script="$2"
           case "$recipient_file" in
             .duquantum-reminders-*.txt) ;;
             *) exit 2 ;;
           esac
+          case "$filter_script" in
+            .duquantum-reminder-filter-*.py) ;;
+            *) exit 2 ;;
+          esac
           chmod 600 "$recipient_file"
-          trap 'rm -f -- "$recipient_file"' EXIT
+          filtered_recipients="${recipient_file}.pending"
+          trap 'rm -f -- "$recipient_file" "$filtered_recipients" "$filter_script"' EXIT
           backend_id="$(docker-compose ps -q backend)"
           test -n "$backend_id"
           test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
-          inventory="$(docker exec -i "$backend_id" python -m scripts.remind_event_accounts --recipient-file - < "$recipient_file")"
+          docker exec -i "$backend_id" python -c "$(cat "$filter_script")" < "$recipient_file" > "$filtered_recipients"
+          if [ ! -s "$filtered_recipients" ]; then
+            echo 'No pending recipients remain; no email was sent'
+            exit 0
+          fi
+          mv -- "$filtered_recipients" "$recipient_file"
+          if ! inventory="$(docker exec -i "$backend_id" python -m scripts.remind_event_accounts --recipient-file - < "$recipient_file")"; then
+            printf '%s\n' "$inventory"
+            exit 1
+          fi
           printf '%s\n' "$inventory"
           count="$(printf '%s\n' "$inventory" | sed -n 's/^Exact recipients requested: //p')"
           setup="$(printf '%s\n' "$inventory" | sed -n 's/^Fresh setup-link reminders planned: //p')"
