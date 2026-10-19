@@ -363,6 +363,7 @@
 }
 
 .dq-status-card,
+.dq-team-card,
 .dq-community-card,
 .dq-support-card {
   padding: 1.5rem;
@@ -385,6 +386,132 @@
   color: var(--dq-yellow);
   font-weight: 700;
   text-align: right;
+}
+
+.dq-team-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dq-team-heading h2 {
+  margin-bottom: 0.3rem;
+}
+
+.dq-team-heading p {
+  margin: 0;
+  color: var(--dq-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.dq-team-state {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  color: var(--dq-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dq-team-state.is-assigned {
+  border-color: rgba(243, 181, 98, 0.48);
+  background: rgba(243, 181, 98, 0.12);
+  color: var(--dq-yellow);
+}
+
+.dq-team-facts {
+  margin: 1rem 0 0;
+}
+
+.dq-team-facts > div {
+  padding: 0.72rem 0;
+  border-bottom: 1px solid rgba(243, 181, 98, 0.12);
+}
+
+.dq-team-facts dt,
+.dq-team-members h3 {
+  color: var(--dq-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dq-team-facts dd {
+  margin: 0.25rem 0 0;
+  color: var(--dq-white);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dq-team-facts a {
+  color: var(--dq-yellow);
+}
+
+.dq-team-contact,
+.dq-team-contact > span,
+.dq-team-contact > a {
+  display: block;
+}
+
+.dq-team-contact > a {
+  margin-top: 0.16rem;
+}
+
+.dq-team-members {
+  margin-top: 1rem;
+}
+
+.dq-team-members h3 {
+  margin: 0 0 0.55rem;
+}
+
+.dq-team-members ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dq-team-members li {
+  border: 1px solid rgba(185, 149, 221, 0.34);
+  background: rgba(185, 149, 221, 0.1);
+  padding: 0.35rem 0.52rem;
+  color: #eee4f8;
+  font-size: 0.78rem;
+}
+
+.dq-team-members li strong,
+.dq-team-members li a,
+.dq-team-members li span {
+  display: block;
+}
+
+.dq-team-members li a,
+.dq-team-members li span {
+  margin-top: 0.18rem;
+  overflow-wrap: anywhere;
+}
+
+.dq-team-members li a {
+  color: var(--dq-yellow);
+}
+
+.dq-team-members li span {
+  color: var(--dq-muted);
+  font-size: 0.72rem;
+}
+
+.dq-team-members > p {
+  margin: 0;
+  color: var(--dq-muted);
 }
 
 .dq-support-card p:not(.dq-terminal-label),

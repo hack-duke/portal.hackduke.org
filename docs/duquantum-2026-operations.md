@@ -147,6 +147,64 @@ before each send, records the SES message ID, and skips already-sent campaign
 recipients. Never bypass count confirmation. Start with a controlled cohort,
 then send the remainder only after inspecting rendering and delivery events.
 
+## Team formation import
+
+Keep the source workbook in the ignored private data directory at
+`data/private/duquantum-2026/team_formation_and_challenge_preferences.xlsx`.
+The importer uses the latest substantive submission for each named team, does
+not let an `N/A` submission erase a real team, and never performs fuzzy name
+matching. It links accepted and confirmed registrations by exact email first;
+an exact full-name fallback is allowed only when that name is unique in both
+the effective workbook rows and the event roster.
+
+Validate the workbook structure and fixed aggregate counts without touching the
+database:
+
+```powershell
+python -m scripts.import_event_teams `
+  --expect-rows 56 --expect-teams 46 --expect-members 142 `
+  --expect-no-team-rows 8 --expect-superseded 2
+```
+
+After deployment and migration, reconcile against production in rollback-only
+mode and inspect the PII-free report:
+
+```powershell
+python -m scripts.import_event_teams `
+  --database-check `
+  --report ../data/private/duquantum-2026/team_reconciliation.json `
+  --expect-rows 56 --expect-teams 46 --expect-members 142 `
+  --expect-no-team-rows 8 --expect-superseded 2
+```
+
+Commit only after the dry-run reports the expected matched, unmatched, and
+ambiguous counts:
+
+```powershell
+python -m scripts.import_event_teams `
+  --commit --confirm-event duquantum-2026 `
+  --expect-rows 56 --expect-teams 46 --expect-members 142 `
+  --expect-no-team-rows 8 --expect-superseded 2
+```
+
+Team-formation responses contain preferences, not final assignments. Assigned
+track, challenge, sponsor, and sponsor-contact fields therefore remain `N/A`
+until an organizer explicitly supplies final assignment data.
+
+## Account-claim reminders
+
+Do not resend the original invitation campaign: its seven-day setup links may
+be expired. Use `scripts.remind_event_accounts`, which rechecks portal/Auth0
+state, rotates capabilities only for unverified users, uses separate idempotent
+campaign keys, checks SES suppression, and requires an exact private allowlist,
+recipient count, setup/sign-in split, and SHA-256 fingerprint.
+
+The command fails closed unless SES has healthy domain and effective-sender
+DKIM, aligned custom MAIL FROM, account-level bounce/complaint suppression, and
+an attached configuration set publishing delivery, bounce, and complaint
+events. Run inventory first, then use its exact aggregate output for the send
+confirmation. Recipient addresses and setup links are never printed.
+
 ## Day-of-event reconciliation
 
 - Export or print an encrypted/offline manual attendee roster as a fallback.

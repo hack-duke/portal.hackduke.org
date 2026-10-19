@@ -1,0 +1,191 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from db import get_db
+from models import (
+    Event,
+    EventRegistration,
+    EventTeam,
+    EventTeamMember,
+    RoleEnum,
+    User,
+    UserRole,
+)
+from routers.events import auth, router
+
+
+app = FastAPI()
+app.include_router(prefix="/events", router=router)
+client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def setup_dependency_overrides(test_session):
+    app.dependency_overrides.clear()
+    app.dependency_overrides[get_db] = lambda: (yield test_session)
+    yield
+    app.dependency_overrides.clear()
+
+
+def _set_token(auth0_id):
+    app.dependency_overrides[auth.verify] = lambda: {"sub": auth0_id}
+
+
+def _add_team(test_session, *, event, registration, name, row_number):
+    team = EventTeam(
+        event_id=event.id,
+        name=name,
+        normalized_name=name.casefold(),
+        track_preference="Introductory Track",
+        challenge_preferences=["Sponsor One", "Sponsor Two"],
+        requested_additional_teammates=1,
+        source_record_id=f"{row_number:064d}",
+        source_submitted_at=datetime.now(timezone.utc),
+    )
+    test_session.add(team)
+    test_session.flush()
+    test_session.add_all(
+        [
+            EventTeamMember(
+                event_id=event.id,
+                team_id=team.id,
+                registration_id=registration.id,
+                member_position=1,
+                first_name=registration.first_name,
+                last_name=registration.last_name,
+                email=registration.email,
+                normalized_email=registration.normalized_email,
+                discord_username="linked-user",
+                match_status="matched",
+                match_method="email",
+                match_detail="exact_email",
+                source_row_number=row_number,
+            ),
+            EventTeamMember(
+                event_id=event.id,
+                team_id=team.id,
+                member_position=2,
+                first_name="Unlinked",
+                last_name="Teammate",
+                email="unlinked@example.edu",
+                normalized_email="unlinked@example.edu",
+                discord_username="unlinked-user",
+                match_status="unmatched",
+                match_method="email",
+                match_detail="email_not_found",
+                source_row_number=row_number,
+            ),
+        ]
+    )
+    test_session.flush()
+    return team
+
+
+def _setup_two_teams(test_session):
+    event = Event(
+        slug=f"duquantum-teams-{uuid4()}",
+        name="DuQuantum Teams Test",
+        state="active",
+        pass_eligibility="confirmed",
+    )
+    attendee_one = User(auth0_id=f"auth0|team-one-{uuid4()}")
+    attendee_two = User(auth0_id=f"auth0|team-two-{uuid4()}")
+    test_session.add_all([event, attendee_one, attendee_two])
+    test_session.flush()
+    registration_one = EventRegistration(
+        event_id=event.id,
+        user_id=attendee_one.id,
+        email="one@example.edu",
+        normalized_email="one@example.edu",
+        first_name="Team",
+        last_name="One",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={"private": "admin only"},
+    )
+    registration_two = EventRegistration(
+        event_id=event.id,
+        user_id=attendee_two.id,
+        email="two@example.edu",
+        normalized_email="two@example.edu",
+        first_name="Team",
+        last_name="Two",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={"private": "admin only"},
+    )
+    test_session.add_all([registration_one, registration_two])
+    test_session.flush()
+    _add_team(
+        test_session,
+        event=event,
+        registration=registration_one,
+        name="Team One",
+        row_number=2,
+    )
+    _add_team(
+        test_session,
+        event=event,
+        registration=registration_two,
+        name="Team Two",
+        row_number=3,
+    )
+    return event, attendee_one, attendee_two
+
+
+def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
+    test_session,
+):
+    event, attendee_one, _attendee_two = _setup_two_teams(test_session)
+    _set_token(attendee_one.auth0_id)
+
+    response = client.get(f"/events/{event.slug}/me")
+
+    assert response.status_code == 200
+    registration = response.json()["registration"]
+    assert "source_data" not in registration
+    team = registration["team"]
+    assert team["team_name"] == "Team One"
+    assert team["track"] is None
+    assert team["challenge"] is None
+    assert team["sponsor"] is None
+    assert team["sponsor_contact_name"] is None
+    assert team["sponsor_contact_email"] is None
+    assert team["track_preference"] == "Introductory Track"
+    assert team["challenge_preferences"] == ["Sponsor One", "Sponsor Two"]
+    assert [member["display_name"] for member in team["teammates"]] == [
+        "Team One",
+        "Unlinked Teammate",
+    ]
+    assert all("match_detail" not in member for member in team["teammates"])
+
+
+def test_admin_team_details_are_authorized_and_searchable(test_session):
+    event, attendee_one, _attendee_two = _setup_two_teams(test_session)
+    _set_token(attendee_one.auth0_id)
+    denied = client.get(f"/events/{event.slug}/registrations")
+    assert denied.status_code == 403
+
+    admin = User(auth0_id=f"auth0|team-admin-{uuid4()}")
+    test_session.add(admin)
+    test_session.flush()
+    test_session.add(UserRole(user_id=admin.id, role=RoleEnum.ADMIN))
+    test_session.flush()
+    _set_token(admin.auth0_id)
+
+    response = client.get(
+        f"/events/{event.slug}/registrations", params={"q": "Team One"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    registration = body["registrations"][0]
+    assert registration["source_data"] == {"private": "admin only"}
+    assert registration["team"]["team_name"] == "Team One"
+    assert registration["team"]["teammates"][0]["match_status"] == "matched"
+    assert registration["team"]["teammates"][1]["match_detail"] == "email_not_found"

@@ -535,7 +535,9 @@ def test_all_campaigns_share_the_branded_email_shell():
         "pass-ready",
         "event-reminder",
         "auth0-invitation",
+        "auth0-invitation-reminder",
         "auth0-invitation-existing",
+        "auth0-invitation-existing-reminder",
         "admin-invitation",
     ):
         rendered = render_campaign(
@@ -544,7 +546,12 @@ def test_all_campaigns_share_the_branded_email_shell():
             portal_url="https://portal.example.org",
             account_setup_url=(
                 setup_url
-                if campaign in ("auth0-invitation", "admin-invitation")
+                if campaign
+                in (
+                    "auth0-invitation",
+                    "auth0-invitation-reminder",
+                    "admin-invitation",
+                )
                 else None
             ),
             login_email=(
@@ -552,7 +559,9 @@ def test_all_campaigns_share_the_branded_email_shell():
                 if campaign
                 in (
                     "auth0-invitation",
+                    "auth0-invitation-reminder",
                     "auth0-invitation-existing",
+                    "auth0-invitation-existing-reminder",
                     "admin-invitation",
                 )
                 else None
@@ -648,6 +657,7 @@ def test_ses_sender_uses_the_duquantum_display_name():
     assert client.request["FromEmailAddress"] == (
         "DuQuantum 2026 <hackers@hackduke.org>"
     )
+    assert client.request["ReplyToAddresses"] == ["hackers@hackduke.org"]
 
 
 def test_invitation_requires_secure_setup_url():

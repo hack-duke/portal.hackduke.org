@@ -21,6 +21,7 @@ sentry-sdk = {extras = ["fastapi"], version = "^2.38.0"}
 google-api-python-client = "^2.150.0"
 google-auth = "^2.36.0"
 pywebpush = "^2.5.0"
+openpyxl = "^3.1.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"

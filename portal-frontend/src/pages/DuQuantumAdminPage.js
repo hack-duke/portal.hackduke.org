@@ -3,6 +3,11 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { createGetAuthToken } from "../utils/authUtils";
+import {
+  formatTeamValue,
+  teamForRegistration,
+  teamLabel,
+} from "../utils/teamUtils";
 import "./DuQuantumPortal.css";
 import "./DuQuantumAdminPage.css";
 
@@ -348,6 +353,9 @@ const DuQuantumAdminPage = () => {
       claimed: current.filter(isClaimed).length,
       passes: current.filter(hasPass).length,
       checkedIn: current.filter(isCheckedIn).length,
+      teamAssigned: current.filter(
+        (registration) => teamForRegistration(registration).assigned,
+      ).length,
     };
   }, [registrations]);
 
@@ -376,6 +384,16 @@ const DuQuantumAdminPage = () => {
         if (filter === "no-pass" && hasPass(registration)) return false;
         if (filter === "checked-in" && !isCheckedIn(registration)) return false;
         if (filter === "not-checked-in" && isCheckedIn(registration))
+          return false;
+        if (
+          filter === "team-assigned" &&
+          !teamForRegistration(registration).assigned
+        )
+          return false;
+        if (
+          filter === "team-unassigned" &&
+          teamForRegistration(registration).assigned
+        )
           return false;
         if (!normalizedQuery) return true;
         return JSON.stringify(registration)
@@ -469,6 +487,10 @@ const DuQuantumAdminPage = () => {
             <span>Checked in</span>
             <strong>{stats.checkedIn}</strong>
           </article>
+          <article>
+            <span>Team linked</span>
+            <strong>{stats.teamAssigned}</strong>
+          </article>
         </section>
 
         <section className="dq-operations-strip" aria-label="Event operations">
@@ -520,7 +542,7 @@ const DuQuantumAdminPage = () => {
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Name, email, school…"
+                  placeholder="Name, email, school, team…"
                 />
               </label>
               <label>
@@ -542,6 +564,8 @@ const DuQuantumAdminPage = () => {
                   <option value="no-pass">Pass not issued</option>
                   <option value="checked-in">Checked in</option>
                   <option value="not-checked-in">Not checked in</option>
+                  <option value="team-assigned">Team assigned</option>
+                  <option value="team-unassigned">No team assignment</option>
                 </select>
               </label>
               {(query || filter !== "eligible") && (
@@ -573,6 +597,7 @@ const DuQuantumAdminPage = () => {
                   <tr>
                     <th scope="col">Attendee</th>
                     <th scope="col">University / program</th>
+                    <th scope="col">Team / track</th>
                     <th scope="col">Account</th>
                     <th scope="col">Pass</th>
                     <th scope="col">Check-in</th>
@@ -594,6 +619,7 @@ const DuQuantumAdminPage = () => {
                     const sourceData = flattenObject(
                       sourceDataFor(registration),
                     );
+                    const team = teamForRegistration(registration);
                     return (
                       <React.Fragment key={key}>
                         <tr className={isOpen ? "is-expanded" : ""}>
@@ -627,6 +653,16 @@ const DuQuantumAdminPage = () => {
                                   "program",
                                 ]),
                               )}
+                            </span>
+                          </td>
+                          <td>
+                            <strong>{teamLabel(team)}</strong>
+                            <span>
+                              {team.track
+                                ? `Track: ${team.track}`
+                                : team.trackPreference
+                                  ? `Prefers: ${team.trackPreference}`
+                                  : "Track: N/A"}
                             </span>
                           </td>
                           <td>
@@ -695,7 +731,7 @@ const DuQuantumAdminPage = () => {
                         </tr>
                         {isOpen && (
                           <tr className="dq-detail-row">
-                            <td colSpan="7" id={`details-${key}`}>
+                            <td colSpan="8" id={`details-${key}`}>
                               <div className="dq-record-details">
                                 {FIELD_GROUPS.map((group) => (
                                   <section key={group.title}>
@@ -717,6 +753,107 @@ const DuQuantumAdminPage = () => {
                                     </dl>
                                   </section>
                                 ))}
+
+                                <section className="dq-admin-team-details">
+                                  <h3>Team &amp; challenge</h3>
+                                  <dl>
+                                    <div>
+                                      <dt>Team</dt>
+                                      <dd>{teamLabel(team)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Assigned track</dt>
+                                      <dd>{formatTeamValue(team.track)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Track preference</dt>
+                                      <dd>
+                                        {formatTeamValue(team.trackPreference)}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>Assigned challenge</dt>
+                                      <dd>{formatTeamValue(team.challenge)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Challenge preferences</dt>
+                                      <dd>
+                                        {formatTeamValue(
+                                          team.challengePreferences,
+                                        )}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>Sponsor</dt>
+                                      <dd>{formatTeamValue(team.sponsor)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Sponsor contact</dt>
+                                      <dd>
+                                        {team.sponsorContactEmail ? (
+                                          <>
+                                            {team.sponsorContactName && (
+                                              <span>
+                                                {team.sponsorContactName}
+                                              </span>
+                                            )}
+                                            <a
+                                              href={`mailto:${team.sponsorContactEmail}`}
+                                            >
+                                              {team.sponsorContactEmail}
+                                            </a>
+                                          </>
+                                        ) : (
+                                          formatTeamValue(
+                                            team.sponsorContactName,
+                                          )
+                                        )}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>Requested additional teammates</dt>
+                                      <dd>
+                                        {formatTeamValue(
+                                          team.requestedAdditionalTeammates,
+                                        )}
+                                      </dd>
+                                    </div>
+                                  </dl>
+                                  <h4>Teammates</h4>
+                                  {team.teammates.length ? (
+                                    <ul className="dq-admin-team-members">
+                                      {team.teammates.map(
+                                        (member, memberIndex) => (
+                                          <li
+                                            key={`${member.name}-${memberIndex}`}
+                                          >
+                                            <strong>{member.name}</strong>
+                                            {member.email && (
+                                              <a
+                                                href={`mailto:${member.email}`}
+                                              >
+                                                {member.email}
+                                              </a>
+                                            )}
+                                            {member.discordUsername && (
+                                              <span>
+                                                Discord:{" "}
+                                                {member.discordUsername}
+                                              </span>
+                                            )}
+                                            {member.matchMethod && (
+                                              <small>
+                                                Match: {member.matchMethod}
+                                              </small>
+                                            )}
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  ) : (
+                                    <p>N/A</p>
+                                  )}
+                                </section>
 
                                 <section className="dq-source-responses">
                                   <h3>Original imported responses</h3>

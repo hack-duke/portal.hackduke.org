@@ -4,6 +4,11 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import { createGetAuthToken } from "../utils/authUtils";
+import {
+  formatTeamValue,
+  teamForRegistration,
+  teamLabel,
+} from "../utils/teamUtils";
 import DuQuantumCommunityCard from "../components/DuQuantumCommunityCard";
 import DuQuantumMobileCompanion from "../components/DuQuantumMobileCompanion";
 import DuQuantumSchedule from "../components/DuQuantumSchedule";
@@ -186,6 +191,10 @@ const DuQuantumPortalPage = () => {
       .join(" ");
     return name || registration?.preferred_name || user?.name || "Attendee";
   }, [registration, user]);
+  const team = useMemo(
+    () => teamForRegistration(registration || {}),
+    [registration],
+  );
 
   return (
     <main className="dq-page">
@@ -388,6 +397,94 @@ const DuQuantumPortalPage = () => {
                         <dd>Connected</dd>
                       </div>
                     </dl>
+                  </article>
+                  <article className="dq-panel dq-team-card">
+                    <p className="dq-terminal-label">TEAM_LINK // PRIVATE</p>
+                    <div className="dq-team-heading">
+                      <div>
+                        <h2>Your team</h2>
+                        <p>
+                          Only the team connected to your signed-in account is
+                          shown here.
+                        </p>
+                      </div>
+                      <span
+                        className={`dq-team-state ${team.assigned ? "is-assigned" : ""}`}
+                      >
+                        {team.assigned ? "Assigned" : "N/A"}
+                      </span>
+                    </div>
+                    <dl className="dq-team-facts">
+                      <div>
+                        <dt>Team</dt>
+                        <dd>{teamLabel(team)}</dd>
+                      </div>
+                      <div>
+                        <dt>Assigned track</dt>
+                        <dd>{formatTeamValue(team.track)}</dd>
+                      </div>
+                      <div>
+                        <dt>Track preference</dt>
+                        <dd>{formatTeamValue(team.trackPreference)}</dd>
+                      </div>
+                      <div>
+                        <dt>Assigned challenge</dt>
+                        <dd>{formatTeamValue(team.challenge)}</dd>
+                      </div>
+                      <div>
+                        <dt>Challenge preferences</dt>
+                        <dd>{formatTeamValue(team.challengePreferences)}</dd>
+                      </div>
+                      <div>
+                        <dt>Sponsor</dt>
+                        <dd>{formatTeamValue(team.sponsor)}</dd>
+                      </div>
+                      <div>
+                        <dt>Sponsor contact</dt>
+                        <dd>
+                          {team.sponsorContactEmail ? (
+                            <span className="dq-team-contact">
+                              {team.sponsorContactName && (
+                                <span>{team.sponsorContactName}</span>
+                              )}
+                              <a href={`mailto:${team.sponsorContactEmail}`}>
+                                {team.sponsorContactEmail}
+                              </a>
+                            </span>
+                          ) : (
+                            formatTeamValue(team.sponsorContactName)
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Requested additional teammates</dt>
+                        <dd>
+                          {formatTeamValue(team.requestedAdditionalTeammates)}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="dq-team-members">
+                      <h3>Teammates</h3>
+                      {team.teammates.length ? (
+                        <ul>
+                          {team.teammates.map((member, index) => (
+                            <li key={`${member.name}-${index}`}>
+                              <strong>{member.name}</strong>
+                              {member.email && (
+                                <a href={`mailto:${member.email}`}>
+                                  {member.email}
+                                </a>
+                              )}
+                              {member.discordUsername && (
+                                <span>Discord: {member.discordUsername}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>N/A</p>
+                      )}
+                    </div>
                   </article>
                   <DuQuantumCommunityCard />
                   <article className="dq-panel dq-support-card">

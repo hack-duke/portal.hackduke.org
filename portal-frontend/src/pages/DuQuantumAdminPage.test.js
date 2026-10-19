@@ -62,6 +62,27 @@ const registrations = [
     rsvp_status: "confirmed",
     created_at: "2026-10-03T12:00:00Z",
     source_data: { form_response: { "Dietary notes": "None" } },
+    team: {
+      id: "team-7",
+      team_name: "Quantum Quokkas",
+      team_number: 7,
+      track: null,
+      track_preference: "Hardware",
+      challenge: null,
+      challenge_preferences: ["Quantum sensing", "Optimization"],
+      sponsor: "Example Quantum Labs",
+      sponsor_contact_name: "Sam Sponsor",
+      sponsor_contact_email: "sam@example.org",
+      requested_additional_teammates: "Jordan Hacker",
+      teammates: [
+        {
+          display_name: "Avery Teammate",
+          email: "avery@example.org",
+          discord_username: "avery-q",
+          match_method: "email",
+        },
+      ],
+    },
     email_deliveries: [
       {
         id: "delivery-2",
@@ -145,5 +166,17 @@ describe("DuQuantumAdminPage", () => {
     ).toBeInTheDocument();
     expect(within(detailRow).getByText(/Dietary notes/)).toBeInTheDocument();
     expect(within(detailRow).getByText("Auth0 Invitation")).toBeInTheDocument();
+    expect(
+      within(detailRow).getByText("Quantum Quokkas · Team 7"),
+    ).toBeInTheDocument();
+    expect(within(detailRow).getByText("Hardware")).toBeInTheDocument();
+    expect(within(detailRow).getByText("Avery Teammate")).toBeInTheDocument();
+    expect(within(detailRow).getByText("Match: email")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filter status"), {
+      target: { value: "team-unassigned" },
+    });
+    expect(screen.getByText("Connected Participant")).toBeInTheDocument();
+    expect(screen.queryByText("Invited Participant")).not.toBeInTheDocument();
   });
 });

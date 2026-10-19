@@ -15,6 +15,8 @@ from .email_delivery import EmailDelivery
 from .event_account_setup import EventAccountSetup
 from .event_push_subscription import EventPushSubscription
 from .event_notification_delivery import EventNotificationDelivery
+from .event_team import EventTeam
+from .event_team_member import EventTeamMember
 
 # should this be dynamically generated?
 __all__ = [
@@ -36,4 +38,6 @@ __all__ = [
     "EventAccountSetup",
     "EventPushSubscription",
     "EventNotificationDelivery",
+    "EventTeam",
+    "EventTeamMember",
 ]

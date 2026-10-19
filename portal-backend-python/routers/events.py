@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Security
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -18,6 +18,8 @@ from models.event_check_in import EventCheckIn
 from models.event_pass import EventPass
 from models.event_push_subscription import EventPushSubscription
 from models.event_registration import EventRegistration
+from models.event_team import EventTeam
+from models.event_team_member import EventTeamMember
 from models.user import User
 from models.user_role import RoleEnum
 from routers.roles import require_admin, require_check_in
@@ -111,6 +113,40 @@ class EmailDeliveryResponse(BaseModel):
     sent_at: Optional[datetime]
 
 
+class TeamMemberResponse(BaseModel):
+    first_name: Optional[str]
+    last_name: Optional[str]
+    display_name: Optional[str]
+    email: Optional[str]
+    discord_username: Optional[str]
+
+
+class AdminTeamMemberResponse(TeamMemberResponse):
+    registration_id: Optional[UUID]
+    match_status: str
+    match_method: Optional[str]
+    match_detail: str
+
+
+class TeamResponse(BaseModel):
+    id: UUID
+    team_name: str
+    team_number: Optional[str]
+    track: Optional[str]
+    track_preference: Optional[str]
+    challenge: Optional[str]
+    sponsor: Optional[str]
+    sponsor_contact_name: Optional[str]
+    sponsor_contact_email: Optional[str]
+    challenge_preferences: List[str]
+    requested_additional_teammates: Optional[int]
+    teammates: List[TeamMemberResponse]
+
+
+class AdminTeamResponse(TeamResponse):
+    teammates: List[AdminTeamMemberResponse]
+
+
 class MyRegistrationResponse(BaseModel):
     id: UUID
     email: str
@@ -133,6 +169,7 @@ class MyRegistrationResponse(BaseModel):
     claimed_at: Optional[datetime]
     event_pass: Optional[PassResponse]
     check_ins: List[CheckInResponse]
+    team: Optional[TeamResponse]
 
 
 class MyEventResponse(BaseModel):
@@ -175,6 +212,7 @@ class AdminRegistrationResponse(BaseModel):
     pass_issued_at: Optional[datetime]
     check_ins: List[CheckInResponse]
     email_deliveries: List[EmailDeliveryResponse]
+    team: Optional[AdminTeamResponse]
 
 
 class AdminRegistrationListResponse(BaseModel):
@@ -404,6 +442,76 @@ def _check_in_response(check_in: EventCheckIn) -> CheckInResponse:
     )
 
 
+def _team_member_display_name(member: EventTeamMember) -> Optional[str]:
+    display_name = " ".join(
+        value.strip()
+        for value in (member.first_name or "", member.last_name or "")
+        if value.strip()
+    )
+    return display_name or None
+
+
+def _team_response(
+    registration: EventRegistration,
+    *,
+    admin: bool = False,
+) -> Optional[TeamResponse | AdminTeamResponse]:
+    membership = registration.team_membership
+    if (
+        membership is None
+        or membership.match_status != "matched"
+        or membership.team is None
+        or not membership.team.active
+    ):
+        return None
+    team = membership.team
+    sorted_members = sorted(team.members, key=lambda item: item.member_position)
+    common = {
+        "id": team.id,
+        "team_name": team.name,
+        "team_number": team.team_number,
+        "track": team.assigned_track,
+        "track_preference": team.track_preference,
+        "challenge": team.assigned_challenge,
+        "sponsor": team.sponsor_name,
+        "sponsor_contact_name": team.sponsor_contact_name,
+        "sponsor_contact_email": team.sponsor_contact_email,
+        "challenge_preferences": list(team.challenge_preferences or []),
+        "requested_additional_teammates": team.requested_additional_teammates,
+    }
+    if admin:
+        return AdminTeamResponse(
+            **common,
+            teammates=[
+                AdminTeamMemberResponse(
+                    first_name=item.first_name,
+                    last_name=item.last_name,
+                    display_name=_team_member_display_name(item),
+                    email=item.email,
+                    discord_username=item.discord_username,
+                    registration_id=item.registration_id,
+                    match_status=item.match_status,
+                    match_method=item.match_method,
+                    match_detail=item.match_detail,
+                )
+                for item in sorted_members
+            ],
+        )
+    return TeamResponse(
+        **common,
+        teammates=[
+            TeamMemberResponse(
+                first_name=item.first_name,
+                last_name=item.last_name,
+                display_name=_team_member_display_name(item),
+                email=item.email,
+                discord_username=item.discord_username,
+            )
+            for item in sorted_members
+        ],
+    )
+
+
 def _my_registration_response(
     registration: EventRegistration,
 ) -> MyRegistrationResponse:
@@ -429,6 +537,7 @@ def _my_registration_response(
         claimed_at=registration.claimed_at,
         event_pass=_pass_response(registration.event_pass),
         check_ins=[_check_in_response(item) for item in registration.check_ins],
+        team=_team_response(registration),
     )
 
 
@@ -482,6 +591,7 @@ def _admin_registration_response(
             )
             for item in registration.email_deliveries
         ],
+        team=_team_response(registration, admin=True),
     )
 
 
@@ -579,6 +689,9 @@ async def get_my_event_registration(
             .options(
                 joinedload(EventRegistration.event_pass),
                 joinedload(EventRegistration.check_ins),
+                joinedload(EventRegistration.team_membership)
+                .joinedload(EventTeamMember.team)
+                .joinedload(EventTeam.members),
             )
             .filter(
                 EventRegistration.event_id == event.id,
@@ -689,6 +802,9 @@ async def claim_event_registration(
             joinedload(EventRegistration.event_pass),
             joinedload(EventRegistration.check_ins),
             joinedload(EventRegistration.email_deliveries),
+            joinedload(EventRegistration.team_membership)
+            .joinedload(EventTeamMember.team)
+            .joinedload(EventTeam.members),
         )
         .filter(EventRegistration.id == registration.id)
         .first()
@@ -866,6 +982,26 @@ async def list_event_registrations(
                 EventRegistration.preferred_name.ilike(pattern),
                 EventRegistration.email.ilike(pattern),
                 EventRegistration.university.ilike(pattern),
+                EventRegistration.team_membership.has(
+                    and_(
+                        EventTeamMember.match_status == "matched",
+                        EventTeamMember.team.has(
+                            and_(
+                                EventTeam.active.is_(True),
+                                or_(
+                                    EventTeam.name.ilike(pattern),
+                                    EventTeam.team_number.ilike(pattern),
+                                    EventTeam.track_preference.ilike(pattern),
+                                    EventTeam.assigned_track.ilike(pattern),
+                                    EventTeam.assigned_challenge.ilike(pattern),
+                                    EventTeam.sponsor_name.ilike(pattern),
+                                    EventTeam.sponsor_contact_name.ilike(pattern),
+                                    EventTeam.sponsor_contact_email.ilike(pattern),
+                                ),
+                            )
+                        ),
+                    )
+                ),
             )
         )
     if admission_status is not None:
@@ -883,6 +1019,9 @@ async def list_event_registrations(
             joinedload(EventRegistration.event_pass),
             joinedload(EventRegistration.check_ins),
             joinedload(EventRegistration.email_deliveries),
+            joinedload(EventRegistration.team_membership)
+            .joinedload(EventTeamMember.team)
+            .joinedload(EventTeam.members),
         )
         .order_by(
             EventRegistration.last_name.asc().nullslast(),

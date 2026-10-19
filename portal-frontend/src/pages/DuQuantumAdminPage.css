@@ -232,13 +232,15 @@
 }
 
 .dq-attendee-table td:first-child strong,
-.dq-attendee-table td:nth-child(2) strong {
+.dq-attendee-table td:nth-child(2) strong,
+.dq-attendee-table td:nth-child(3) strong {
   display: block;
   color: var(--dq-white);
 }
 
 .dq-attendee-table td:first-child span,
 .dq-attendee-table td:nth-child(2) span,
+.dq-attendee-table td:nth-child(3) span,
 .dq-attendee-table td small {
   display: block;
   color: var(--dq-muted);
@@ -351,6 +353,64 @@
   overflow-wrap: anywhere;
 }
 
+.dq-admin-team-details {
+  grid-column: span 2;
+}
+
+.dq-admin-team-details dd > span,
+.dq-admin-team-details dd > a {
+  display: block;
+}
+
+.dq-admin-team-details dd > a {
+  margin-top: 0.16rem;
+  color: var(--dq-yellow);
+}
+
+.dq-admin-team-details h4 {
+  margin: 1rem 0 0.6rem;
+  color: var(--dq-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.dq-admin-team-members {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dq-admin-team-members li {
+  min-width: 0;
+  border: 1px solid rgba(185, 149, 221, 0.3);
+  background: rgba(185, 149, 221, 0.08);
+  padding: 0.65rem;
+}
+
+.dq-admin-team-members strong,
+.dq-admin-team-members a,
+.dq-admin-team-members span,
+.dq-admin-team-members small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.dq-admin-team-members a {
+  margin-top: 0.25rem;
+  color: var(--dq-yellow);
+}
+
+.dq-admin-team-members span,
+.dq-admin-team-members small {
+  margin-top: 0.2rem;
+  color: var(--dq-muted);
+  font-size: 0.72rem;
+}
+
 .dq-inline-operation {
   display: inline-flex;
   margin-top: 1rem;
@@ -419,6 +479,10 @@
     grid-column: span 2;
   }
 
+  .dq-admin-team-details {
+    grid-column: span 2;
+  }
+
   .dq-manifest-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -447,6 +511,14 @@
 
   .dq-record-details .dq-source-responses {
     grid-column: auto;
+  }
+
+  .dq-admin-team-details {
+    grid-column: auto;
+  }
+
+  .dq-admin-team-members {
+    grid-template-columns: 1fr;
   }
 
   .dq-record-details .dq-delivery-history {

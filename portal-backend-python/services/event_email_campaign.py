@@ -34,6 +34,7 @@ class SesSettings:
     portal_url: str
     configuration_set: str | None = None
     sender_name: str = DEFAULT_SENDER_NAME
+    reply_to: str | None = None
 
     @classmethod
     def from_environment(cls) -> "SesSettings":
@@ -51,6 +52,7 @@ class SesSettings:
             configuration_set=os.getenv("SES_CONFIGURATION_SET") or None,
             sender_name=os.getenv("SES_FROM_NAME", DEFAULT_SENDER_NAME).strip()
             or DEFAULT_SENDER_NAME,
+            reply_to=os.getenv("SES_REPLY_TO_EMAIL", "").strip() or sender,
         )
 
 
@@ -58,7 +60,11 @@ CAMPAIGN_TEMPLATE_VERSIONS = {
     "pass-ready": "duquantum-pass-ready-v2",
     "event-reminder": "duquantum-event-reminder-v2",
     "auth0-invitation": "duquantum-auth0-invitation-v3",
+    "auth0-invitation-reminder": "duquantum-auth0-invitation-reminder-v1",
     "auth0-invitation-existing": "duquantum-auth0-existing-account-v1",
+    "auth0-invitation-existing-reminder": (
+        "duquantum-auth0-existing-account-reminder-v1"
+    ),
     "admin-invitation": "duquantum-admin-invitation-v1",
 }
 
@@ -334,6 +340,39 @@ def render_campaign(
         next_steps_heading = "After you create your password"
         action_text = "Create my password"
         action_url = account_setup_url
+    elif campaign_key == "auth0-invitation-reminder":
+        if not account_setup_url:
+            raise ValueError("account setup URL is required for an invitation reminder")
+        parsed_setup = urlparse(account_setup_url)
+        if parsed_setup.scheme != "https" or not parsed_setup.netloc:
+            raise ValueError("account setup URL must be HTTPS")
+        normalized_login_email = (login_email or "").strip()
+        if not normalized_login_email or "@" not in normalized_login_email:
+            raise ValueError("login email is required for an invitation reminder")
+        subject = "Reminder: claim your DuQuantum 2026 portal account"
+        eyebrow = "Account setup reminder"
+        heading = "Your portal is waiting"
+        intro = (
+            "You have not yet finished setting up the portal account reserved for "
+            "your DuQuantum 2026 registration. Use the fresh, secure link below to "
+            "create your private password."
+        )
+        detail_label = "Your portal login email"
+        detail_value = normalized_login_email
+        supporting_text = (
+            "This new setup link replaces the one in your earlier invitation. It "
+            "expires after seven days and can only be used once. No temporary "
+            "password is sent or stored."
+        )
+        next_steps = (
+            "Create your password with the fresh secure link in this message.",
+            "Sign in at portal.hackduke.org with the email shown above and confirm that your attendee pass loads.",
+            "On your phone, use the browser Share or menu button and choose Add to Home Screen or Install app.",
+            "Open the DuQuantum icon, tap Enable event alerts, and allow notifications for schedule updates.",
+        )
+        next_steps_heading = "Finish setting up your account"
+        action_text = "Claim my portal account"
+        action_url = account_setup_url
     elif campaign_key == "auth0-invitation-existing":
         normalized_login_email = (login_email or "").strip()
         if not normalized_login_email or "@" not in normalized_login_email:
@@ -359,6 +398,33 @@ def render_campaign(
         )
         next_steps_heading = "Next steps"
         action_text = "Open participant portal"
+        action_url = f"{base_portal_url}/events/{EVENT_SLUG}"
+    elif campaign_key == "auth0-invitation-existing-reminder":
+        normalized_login_email = (login_email or "").strip()
+        if not normalized_login_email or "@" not in normalized_login_email:
+            raise ValueError("login email is required for an invitation reminder")
+        subject = "Reminder: sign in to your DuQuantum 2026 participant portal"
+        eyebrow = "Portal sign-in reminder"
+        heading = "Your participant portal is ready"
+        intro = (
+            "Your HackDuke account is active, but your DuQuantum 2026 registration "
+            "has not yet been connected through the participant portal. Sign in "
+            "once to finish claiming it and confirm that your attendee pass loads."
+        )
+        detail_label = "Your portal login email"
+        detail_value = normalized_login_email
+        supporting_text = (
+            "Use your existing portal password. If you do not remember it, choose "
+            "Forgot password on the sign-in screen to receive a secure Auth0 reset link."
+        )
+        next_steps = (
+            "Sign in with the email shown above and open your DuQuantum attendee pass.",
+            "If needed, use Forgot password on the sign-in screen; do not create a second account.",
+            "On your phone, use the browser Share or menu button and choose Add to Home Screen or Install app.",
+            "Open the DuQuantum icon, tap Enable event alerts, and allow notifications for schedule updates.",
+        )
+        next_steps_heading = "Finish connecting your registration"
+        action_text = "Sign in and claim my registration"
         action_url = f"{base_portal_url}/events/{EVENT_SLUG}"
     elif campaign_key == "admin-invitation":
         if not account_setup_url:
@@ -454,6 +520,9 @@ class SesEmailSender:
                 }
             },
         }
+        request["ReplyToAddresses"] = [
+            self.settings.reply_to or self.settings.sender
+        ]
         if self.settings.configuration_set:
             request["ConfigurationSetName"] = self.settings.configuration_set
         response = self.client.send_email(**request)

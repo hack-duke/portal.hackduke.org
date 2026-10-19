@@ -94,6 +94,12 @@ class EventRegistration(Base):
         back_populates="registration",
         cascade="all, delete-orphan",
     )
+    team_membership = relationship(
+        "EventTeamMember",
+        back_populates="registration",
+        uselist=False,
+        overlaps="members,team",
+    )
 
     __table_args__ = (
         UniqueConstraint(

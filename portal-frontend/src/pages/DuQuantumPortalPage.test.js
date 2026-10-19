@@ -58,6 +58,25 @@ describe("DuQuantumPortalPage", () => {
             admission_status: "accepted",
             rsvp_status: "confirmed",
             event_pass: { public_id: "evt_safe-pass-id", state: "active" },
+            team: {
+              id: "team-7",
+              team_name: "Quantum Quokkas",
+              team_number: 7,
+              track: null,
+              track_preference: "Hardware",
+              challenge: null,
+              challenge_preferences: ["Quantum sensing", "Optimization"],
+              sponsor: "Example Quantum Labs",
+              sponsor_contact_name: "Sam Sponsor",
+              sponsor_contact_email: "sam@example.org",
+              teammates: [
+                {
+                  display_name: "Avery Teammate",
+                  email: "avery@example.org",
+                  discord_username: "avery-q",
+                },
+              ],
+            },
           },
         },
       });
@@ -86,5 +105,26 @@ describe("DuQuantumPortalPage", () => {
       "href",
       expect.stringContaining("organizers@duquantum.org"),
     );
+  });
+
+  test("shows only the signed-in participant's team with preferences labeled separately", async () => {
+    render(
+      <MemoryRouter>
+        <DuQuantumPortalPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Your team")).toBeInTheDocument();
+    expect(screen.getByText("Quantum Quokkas · Team 7")).toBeInTheDocument();
+    expect(screen.getByText("Hardware")).toBeInTheDocument();
+    expect(
+      screen.getByText("Quantum sensing, Optimization"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Avery Teammate")).toBeInTheDocument();
+    expect(screen.getByText("Discord: avery-q")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "sam@example.org" }),
+    ).toHaveAttribute("href", "mailto:sam@example.org");
+    expect(screen.getAllByText("N/A")).toHaveLength(3);
   });
 });
