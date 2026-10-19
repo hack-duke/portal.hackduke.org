@@ -40,6 +40,7 @@ jobs:
           test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
           docker exec -i "$backend_id" python - << 'PY'
           import json
+          import time
           from botocore.exceptions import ClientError
           from services.event_email_campaign import SesSettings, SesEmailSender
           from scripts.remind_event_accounts import validate_ses_delivery_posture
@@ -55,9 +56,16 @@ jobs:
               print(json.dumps({'identity': identity, 'verification': state.get('VerificationStatus'), 'dkim': state.get('DkimAttributes'), 'mail_from': state.get('MailFromAttributes')}, default=str))
           account = client.get_account()
           print(json.dumps({key: account.get(key) for key in ('SendingEnabled', 'ProductionAccessEnabled', 'SuppressionAttributes', 'EnforcementStatus')}))
-          try:
-              print('SES posture:', json.dumps(validate_ses_delivery_posture(client, settings)))
-          except RuntimeError as error:
-              raise SystemExit(str(error))
+          for attempt in range(60):
+              try:
+                  posture = validate_ses_delivery_posture(client, settings)
+              except RuntimeError as error:
+                  print('Waiting for SES verification:', str(error), flush=True)
+                  if attempt == 59:
+                      raise SystemExit('SES verification is still pending after 30 minutes')
+                  time.sleep(30)
+              else:
+                  print('SES posture:', json.dumps(posture), flush=True)
+                  break
           PY
           REMOTE
