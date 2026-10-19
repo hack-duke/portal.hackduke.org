@@ -1,0 +1,46 @@
+name: Configure DuQuantum Email Authentication
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_event:
+        description: Type duquantum-2026
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duquantum-email-authentication
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate event
+        env:
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+        run: test "$CONFIRM_EVENT" = duquantum-2026
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Enable sender DKIM inheritance
+        run: |
+          set -euo pipefail
+          aws sesv2 put-email-identity-dkim-attributes --email-identity hackduke.org --signing-enabled
+          aws sesv2 put-email-identity-dkim-attributes --email-identity hackers@hackduke.org --signing-enabled
+      - name: Report authentication and account readiness
+        run: |
+          set -euo pipefail
+          for identity in hackduke.org hackers@hackduke.org; do
+            aws sesv2 get-email-identity --email-identity "$identity" \
+              --query '{Verified:VerificationStatus,Dkim:DkimAttributes,MailFrom:MailFromAttributes}'
+          done
+          aws sesv2 get-account --query '{SendingEnabled:SendingEnabled,ProductionAccessEnabled:ProductionAccessEnabled,Suppression:SuppressionAttributes,EnforcementStatus:EnforcementStatus}'
+          aws sesv2 get-configuration-set --configuration-set-name duquantum-transactional
+          aws sesv2 get-configuration-set-event-destinations --configuration-set-name duquantum-transactional
