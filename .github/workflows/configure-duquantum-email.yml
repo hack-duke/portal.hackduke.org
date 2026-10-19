@@ -7,6 +7,11 @@ on:
         description: Type duquantum-2026
         required: true
         type: string
+      send_reminders:
+        description: Send the protected pending-account batch after SES verification and a fresh inventory
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -56,16 +61,67 @@ jobs:
               print(json.dumps({'identity': identity, 'verification': state.get('VerificationStatus'), 'dkim': state.get('DkimAttributes'), 'mail_from': state.get('MailFromAttributes')}, default=str))
           account = client.get_account()
           print(json.dumps({key: account.get(key) for key in ('SendingEnabled', 'ProductionAccessEnabled', 'SuppressionAttributes', 'EnforcementStatus')}))
-          for attempt in range(60):
+          for attempt in range(120):
               try:
                   posture = validate_ses_delivery_posture(client, settings)
               except RuntimeError as error:
                   print('Waiting for SES verification:', str(error), flush=True)
-                  if attempt == 59:
-                      raise SystemExit('SES verification is still pending after 30 minutes')
+                  if attempt == 119:
+                      raise SystemExit('SES verification is still pending after 60 minutes')
                   time.sleep(30)
               else:
                   print('SES posture:', json.dumps(posture), flush=True)
                   break
           PY
+          REMOTE
+
+  remind:
+    needs: configure
+    if: ${{ inputs.send_reminders }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: duquantum-account-reminders
+      cancel-in-progress: false
+    steps:
+      - name: Inventory and send the protected pending-account batch
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          RECIPIENT_EMAILS: ${{ secrets.DUQUANTUM_INCOMPLETE_ACCOUNT_EMAILS }}
+        run: |
+          set -euo pipefail
+          test -n "$RECIPIENT_EMAILS"
+          umask 077
+          local_recipients="$(mktemp)"
+          remote_recipients=".duquantum-reminders-${GITHUB_RUN_ID}.txt"
+          trap 'rm -f -- key.pem "$local_recipients"' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          printf '%s\n' "$RECIPIENT_EMAILS" > "$local_recipients"
+          scp -i key.pem -o StrictHostKeyChecking=no "$local_recipients" "ec2-user@$EC2_IP:$remote_recipients"
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$remote_recipients" << 'REMOTE'
+          set -euo pipefail
+          recipient_file="$1"
+          case "$recipient_file" in
+            .duquantum-reminders-*.txt) ;;
+            *) exit 2 ;;
+          esac
+          chmod 600 "$recipient_file"
+          trap 'rm -f -- "$recipient_file"' EXIT
+          backend_id="$(docker-compose ps -q backend)"
+          test -n "$backend_id"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
+          inventory="$(docker exec -i "$backend_id" python -m scripts.remind_event_accounts --recipient-file - < "$recipient_file")"
+          printf '%s\n' "$inventory"
+          count="$(printf '%s\n' "$inventory" | sed -n 's/^Exact recipients requested: //p')"
+          setup="$(printf '%s\n' "$inventory" | sed -n 's/^Fresh setup-link reminders planned: //p')"
+          signin="$(printf '%s\n' "$inventory" | sed -n 's/^Existing-account sign-in reminders planned: //p')"
+          fingerprint="$(printf '%s\n' "$inventory" | sed -n 's/^Recipient set SHA-256: //p')"
+          for value in "$count" "$setup" "$signin"; do
+            printf '%s' "$value" | grep -Eq '^[0-9]+$'
+          done
+          printf '%s' "$fingerprint" | grep -Eq '^[0-9a-f]{64}$'
+          docker exec -i "$backend_id" python -m scripts.remind_event_accounts \
+            --recipient-file - --send-reminders --commit --confirm-event duquantum-2026 \
+            --expected-recipient-count "$count" --expected-setup-count "$setup" \
+            --expected-signin-count "$signin" --expected-recipient-sha256 "$fingerprint" < "$recipient_file"
           REMOTE
