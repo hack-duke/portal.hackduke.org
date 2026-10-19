@@ -92,16 +92,16 @@ jobs:
             "$EC2_USER@$EC2_IP:$remote_recipients"
 
           ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
-            bash -s -- "$OPERATION" "$EXPECTED_RECIPIENT_COUNT" \
-            "$EXPECTED_SETUP_COUNT" "$EXPECTED_SIGNIN_COUNT" \
-            "$EXPECTED_RECIPIENT_SHA256" "$remote_recipients" << 'EOF'
+            bash -s -- "$OPERATION" "$remote_recipients" \
+            "$EXPECTED_RECIPIENT_COUNT" "$EXPECTED_SETUP_COUNT" \
+            "$EXPECTED_SIGNIN_COUNT" "$EXPECTED_RECIPIENT_SHA256" << 'EOF'
             set -euo pipefail
             operation="$1"
-            expected_recipient_count="${2:-}"
-            expected_setup_count="${3:-}"
-            expected_signin_count="${4:-}"
-            expected_recipient_sha256="${5:-}"
-            recipient_file="$6"
+            recipient_file="$2"
+            expected_recipient_count="${3:-}"
+            expected_setup_count="${4:-}"
+            expected_signin_count="${5:-}"
+            expected_recipient_sha256="${6:-}"
             case "$recipient_file" in
               .duquantum-reminders-*.txt) ;;
               *) echo "Unsafe recipient file path" >&2; exit 2 ;;
