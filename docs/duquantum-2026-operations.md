@@ -147,49 +147,60 @@ before each send, records the SES message ID, and skips already-sent campaign
 recipients. Never bypass count confirmation. Start with a controlled cohort,
 then send the remainder only after inspecting rendering and delivery events.
 
-## Team formation import
+## Final team import
 
-Keep the source workbook in the ignored private data directory at
-`data/private/duquantum-2026/team_formation_and_challenge_preferences.xlsx`.
-The importer uses the latest substantive submission for each named team, does
-not let an `N/A` submission erase a real team, and never performs fuzzy name
-matching. It links accepted and confirmed registrations by exact email first;
-an exact full-name fallback is allowed only when that name is unique in both
-the effective workbook rows and the event roster.
+The authoritative source is the ignored private workbook at
+`data/private/duquantum-2026/final_teams.xlsx`. Its `Master List` is the
+member-level roster and its `Team List` is the team-level assignment table. The
+importer cross-checks both sheets and refuses any inconsistent team number,
+name, size, member list, track, challenge, or source. It links accepted and
+confirmed registrations by exact email first; an exact full-name fallback is
+allowed only when that name is unique in both the final workbook and event
+roster. Fuzzy matching is never used.
 
-Validate the workbook structure and fixed aggregate counts without touching the
+The older
+`data/private/duquantum-2026/team_formation_and_challenge_preferences.xlsx`
+file is historical preference evidence only. It must not be imported as final
+team membership or final track/challenge assignments.
+
+Validate the workbook and immutable aggregate guards without touching the
 database:
 
 ```powershell
 python -m scripts.import_event_teams `
-  --expect-rows 56 --expect-teams 46 --expect-members 142 `
-  --expect-no-team-rows 8 --expect-superseded 2
+  --expect-source-sha256 91611e9aae4b3395368e443ba2701cdf8fabd9dd219004317a0ddf67b5369eef `
+  --expect-master-rows 219 --expect-team-rows 61 `
+  --expect-teams 61 --expect-members 219
 ```
 
 After deployment and migration, reconcile against production in rollback-only
-mode and inspect the PII-free report:
+mode. The PII-free report contains only team/member positions and match reasons:
 
 ```powershell
 python -m scripts.import_event_teams `
   --database-check `
-  --report ../data/private/duquantum-2026/team_reconciliation.json `
-  --expect-rows 56 --expect-teams 46 --expect-members 142 `
-  --expect-no-team-rows 8 --expect-superseded 2
+  --report ../data/private/duquantum-2026/final_team_reconciliation.json `
+  --expect-source-sha256 91611e9aae4b3395368e443ba2701cdf8fabd9dd219004317a0ddf67b5369eef `
+  --expect-master-rows 219 --expect-team-rows 61 `
+  --expect-teams 61 --expect-members 219 `
+  --expect-matched 150 --expect-unmatched 69 --expect-ambiguous 0
 ```
 
-Commit only after the dry-run reports the expected matched, unmatched, and
-ambiguous counts:
+Commit only after the same protected guards pass against production:
 
 ```powershell
 python -m scripts.import_event_teams `
   --commit --confirm-event duquantum-2026 `
-  --expect-rows 56 --expect-teams 46 --expect-members 142 `
-  --expect-no-team-rows 8 --expect-superseded 2
+  --expect-source-sha256 91611e9aae4b3395368e443ba2701cdf8fabd9dd219004317a0ddf67b5369eef `
+  --expect-master-rows 219 --expect-team-rows 61 `
+  --expect-teams 61 --expect-members 219 `
+  --expect-matched 150 --expect-unmatched 69 --expect-ambiguous 0
 ```
 
-Team-formation responses contain preferences, not final assignments. Assigned
-track, challenge, sponsor, and sponsor-contact fields therefore remain `N/A`
-until an organizer explicitly supplies final assignment data.
+The protected GitHub workflow `Import DuQuantum Final Teams` performs the same
+validation and stores the source privately on the application host. Sponsor
+contact fields remain `N/A` because the final workbook supplies sponsor/challenge
+assignments but no sponsor-contact source.
 
 ## Account-claim reminders
 

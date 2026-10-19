@@ -1,4 +1,9 @@
-import { formatTeamValue, teamForRegistration, teamLabel } from "./teamUtils";
+import {
+  formatTeamValue,
+  teamForDirectoryEntry,
+  teamForRegistration,
+  teamLabel,
+} from "./teamUtils";
 
 describe("team utilities", () => {
   test("normalizes the canonical nested team response", () => {
@@ -11,6 +16,7 @@ describe("team utilities", () => {
         track_preference: "Software",
         challenge: "Quantum sensing",
         challenge_preferences: ["Sensing", "Optimization"],
+        additional_teammates_detail: "No additional matching needed",
         sponsor: {
           name: "Example Labs",
           contact_name: "Sam Sponsor",
@@ -32,6 +38,7 @@ describe("team utilities", () => {
       trackPreference: "Software",
       challenge: "Quantum sensing",
       challengePreferences: ["Sensing", "Optimization"],
+      additionalTeammatesDetail: "No additional matching needed",
       sponsor: "Example Labs",
       sponsorContactName: "Sam Sponsor",
       sponsorContactEmail: "sam@example.org",
@@ -43,7 +50,7 @@ describe("team utilities", () => {
       }),
       expect.objectContaining({ name: "Robin Builder", email: null }),
     ]);
-    expect(teamLabel(team)).toBe("Quantum Quokkas · Team 7");
+    expect(teamLabel(team)).toBe("Team #7 - Quantum Quokkas");
   });
 
   test("supports legacy flat fields and explicit N/A values", () => {
@@ -77,5 +84,33 @@ describe("team utilities", () => {
     expect(team.challenge).toBeNull();
     expect(team.trackPreference).toBe("Hardware");
     expect(team.challengePreferences).toBe("Quantum sensing");
+  });
+
+  test("normalizes final directory linkage diagnostics", () => {
+    const team = teamForDirectoryEntry({
+      id: "team-31",
+      team_name: "Final Team",
+      team_number: 31,
+      source: "final-workbook",
+      teammates: [
+        {
+          member_position: 1,
+          display_name: "Linked Hacker",
+          registration_id: "registration-31",
+          match_status: "matched",
+          match_method: "email",
+          match_detail: "Exact email match",
+        },
+      ],
+    });
+
+    expect(team.source).toBe("final-workbook");
+    expect(team.teammates[0]).toMatchObject({
+      memberPosition: 1,
+      registrationId: "registration-31",
+      matchStatus: "matched",
+      matchMethod: "email",
+      matchDetail: "Exact email match",
+    });
   });
 });

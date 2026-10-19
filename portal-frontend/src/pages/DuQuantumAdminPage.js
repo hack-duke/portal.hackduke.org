@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import DuQuantumTeamDirectory from "../components/DuQuantumTeamDirectory";
 import { createGetAuthToken } from "../utils/authUtils";
 import {
   formatTeamValue,
@@ -216,6 +217,11 @@ const unpackRegistrations = (payload) => {
   );
 };
 
+const unpackTeams = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  return payload?.teams || payload?.data?.teams || [];
+};
+
 const fullNameFor = (registration) => {
   const first = readField(registration, [
     "first_name",
@@ -305,29 +311,65 @@ const isCheckedIn = (registration) =>
 const DuQuantumAdminPage = () => {
   const { getAccessTokenSilently, logout } = useAuth0();
   const [registrations, setRegistrations] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [teamsLoading, setTeamsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [teamsError, setTeamsError] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("eligible");
   const [expanded, setExpanded] = useState(null);
 
   const loadRegistrations = useCallback(async () => {
     setLoading(true);
+    setTeamsLoading(true);
     setError("");
+    setTeamsError("");
     try {
       const getAuthToken = createGetAuthToken(getAccessTokenSilently, setError);
       const token = await getAuthToken();
       if (!token) return;
 
-      const response = await axios.get(
-        `${process.env.REACT_APP_BACKEND_URL}/events/${EVENT_SLUG}/registrations`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { limit: 500 },
-        },
-      );
-      const incoming = unpackRegistrations(response.data);
-      setRegistrations(Array.isArray(incoming) ? incoming : []);
+      const requestOptions = {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 500 },
+      };
+      const [registrationResult, teamsResult] = await Promise.allSettled([
+        axios.get(
+          `${process.env.REACT_APP_BACKEND_URL}/events/${EVENT_SLUG}/registrations`,
+          requestOptions,
+        ),
+        axios.get(
+          `${process.env.REACT_APP_BACKEND_URL}/events/${EVENT_SLUG}/teams`,
+          requestOptions,
+        ),
+      ]);
+
+      if (registrationResult.status === "fulfilled") {
+        const incoming = unpackRegistrations(registrationResult.value.data);
+        setRegistrations(Array.isArray(incoming) ? incoming : []);
+      } else {
+        const status = registrationResult.reason?.response?.status;
+        setError(
+          status === 403
+            ? "Your account does not have permission to view DuQuantum attendee data."
+            : registrationResult.reason?.response?.data?.detail ||
+                "Could not load the attendee list.",
+        );
+      }
+
+      if (teamsResult.status === "fulfilled") {
+        const incoming = unpackTeams(teamsResult.value.data);
+        setTeams(Array.isArray(incoming) ? incoming : []);
+      } else {
+        const status = teamsResult.reason?.response?.status;
+        setTeamsError(
+          status === 403
+            ? "Your account does not have permission to view the final team directory."
+            : teamsResult.reason?.response?.data?.detail ||
+                "Could not load the final team directory.",
+        );
+      }
     } catch (requestError) {
       const status = requestError?.response?.status;
       setError(
@@ -338,6 +380,7 @@ const DuQuantumAdminPage = () => {
       );
     } finally {
       setLoading(false);
+      setTeamsLoading(false);
     }
   }, [getAccessTokenSilently]);
 
@@ -523,6 +566,12 @@ const DuQuantumAdminPage = () => {
             </Link>
           </div>
         </section>
+
+        <DuQuantumTeamDirectory
+          teams={teams}
+          loading={teamsLoading}
+          error={teamsError}
+        />
 
         <section
           className="dq-manifest-panel"
@@ -815,6 +864,16 @@ const DuQuantumAdminPage = () => {
                                       <dd>
                                         {formatTeamValue(
                                           team.requestedAdditionalTeammates,
+                                        )}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>
+                                        Additional teammate request details
+                                      </dt>
+                                      <dd>
+                                        {formatTeamValue(
+                                          team.additionalTeammatesDetail,
                                         )}
                                       </dd>
                                     </div>

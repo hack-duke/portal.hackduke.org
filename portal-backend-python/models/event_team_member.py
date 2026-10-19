@@ -28,6 +28,7 @@ class EventTeamMember(Base):
     team_id = Column(UUID(as_uuid=True), nullable=False)
     registration_id = Column(UUID(as_uuid=True), nullable=True)
     member_position = Column(Integer, nullable=False)
+    display_name = Column(String(500), nullable=True)
     first_name = Column(String(255), nullable=True)
     last_name = Column(String(255), nullable=True)
     email = Column(String(320), nullable=True)

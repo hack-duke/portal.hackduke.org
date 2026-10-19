@@ -40,9 +40,14 @@ def _add_team(test_session, *, event, registration, name, row_number):
         event_id=event.id,
         name=name,
         normalized_name=name.casefold(),
+        team_number=str(row_number - 1),
         track_preference="Introductory Track",
+        assigned_track="Introductory",
+        assigned_challenge="Sponsor One",
+        sponsor_name="Sponsor One",
         challenge_preferences=["Sponsor One", "Sponsor Two"],
         requested_additional_teammates=1,
+        formation_source="Team Form",
         source_record_id=f"{row_number:064d}",
         source_submitted_at=datetime.now(timezone.utc),
     )
@@ -55,6 +60,7 @@ def _add_team(test_session, *, event, registration, name, row_number):
                 team_id=team.id,
                 registration_id=registration.id,
                 member_position=1,
+                display_name=f"{registration.first_name} {registration.last_name}",
                 first_name=registration.first_name,
                 last_name=registration.last_name,
                 email=registration.email,
@@ -69,6 +75,7 @@ def _add_team(test_session, *, event, registration, name, row_number):
                 event_id=event.id,
                 team_id=team.id,
                 member_position=2,
+                display_name="Unlinked Teammate",
                 first_name="Unlinked",
                 last_name="Teammate",
                 email="unlinked@example.edu",
@@ -150,13 +157,14 @@ def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
     assert "source_data" not in registration
     team = registration["team"]
     assert team["team_name"] == "Team One"
-    assert team["track"] is None
-    assert team["challenge"] is None
-    assert team["sponsor"] is None
+    assert team["track"] == "Introductory"
+    assert team["challenge"] == "Sponsor One"
+    assert team["sponsor"] == "Sponsor One"
     assert team["sponsor_contact_name"] is None
     assert team["sponsor_contact_email"] is None
     assert team["track_preference"] == "Introductory Track"
     assert team["challenge_preferences"] == ["Sponsor One", "Sponsor Two"]
+    assert team["source"] == "Team Form"
     assert [member["display_name"] for member in team["teammates"]] == [
         "Team One",
         "Unlinked Teammate",
@@ -169,6 +177,7 @@ def test_admin_team_details_are_authorized_and_searchable(test_session):
     _set_token(attendee_one.auth0_id)
     denied = client.get(f"/events/{event.slug}/registrations")
     assert denied.status_code == 403
+    assert client.get(f"/events/{event.slug}/teams").status_code == 403
 
     admin = User(auth0_id=f"auth0|team-admin-{uuid4()}")
     test_session.add(admin)
@@ -189,3 +198,57 @@ def test_admin_team_details_are_authorized_and_searchable(test_session):
     assert registration["team"]["team_name"] == "Team One"
     assert registration["team"]["teammates"][0]["match_status"] == "matched"
     assert registration["team"]["teammates"][1]["match_detail"] == "email_not_found"
+
+
+def test_admin_team_directory_includes_teams_without_linked_registrations(test_session):
+    event, _attendee_one, _attendee_two = _setup_two_teams(test_session)
+    unlinked = EventTeam(
+        event_id=event.id,
+        name="Unlinked Final Team",
+        normalized_name="unlinked final team",
+        team_number="61",
+        assigned_track="Standard",
+        assigned_challenge="BlueQubit",
+        sponsor_name="BlueQubit",
+        challenge_preferences=["BlueQubit"],
+        formation_source="Random",
+        source="final_teams_xlsx",
+        source_record_id="f" * 64,
+        source_submitted_at=None,
+    )
+    test_session.add(unlinked)
+    test_session.flush()
+    test_session.add(
+        EventTeamMember(
+            event_id=event.id,
+            team_id=unlinked.id,
+            member_position=1,
+            display_name="Final Workbook Member",
+            email="not-in-portal@example.edu",
+            normalized_email="not-in-portal@example.edu",
+            discord_username="final-member",
+            match_status="unmatched",
+            match_method="email",
+            match_detail="email_not_found",
+            source_row_number=220,
+        )
+    )
+    admin = User(auth0_id=f"auth0|team-directory-admin-{uuid4()}")
+    test_session.add(admin)
+    test_session.flush()
+    test_session.add(UserRole(user_id=admin.id, role=RoleEnum.ADMIN))
+    test_session.flush()
+    _set_token(admin.auth0_id)
+
+    response = client.get(
+        f"/events/{event.slug}/teams",
+        params={"track": "Standard", "source": "Random", "match_status": "unmatched"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["teams"][0]["team_number"] == "61"
+    assert body["teams"][0]["source"] == "Random"
+    assert body["teams"][0]["teammates"][0]["registration_id"] is None
+    assert body["teams"][0]["teammates"][0]["display_name"] == "Final Workbook Member"

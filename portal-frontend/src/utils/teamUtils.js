@@ -20,6 +20,9 @@ const normalizeMember = (member) => {
   const discordUsername = firstPresent(member.discord_username, member.discord);
   const registrationId = firstPresent(member.registration_id);
   const matchMethod = firstPresent(member.match_method);
+  const matchStatus = firstPresent(member.match_status);
+  const matchDetail = firstPresent(member.match_detail);
+  const memberPosition = firstPresent(member.member_position);
   if (!name && !email && !discordUsername) return null;
   return {
     name: name || email || discordUsername,
@@ -27,6 +30,9 @@ const normalizeMember = (member) => {
     discordUsername,
     registrationId,
     matchMethod,
+    matchStatus,
+    matchDetail,
+    memberPosition,
   };
 };
 
@@ -131,6 +137,11 @@ export const teamForRegistration = (registration = {}) => {
       nested.requested_additional_teammates,
       registration.requested_additional_teammates,
     ),
+    additionalTeammatesDetail: firstPresent(
+      nested.additional_teammates_detail,
+      registration.additional_teammates_detail,
+    ),
+    source: firstPresent(nested.source, registration.team_source),
   };
 
   return {
@@ -147,6 +158,9 @@ export const teamForRegistration = (registration = {}) => {
   };
 };
 
+export const teamForDirectoryEntry = (team = {}) =>
+  teamForRegistration({ team });
+
 export const formatTeamValue = (value) => {
   if (!present(value)) return "N/A";
   return Array.isArray(value) ? value.join(", ") || "N/A" : String(value);
@@ -154,8 +168,8 @@ export const formatTeamValue = (value) => {
 
 export const teamLabel = (team) => {
   if (!team?.assigned) return "N/A";
-  if (team.name && team.number) return `${team.name} · Team ${team.number}`;
+  if (team.name && team.number) return `Team #${team.number} - ${team.name}`;
   if (team.name) return team.name;
-  if (team.number) return `Team ${team.number}`;
+  if (team.number) return `Team #${team.number}`;
   return "Assigned team";
 };

@@ -44,10 +44,12 @@ class EventTeam(Base):
     sponsor_contact_name = Column(String(255), nullable=True)
     sponsor_contact_email = Column(String(320), nullable=True)
     requested_additional_teammates = Column(Integer, nullable=True)
+    additional_teammates_detail = Column(String(500), nullable=True)
+    formation_source = Column(String(100), nullable=True)
 
     source = Column(String(100), nullable=False, default="google_forms_xlsx")
     source_record_id = Column(String(64), nullable=False)
-    source_submitted_at = Column(DateTime(timezone=True), nullable=False)
+    source_submitted_at = Column(DateTime(timezone=True), nullable=True)
     active = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -73,6 +75,7 @@ class EventTeam(Base):
         UniqueConstraint(
             "event_id", "normalized_name", name="uq_event_team_event_name"
         ),
+        UniqueConstraint("event_id", "team_number", name="uq_event_team_event_number"),
         CheckConstraint(
             "requested_additional_teammates IS NULL OR "
             "requested_additional_teammates BETWEEN 0 AND 4",

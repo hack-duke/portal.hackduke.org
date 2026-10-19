@@ -514,6 +514,48 @@
   color: var(--dq-muted);
 }
 
+.dq-attendee-team-preferences {
+  margin-top: 1rem;
+  border: 1px solid rgba(185, 149, 221, 0.28);
+  background: rgba(185, 149, 221, 0.06);
+}
+
+.dq-attendee-team-preferences summary {
+  padding: 0.75rem;
+  color: #e9dbf7;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dq-attendee-team-preferences .dq-team-facts,
+.dq-attendee-team-preferences dl {
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.dq-attendee-team-preferences dl > div {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(185, 149, 221, 0.16);
+}
+
+.dq-attendee-team-preferences dt {
+  color: var(--dq-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dq-attendee-team-preferences dd {
+  margin: 0.25rem 0 0;
+  color: var(--dq-white);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .dq-support-card p:not(.dq-terminal-label),
 .dq-community-card > p,
 .dq-claim-card > p:not(.dq-terminal-label),

@@ -118,11 +118,67 @@ const registrations = [
   },
 ];
 
+const finalTeams = [
+  {
+    id: "final-team-7",
+    team_name: "Quantum Quokkas",
+    team_number: 7,
+    track: "Hardware",
+    track_preference: "Software",
+    challenge: "Quantum sensing",
+    sponsor: "Quantum sensing",
+    sponsor_contact_name: null,
+    sponsor_contact_email: null,
+    challenge_preferences: ["Optimization", "Quantum sensing"],
+    requested_additional_teammates: 0,
+    source: "Team Form",
+    teammates: [
+      {
+        member_position: 1,
+        display_name: "Avery Teammate",
+        email: "avery@example.org",
+        discord_username: "avery-q",
+        registration_id: "invited",
+        match_status: "matched",
+        match_method: "email",
+        match_detail: "Exact email match",
+      },
+    ],
+  },
+  {
+    id: "final-team-42",
+    team_name: "Unlinked Unicorns",
+    team_number: 42,
+    track: "Software",
+    challenge: "Quantum optimization",
+    sponsor: "Quantum optimization",
+    sponsor_contact_name: null,
+    sponsor_contact_email: null,
+    source: "Random",
+    teammates: [
+      {
+        member_position: 1,
+        display_name: "Unlinked Hacker",
+        email: "unlinked@example.org",
+        registration_id: null,
+        match_status: "unmatched",
+        match_method: null,
+        match_detail: "No portal registration found",
+      },
+    ],
+  },
+];
+
 describe("DuQuantumAdminPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetAccessTokenSilently.mockResolvedValue("admin-token");
-    axios.get.mockResolvedValue({ data: { registrations, total: 4 } });
+    axios.get.mockImplementation((url) => {
+      if (url.endsWith("/teams")) {
+        return Promise.resolve({ data: { teams: finalTeams, total: 2 } });
+      }
+      return Promise.resolve({ data: { registrations, total: 4 } });
+    });
   });
 
   test("separates account states and exposes complete participant details", async () => {
@@ -158,7 +214,7 @@ describe("DuQuantumAdminPage", () => {
     expect(screen.queryByText("Connected Participant")).not.toBeInTheDocument();
     expect(screen.queryByText("Pending Participant")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
     const detailRow = screen.getByText("Contact & identity").closest("td");
     expect(within(detailRow).getByText("+1 555 555 0101")).toBeInTheDocument();
     expect(
@@ -167,7 +223,7 @@ describe("DuQuantumAdminPage", () => {
     expect(within(detailRow).getByText(/Dietary notes/)).toBeInTheDocument();
     expect(within(detailRow).getByText("Auth0 Invitation")).toBeInTheDocument();
     expect(
-      within(detailRow).getByText("Quantum Quokkas · Team 7"),
+      within(detailRow).getByText("Team #7 - Quantum Quokkas"),
     ).toBeInTheDocument();
     expect(within(detailRow).getByText("Hardware")).toBeInTheDocument();
     expect(within(detailRow).getByText("Avery Teammate")).toBeInTheDocument();
@@ -178,5 +234,77 @@ describe("DuQuantumAdminPage", () => {
     });
     expect(screen.getByText("Connected Participant")).toBeInTheDocument();
     expect(screen.queryByText("Invited Participant")).not.toBeInTheDocument();
+  });
+
+  test("shows every final team including teams with no linked portal account", async () => {
+    render(
+      <MemoryRouter>
+        <DuQuantumAdminPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Final team directory")).toBeInTheDocument();
+    const directory = screen
+      .getByText("Final team directory")
+      .closest("section");
+    expect(
+      await within(directory).findByText("Team #7 - Quantum Quokkas"),
+    ).toBeInTheDocument();
+    expect(
+      within(directory).getByText("Team #42 - Unlinked Unicorns"),
+    ).toBeInTheDocument();
+    expect(
+      directory.querySelector(".dq-team-directory-summary"),
+    ).toHaveTextContent("2 teams");
+    expect(
+      directory.querySelector(".dq-team-directory-summary"),
+    ).toHaveTextContent("1 team with no links");
+
+    fireEvent.change(within(directory).getByLabelText("Portal linkage"), {
+      target: { value: "unlinked" },
+    });
+    expect(
+      within(directory).getByText("Team #42 - Unlinked Unicorns"),
+    ).toBeInTheDocument();
+    expect(
+      within(directory).queryByText("Team #7 - Quantum Quokkas"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(directory).getByRole("button", { name: "Clear team filters" }),
+    );
+    fireEvent.change(within(directory).getByLabelText("Formation source"), {
+      target: { value: "Random" },
+    });
+    expect(
+      within(directory).getByText("Team #42 - Unlinked Unicorns"),
+    ).toBeInTheDocument();
+    expect(
+      within(directory).queryByText("Team #7 - Quantum Quokkas"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(directory).getByRole("button", { name: "Clear team filters" }),
+    );
+    fireEvent.change(within(directory).getByLabelText("Search teams"), {
+      target: { value: "unlinked@example.org" },
+    });
+    const teamRow = within(directory)
+      .getByText("Team #42 - Unlinked Unicorns")
+      .closest("tr");
+    fireEvent.click(
+      within(teamRow).getByRole("button", { name: "View roster" }),
+    );
+
+    const rosterDetails = within(directory)
+      .getByText("Final roster")
+      .closest("td");
+    expect(
+      within(rosterDetails).getByText("Unlinked Hacker"),
+    ).toBeInTheDocument();
+    expect(within(rosterDetails).getByText("Not linked")).toBeInTheDocument();
+    expect(
+      within(rosterDetails).getByText("Sponsor contact").nextElementSibling,
+    ).toHaveTextContent("N/A");
   });
 });

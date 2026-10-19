@@ -62,13 +62,14 @@ describe("DuQuantumPortalPage", () => {
               id: "team-7",
               team_name: "Quantum Quokkas",
               team_number: 7,
-              track: null,
-              track_preference: "Hardware",
-              challenge: null,
-              challenge_preferences: ["Quantum sensing", "Optimization"],
-              sponsor: "Example Quantum Labs",
-              sponsor_contact_name: "Sam Sponsor",
-              sponsor_contact_email: "sam@example.org",
+              track: "Hardware",
+              track_preference: "Software",
+              challenge: "Quantum sensing",
+              challenge_preferences: ["Optimization", "Chemistry"],
+              sponsor: "Quantum sensing",
+              sponsor_contact_name: null,
+              sponsor_contact_email: null,
+              additional_teammates_detail: null,
               teammates: [
                 {
                   display_name: "Avery Teammate",
@@ -115,16 +116,23 @@ describe("DuQuantumPortalPage", () => {
     );
 
     expect(await screen.findByText("Your team")).toBeInTheDocument();
-    expect(screen.getByText("Quantum Quokkas · Team 7")).toBeInTheDocument();
-    expect(screen.getByText("Hardware")).toBeInTheDocument();
+    expect(screen.getByText("Quantum Quokkas")).toBeInTheDocument();
     expect(
-      screen.getByText("Quantum sensing, Optimization"),
-    ).toBeInTheDocument();
+      screen.getByText("Final team number").nextElementSibling,
+    ).toHaveTextContent("7");
+    expect(screen.getByText("Hardware")).toBeInTheDocument();
+    expect(screen.getAllByText("Quantum sensing")).toHaveLength(2);
     expect(screen.getByText("Avery Teammate")).toBeInTheDocument();
     expect(screen.getByText("Discord: avery-q")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "sam@example.org" }),
-    ).toHaveAttribute("href", "mailto:sam@example.org");
-    expect(screen.getAllByText("N/A")).toHaveLength(3);
+      screen.getByText("Sponsor contact").nextElementSibling,
+    ).toHaveTextContent("N/A");
+
+    fireEvent.click(screen.getByText("Formation preferences"));
+    expect(screen.getByText("Software")).toBeInTheDocument();
+    expect(screen.getByText("Optimization, Chemistry")).toBeInTheDocument();
+    expect(
+      screen.getByText("Requested additional teammates").nextElementSibling,
+    ).toHaveTextContent("N/A");
   });
 });

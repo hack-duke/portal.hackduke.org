@@ -1,139 +1,159 @@
-from datetime import datetime, timezone
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
+
 from models import Event, EventRegistration, EventTeam
 from scripts.import_event_teams import (
-    CHALLENGE_HEADER_PREFIX,
-    HEADER_ADDITIONAL_TEAMMATES,
-    HEADER_TEAM_NAME,
-    HEADER_TIMESTAMP,
-    HEADER_TRACK,
-    TEAM_MEMBER_HEADERS,
+    MASTER_HEADERS,
+    TEAM_HEADERS,
     ParsedTeam,
     ParsedTeamMember,
+    TeamImportValidationError,
     TeamParseResult,
-    parse_team_rows,
+    main,
+    parse_final_rows,
+    parse_final_teams_xlsx,
     reconcile_members,
     sync_database,
 )
 
 
-CHALLENGE_HEADERS = tuple(
-    f"{CHALLENGE_HEADER_PREFIX} [{position} choice]" for position in range(1, 7)
+REAL_WORKBOOK = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "private"
+    / "duquantum-2026"
+    / "final_teams.xlsx"
 )
-HEADERS = (
-    HEADER_TIMESTAMP,
-    HEADER_TEAM_NAME,
-    *(header for group in TEAM_MEMBER_HEADERS for header in group.values()),
-    HEADER_ADDITIONAL_TEAMMATES,
-    HEADER_TRACK,
-    *CHALLENGE_HEADERS,
-)
+REAL_SHA256 = "91611e9aae4b3395368e443ba2701cdf8fabd9dd219004317a0ddf67b5369eef"
 
 
-def _row(*, timestamp, team_name, member_email, first_name="First", last_name="Last"):
-    row = {header: "N/A" for group in TEAM_MEMBER_HEADERS for header in group.values()}
-    row.update(
-        {
-            HEADER_TIMESTAMP: timestamp,
-            HEADER_TEAM_NAME: team_name,
-            HEADER_ADDITIONAL_TEAMMATES: 0,
-            HEADER_TRACK: "Introductory Track",
-            TEAM_MEMBER_HEADERS[0]["first_name"]: first_name,
-            TEAM_MEMBER_HEADERS[0]["last_name"]: last_name,
-            TEAM_MEMBER_HEADERS[0]["email"]: member_email,
-            **{
-                header: f"Sponsor {index}"
-                for index, header in enumerate(CHALLENGE_HEADERS, start=1)
-            },
-        }
-    )
-    return row
-
-
-def _member(
-    *,
-    row_number,
-    position,
-    first_name,
-    last_name,
-    email=None,
-):
+def _member(row, position, name, email):
     return ParsedTeamMember(
-        row_number=row_number,
+        row_number=row,
         position=position,
-        first_name=first_name,
-        last_name=last_name,
+        display_name=name,
         email=email,
-        normalized_email=email.casefold() if email else None,
+        normalized_email=email.casefold(),
         discord_username=None,
-        normalized_name=f"{first_name} {last_name}".casefold(),
-    )
-
-
-def _team(*, row_number, name, members):
-    return ParsedTeam(
-        row_number=row_number,
-        submitted_at=datetime(2026, 10, row_number, tzinfo=timezone.utc),
-        name=name,
         normalized_name=name.casefold(),
-        requested_additional_teammates=0,
-        track_preference="Introductory Track",
-        challenge_preferences=tuple(f"Sponsor {index}" for index in range(1, 7)),
-        members=tuple(members),
-        source_record_id=f"{row_number:064d}",
     )
 
 
-def _parse_result(*teams):
+def _team(number="1", members=()):
+    return ParsedTeam(
+        row_number=2,
+        team_number=number,
+        name=f"Team {number}",
+        normalized_name=f"team {number}",
+        assigned_track="Introductory",
+        assigned_challenge="Sponsor Challenge",
+        formation_source="Team Form",
+        requested_additional_teammates=0,
+        additional_teammates_detail=None,
+        challenge_preferences=("Sponsor Challenge", "Other"),
+        members=tuple(members),
+        source_record_id=number.zfill(64),
+    )
+
+
+def _result(*teams):
     return TeamParseResult(
         source_sha256="0" * 64,
-        raw_rows=len(teams),
+        master_rows=sum(len(team.members) for team in teams),
+        team_rows=len(teams),
         teams=tuple(teams),
-        duplicate_team_groups=0,
-        superseded_team_rows=0,
-        no_team_rows=(),
-        invalid_rows=(),
     )
 
 
-def test_team_parser_keeps_latest_named_submission_and_ignores_later_na_row():
-    rows = [
-        _row(
-            timestamp=datetime(2026, 10, 1, 9),
-            team_name="Quantum Crew",
-            member_email="person@example.edu",
-        ),
-        _row(
-            timestamp=datetime(2026, 10, 2, 9),
-            team_name="Quantum Crew",
-            member_email="updated@example.edu",
-        ),
-        _row(
-            timestamp=datetime(2026, 10, 3, 9),
-            team_name="N/A",
-            member_email="person@example.edu",
-        ),
-    ]
+def _synthetic_rows():
+    master = {header: None for header in MASTER_HEADERS}
+    master.update(
+        {
+            "Team #": 1,
+            "Team Name": "Quantum Crew",
+            "Track": "Introductory",
+            "Assigned Challenge": "Sponsor Challenge",
+            "Team Size": 1,
+            "Member Name": "Ada Lovelace",
+            "Email": "ada@example.edu",
+            "Discord": "ada",
+            "Team Source": "Team Form",
+        }
+    )
+    team = {header: None for header in TEAM_HEADERS}
+    team.update(
+        {
+            "Team #": 1,
+            "Team Name": "Quantum Crew",
+            "Track": "Introductory",
+            "Assigned Challenge": "Sponsor Challenge",
+            "Size": 1,
+            "Additional Members Requested": "0",
+            "Members": "Ada Lovelace",
+            "1st Choice": "Sponsor Challenge",
+            "2nd Choice": "Other",
+            "Team Source": "Team Form",
+        }
+    )
+    return master, team
 
-    result = parse_team_rows(
-        headers=HEADERS,
-        rows=rows,
+
+def test_parser_cross_checks_both_final_sheets():
+    master, team = _synthetic_rows()
+    result = parse_final_rows(
+        master_headers=MASTER_HEADERS,
+        master_rows=[master],
+        team_headers=TEAM_HEADERS,
+        team_rows=[team],
         source_sha256="1" * 64,
     )
+    assert result.master_rows == 1
+    assert result.team_rows == 1
+    assert result.teams[0].assigned_track == "Introductory"
+    assert result.teams[0].track_preference is None
+    assert result.teams[0].assigned_challenge == "Sponsor Challenge"
+    assert result.teams[0].members[0].display_name == "Ada Lovelace"
 
-    assert result.raw_rows == 3
-    assert len(result.teams) == 1
-    assert result.teams[0].members[0].normalized_email == "updated@example.edu"
-    assert result.duplicate_team_groups == 1
-    assert result.superseded_team_rows == 1
-    assert result.no_team_rows == (4,)
-    assert result.invalid_rows == ()
+    changed = dict(team, **{"Assigned Challenge": "Different"})
+    with pytest.raises(TeamImportValidationError, match="cross-sheet assignment"):
+        parse_final_rows(
+            master_headers=MASTER_HEADERS,
+            master_rows=[master],
+            team_headers=TEAM_HEADERS,
+            team_rows=[changed],
+            source_sha256="1" * 64,
+        )
 
 
-def test_reconciliation_uses_exact_matches_and_never_fuzzy_matches():
+@pytest.mark.skipif(not REAL_WORKBOOK.is_file(), reason="private workbook not present")
+def test_real_final_workbook_has_audited_shape_and_assignments():
+    result = parse_final_teams_xlsx(REAL_WORKBOOK)
+    assert result.source_sha256 == REAL_SHA256
+    assert (result.master_rows, result.team_rows, len(result.teams)) == (219, 61, 61)
+    assert result.member_rows == 219
+    assert Counter(len(team.members) for team in result.teams) == {
+        4: 46,
+        3: 7,
+        2: 6,
+        1: 2,
+    }
+    assert Counter(team.formation_source for team in result.teams) == {
+        "Team Form": 42,
+        "Random": 18,
+        "Organizer-added": 1,
+    }
+    assert Counter(
+        team.assigned_track for team in result.teams for _member in team.members
+    ) == {"Introductory": 139, "Standard": 80}
+    assert all(team.assigned_challenge for team in result.teams)
+    assert all(team.track_preference is None for team in result.teams)
+
+
+def test_reconciliation_is_email_first_then_unique_exact_name_without_fuzzy():
     exact = SimpleNamespace(
         id=uuid4(),
         email="exact@example.edu",
@@ -142,259 +162,115 @@ def test_reconciliation_uses_exact_matches_and_never_fuzzy_matches():
         preferred_name=None,
         last_name="Lovelace",
     )
-    alternate_email = SimpleNamespace(
+    alternate = SimpleNamespace(
         id=uuid4(),
-        email="grace@example.edu",
-        normalized_email="grace@example.edu",
+        email="roster@example.edu",
+        normalized_email="roster@example.edu",
         first_name="Grace",
         preferred_name=None,
         last_name="Hopper",
     )
-    name_only = SimpleNamespace(
-        id=uuid4(),
-        email="alan@example.edu",
-        normalized_email="alan@example.edu",
-        first_name="Alan",
-        preferred_name=None,
-        last_name="Turing",
-    )
-    preferred_alias = SimpleNamespace(
-        id=uuid4(),
-        email="john@example.edu",
-        normalized_email="john@example.edu",
-        first_name="John",
-        preferred_name="Jack",
-        last_name="Smith",
-    )
-    conflict = SimpleNamespace(
-        id=uuid4(),
-        email="conflict@example.edu",
-        normalized_email="conflict@example.edu",
-        first_name="Shared",
-        preferred_name=None,
-        last_name="Person",
-    )
     teams = (
-        _team(
-            row_number=2,
-            name="Exact",
-            members=[
-                _member(
-                    row_number=2,
-                    position=1,
-                    first_name="Ada",
-                    last_name="Lovelace",
-                    email="exact@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=3,
-            name="Alternate",
-            members=[
-                _member(
-                    row_number=3,
-                    position=1,
-                    first_name="Grace",
-                    last_name="Hopper",
-                    email="different@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=4,
-            name="No Email",
-            members=[
-                _member(
-                    row_number=4,
-                    position=1,
-                    first_name="Alan",
-                    last_name="Turing",
-                )
-            ],
-        ),
-        _team(
-            row_number=5,
-            name="Primary Alias",
-            members=[
-                _member(
-                    row_number=5,
-                    position=1,
-                    first_name="John",
-                    last_name="Smith",
-                    email="john@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=6,
-            name="Secondary Alias",
-            members=[
-                _member(
-                    row_number=6,
-                    position=1,
-                    first_name="Jack",
-                    last_name="Smith",
-                    email="jack-alt@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=7,
-            name="Conflict One",
-            members=[
-                _member(
-                    row_number=7,
-                    position=1,
-                    first_name="Shared",
-                    last_name="Person",
-                    email="conflict@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=8,
-            name="Conflict Two",
-            members=[
-                _member(
-                    row_number=8,
-                    position=1,
-                    first_name="Shared",
-                    last_name="Person",
-                    email="conflict@example.edu",
-                )
-            ],
-        ),
-        _team(
-            row_number=9,
-            name="No Fuzzy",
-            members=[
-                _member(
-                    row_number=9,
-                    position=1,
-                    first_name="Almost",
-                    last_name="Hopper",
-                    email="missing@example.edu",
-                )
-            ],
-        ),
+        _team("1", [_member(2, 1, "Ada Lovelace", "exact@example.edu")]),
+        _team("2", [_member(3, 1, "Grace Hopper", "other@example.edu")]),
+        _team("3", [_member(4, 1, "Almost Hopper", "missing@example.edu")]),
     )
-
-    result = reconcile_members(
-        teams,
-        [exact, alternate_email, name_only, preferred_alias, conflict],
-    )
-    by_row = {item.member.row_number: item for item in result.members}
-
-    assert by_row[2].registration_id == exact.id
-    assert by_row[2].match_method == "email"
-    assert by_row[3].registration_id == alternate_email.id
-    assert by_row[3].match_method == "exact_unique_name_email_mismatch"
-    assert by_row[4].registration_id == name_only.id
-    assert by_row[4].match_method == "name"
-    assert by_row[5].registration_id == preferred_alias.id
-    assert by_row[6].registration_id is None
-    assert by_row[6].match_detail == (
-        "registration_already_linked_by_higher_confidence_match"
-    )
-    assert by_row[7].match_status == "ambiguous"
-    assert by_row[8].match_status == "ambiguous"
-    assert by_row[9].registration_id is None
-    assert by_row[9].match_detail == "email_not_found"
+    result = reconcile_members(teams, [exact, alternate])
+    assert [item.match_method for item in result.members] == [
+        "email",
+        "exact_unique_name_email_mismatch",
+        "email",
+    ]
+    assert [item.match_status for item in result.members] == [
+        "matched",
+        "matched",
+        "unmatched",
+    ]
 
 
-def test_database_sync_preserves_assignments_and_archives_stale_teams(
+def test_sync_filters_roster_and_applies_final_assignments(
     test_sessionmaker, monkeypatch
 ):
     setup = test_sessionmaker()
     event = Event(slug="duquantum-2026", name="DuQuantum 2026", state="active")
-    registration = EventRegistration(
+    accepted = EventRegistration(
         event=event,
-        email="person@example.edu",
-        normalized_email="person@example.edu",
-        first_name="First",
-        last_name="Last",
+        email="accepted@example.edu",
+        normalized_email="accepted@example.edu",
+        first_name="Accepted",
+        last_name="Person",
         admission_status="accepted",
         rsvp_status="confirmed",
         source_data={},
     )
-    historical = EventRegistration(
+    revoked = EventRegistration(
         event=event,
-        email="historical@example.edu",
-        normalized_email="historical@example.edu",
-        first_name="Historical",
+        email="revoked@example.edu",
+        normalized_email="revoked@example.edu",
+        first_name="Revoked",
         last_name="Person",
         admission_status="revoked",
         rsvp_status="declined",
         source_data={},
     )
-    setup.add_all([event, registration, historical])
+    setup.add_all([event, accepted, revoked])
     setup.commit()
     event_id = event.id
-    registration_id = registration.id
     setup.close()
     monkeypatch.setattr("db.get_local_session", test_sessionmaker)
 
     team = _team(
-        row_number=2,
-        name="Quantum Crew",
         members=[
-            _member(
-                row_number=2,
-                position=1,
-                first_name="First",
-                last_name="Last",
-                email="person@example.edu",
-            ),
-            _member(
-                row_number=2,
-                position=2,
-                first_name="Historical",
-                last_name="Person",
-                email="historical@example.edu",
-            ),
-        ],
+            _member(2, 1, "Accepted Person", "accepted@example.edu"),
+            _member(3, 2, "Revoked Person", "revoked@example.edu"),
+        ]
     )
-    created = sync_database(_parse_result(team), commit=True)
+    with pytest.raises(TeamImportValidationError, match="match-count guard"):
+        sync_database(
+            _result(team),
+            commit=True,
+            expected_match_counts={"matched": 2, "unmatched": 0, "ambiguous": 0},
+        )
+    guard_verify = test_sessionmaker()
+    assert guard_verify.query(EventTeam).count() == 0
+    guard_verify.close()
 
-    assert created.counts["teams_created"] == 1
-    assert created.counts["members_matched"] == 1
-    assert created.counts["members_unmatched"] == 1
+    synced = sync_database(_result(team), commit=True)
+    assert synced.counts["members_matched"] == 1
+    assert synced.counts["members_unmatched"] == 1
     verify = test_sessionmaker()
     database_team = verify.query(EventTeam).one()
-    database_team.assigned_track = "Standard Track"
-    database_team.assigned_challenge = "Assigned challenge"
-    database_team.sponsor_name = "Assigned sponsor"
-    database_team.sponsor_contact_name = "Sponsor Contact"
-    database_team.sponsor_contact_email = "sponsor@example.com"
+    assert database_team.team_number == "1"
+    assert database_team.assigned_track == "Introductory"
+    assert database_team.assigned_challenge == "Sponsor Challenge"
+    assert database_team.sponsor_name == "Sponsor Challenge"
+    assert database_team.track_preference is None
+    assert database_team.sponsor_contact_name is None
+    assert database_team.source == "final_teams_xlsx"
+    assert database_team.members[0].display_name == "Accepted Person"
+    database_team.track_preference = "Historical form preference"
+    database_team.sponsor_contact_name = "Organizer-entered contact"
+    database_team.sponsor_contact_email = "contact@example.com"
     verify.commit()
     verify.close()
 
-    sync_database(_parse_result(team), commit=True)
+    sync_database(_result(team), commit=True)
     verify = test_sessionmaker()
     database_team = verify.query(EventTeam).one()
-    assert database_team.assigned_track == "Standard Track"
-    assert database_team.assigned_challenge == "Assigned challenge"
-    assert database_team.sponsor_name == "Assigned sponsor"
-    assert database_team.sponsor_contact_email == "sponsor@example.com"
-    assert database_team.members[0].registration_id == registration_id
+    assert database_team.track_preference == "Historical form preference"
+    assert database_team.sponsor_contact_name == "Organizer-entered contact"
+    assert database_team.sponsor_contact_email == "contact@example.com"
     verify.close()
 
-    archived = sync_database(_parse_result(), commit=True)
-    assert archived.counts["teams_archived"] == 1
-    verify = test_sessionmaker()
-    database_team = (
-        verify.query(EventTeam).filter(EventTeam.event_id == event_id).one()
-    )
-    assert database_team.active is False
-    assert database_team.members[0].registration_id is None
-    assert database_team.members[0].match_detail == "team_not_in_latest_import"
-    verify.close()
-
-    # sync_database intentionally opens and commits its own sessions, so clean
-    # up the event explicitly instead of relying on the surrounding fixture's
-    # transaction. This keeps the complete backend suite order-independent.
     cleanup = test_sessionmaker()
+    cleanup.query(EventTeam).filter(EventTeam.event_id == event_id).delete()
     cleanup.query(Event).filter(Event.id == event_id).delete()
     cleanup.commit()
     cleanup.close()
+
+
+@pytest.mark.skipif(not REAL_WORKBOOK.is_file(), reason="private workbook not present")
+def test_cli_source_guard_rejects_wrong_workbook_hash(capsys):
+    status = main(["--input", str(REAL_WORKBOOK), "--expect-source-sha256", "0" * 64])
+    assert status == 2
+    assert "Source/count guard failed" in capsys.readouterr().out

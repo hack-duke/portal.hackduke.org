@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Security
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import and_, func, or_
+from sqlalchemy import Integer, and_, cast, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -114,6 +114,7 @@ class EmailDeliveryResponse(BaseModel):
 
 
 class TeamMemberResponse(BaseModel):
+    member_position: int
     first_name: Optional[str]
     last_name: Optional[str]
     display_name: Optional[str]
@@ -140,11 +141,20 @@ class TeamResponse(BaseModel):
     sponsor_contact_email: Optional[str]
     challenge_preferences: List[str]
     requested_additional_teammates: Optional[int]
+    additional_teammates_detail: Optional[str]
+    source: Optional[str]
     teammates: List[TeamMemberResponse]
 
 
 class AdminTeamResponse(TeamResponse):
     teammates: List[AdminTeamMemberResponse]
+
+
+class AdminTeamListResponse(BaseModel):
+    teams: List[AdminTeamResponse]
+    total: int
+    limit: int
+    offset: int
 
 
 class MyRegistrationResponse(BaseModel):
@@ -443,6 +453,8 @@ def _check_in_response(check_in: EventCheckIn) -> CheckInResponse:
 
 
 def _team_member_display_name(member: EventTeamMember) -> Optional[str]:
+    if member.display_name and member.display_name.strip():
+        return member.display_name.strip()
     display_name = " ".join(
         value.strip()
         for value in (member.first_name or "", member.last_name or "")
@@ -451,20 +463,9 @@ def _team_member_display_name(member: EventTeamMember) -> Optional[str]:
     return display_name or None
 
 
-def _team_response(
-    registration: EventRegistration,
-    *,
-    admin: bool = False,
-) -> Optional[TeamResponse | AdminTeamResponse]:
-    membership = registration.team_membership
-    if (
-        membership is None
-        or membership.match_status != "matched"
-        or membership.team is None
-        or not membership.team.active
-    ):
-        return None
-    team = membership.team
+def _team_response_from_team(
+    team: EventTeam, *, admin: bool = False
+) -> TeamResponse | AdminTeamResponse:
     sorted_members = sorted(team.members, key=lambda item: item.member_position)
     common = {
         "id": team.id,
@@ -478,12 +479,15 @@ def _team_response(
         "sponsor_contact_email": team.sponsor_contact_email,
         "challenge_preferences": list(team.challenge_preferences or []),
         "requested_additional_teammates": team.requested_additional_teammates,
+        "additional_teammates_detail": team.additional_teammates_detail,
+        "source": team.formation_source,
     }
     if admin:
         return AdminTeamResponse(
             **common,
             teammates=[
                 AdminTeamMemberResponse(
+                    member_position=item.member_position,
                     first_name=item.first_name,
                     last_name=item.last_name,
                     display_name=_team_member_display_name(item),
@@ -501,6 +505,7 @@ def _team_response(
         **common,
         teammates=[
             TeamMemberResponse(
+                member_position=item.member_position,
                 first_name=item.first_name,
                 last_name=item.last_name,
                 display_name=_team_member_display_name(item),
@@ -510,6 +515,22 @@ def _team_response(
             for item in sorted_members
         ],
     )
+
+
+def _team_response(
+    registration: EventRegistration,
+    *,
+    admin: bool = False,
+) -> Optional[TeamResponse | AdminTeamResponse]:
+    membership = registration.team_membership
+    if (
+        membership is None
+        or membership.match_status != "matched"
+        or membership.team is None
+        or not membership.team.active
+    ):
+        return None
+    return _team_response_from_team(membership.team, admin=admin)
 
 
 def _my_registration_response(
@@ -953,6 +974,84 @@ async def delete_event_push_subscriptions(
     return PushSubscriptionResponse(
         subscribed=False,
         message="DuQuantum event alerts are disabled.",
+    )
+
+
+@router.get("/{slug}/teams", response_model=AdminTeamListResponse)
+async def list_event_teams(
+    slug: str,
+    q: str = "",
+    track: Optional[str] = None,
+    challenge: Optional[str] = None,
+    source: Optional[str] = None,
+    match_status: Optional[str] = Query(
+        default=None, pattern="^(matched|unmatched|ambiguous)$"
+    ),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """List every active final team, including teams with no portal links."""
+    event = get_event_or_404(db, slug)
+    admin = get_role_user(auth_payload, db)
+    require_admin(db, admin.id)
+
+    query = db.query(EventTeam).filter(
+        EventTeam.event_id == event.id,
+        EventTeam.active.is_(True),
+    )
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                EventTeam.name.ilike(pattern),
+                EventTeam.team_number.ilike(pattern),
+                EventTeam.assigned_track.ilike(pattern),
+                EventTeam.assigned_challenge.ilike(pattern),
+                EventTeam.sponsor_name.ilike(pattern),
+                EventTeam.formation_source.ilike(pattern),
+                EventTeam.members.any(
+                    or_(
+                        EventTeamMember.display_name.ilike(pattern),
+                        EventTeamMember.first_name.ilike(pattern),
+                        EventTeamMember.last_name.ilike(pattern),
+                        EventTeamMember.email.ilike(pattern),
+                        EventTeamMember.discord_username.ilike(pattern),
+                    )
+                ),
+            )
+        )
+    if track is not None:
+        query = query.filter(
+            func.lower(EventTeam.assigned_track) == track.strip().lower()
+        )
+    if challenge is not None:
+        query = query.filter(
+            func.lower(EventTeam.assigned_challenge) == challenge.strip().lower()
+        )
+    if source is not None:
+        query = query.filter(
+            func.lower(EventTeam.formation_source) == source.strip().lower()
+        )
+    if match_status is not None:
+        query = query.filter(
+            EventTeam.members.any(EventTeamMember.match_status == match_status)
+        )
+
+    total = query.with_entities(func.count(EventTeam.id)).scalar() or 0
+    teams = (
+        query.options(joinedload(EventTeam.members))
+        .order_by(cast(EventTeam.team_number, Integer).asc(), EventTeam.name.asc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return AdminTeamListResponse(
+        teams=[_team_response_from_team(team, admin=True) for team in teams],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

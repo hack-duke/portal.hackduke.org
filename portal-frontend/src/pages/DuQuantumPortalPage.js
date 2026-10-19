@@ -4,11 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import { createGetAuthToken } from "../utils/authUtils";
-import {
-  formatTeamValue,
-  teamForRegistration,
-  teamLabel,
-} from "../utils/teamUtils";
+import { formatTeamValue, teamForRegistration } from "../utils/teamUtils";
 import DuQuantumCommunityCard from "../components/DuQuantumCommunityCard";
 import DuQuantumMobileCompanion from "../components/DuQuantumMobileCompanion";
 import DuQuantumSchedule from "../components/DuQuantumSchedule";
@@ -411,29 +407,25 @@ const DuQuantumPortalPage = () => {
                       <span
                         className={`dq-team-state ${team.assigned ? "is-assigned" : ""}`}
                       >
-                        {team.assigned ? "Assigned" : "N/A"}
+                        {team.assigned ? "Final team" : "N/A"}
                       </span>
                     </div>
                     <dl className="dq-team-facts">
                       <div>
-                        <dt>Team</dt>
-                        <dd>{teamLabel(team)}</dd>
+                        <dt>Final team number</dt>
+                        <dd>{formatTeamValue(team.number)}</dd>
                       </div>
                       <div>
-                        <dt>Assigned track</dt>
+                        <dt>Team name</dt>
+                        <dd>{formatTeamValue(team.name)}</dd>
+                      </div>
+                      <div>
+                        <dt>Final track</dt>
                         <dd>{formatTeamValue(team.track)}</dd>
-                      </div>
-                      <div>
-                        <dt>Track preference</dt>
-                        <dd>{formatTeamValue(team.trackPreference)}</dd>
                       </div>
                       <div>
                         <dt>Assigned challenge</dt>
                         <dd>{formatTeamValue(team.challenge)}</dd>
-                      </div>
-                      <div>
-                        <dt>Challenge preferences</dt>
-                        <dd>{formatTeamValue(team.challengePreferences)}</dd>
                       </div>
                       <div>
                         <dt>Sponsor</dt>
@@ -454,12 +446,6 @@ const DuQuantumPortalPage = () => {
                           ) : (
                             formatTeamValue(team.sponsorContactName)
                           )}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Requested additional teammates</dt>
-                        <dd>
-                          {formatTeamValue(team.requestedAdditionalTeammates)}
                         </dd>
                       </div>
                     </dl>
@@ -485,6 +471,31 @@ const DuQuantumPortalPage = () => {
                         <p>N/A</p>
                       )}
                     </div>
+                    <details className="dq-attendee-team-preferences">
+                      <summary>Formation preferences</summary>
+                      <dl>
+                        <div>
+                          <dt>Track preference</dt>
+                          <dd>{formatTeamValue(team.trackPreference)}</dd>
+                        </div>
+                        <div>
+                          <dt>Challenge preferences</dt>
+                          <dd>{formatTeamValue(team.challengePreferences)}</dd>
+                        </div>
+                        <div>
+                          <dt>Requested additional teammates</dt>
+                          <dd>
+                            {formatTeamValue(team.requestedAdditionalTeammates)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Additional teammate request details</dt>
+                          <dd>
+                            {formatTeamValue(team.additionalTeammatesDetail)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </details>
                   </article>
                   <DuQuantumCommunityCard />
                   <article className="dq-panel dq-support-card">
