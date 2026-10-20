@@ -22,6 +22,33 @@ def choose_registration(addresses, registrations):
     return row, None
 
 
+def roster_repair(addresses, registrations, members, all_registrations):
+    """Only repair explicit reports backed by one authoritative team entry."""
+    matches = [row for row in registrations if row.normalized_email in addresses]
+    if len(members) != 1 or len(matches) > 1:
+        return None
+    member = members[0]
+    if member.match_status == "ambiguous":
+        return None
+    if matches:
+        row = matches[0]
+        if member.registration_id not in (None, row.id):
+            return None
+        if row.admission_status != "revoked" or row.rsvp_status != "declined":
+            return None
+        if row.source != "google_forms_csv" or not all(getattr(row, field) is True for field in ("attendance_commitment", "photo_release_consent", "mlh_code_of_conduct_consent", "data_sharing_consent")):
+            return None
+        if row.team_membership is not None and row.team_membership.id != member.id:
+            return None
+        return {"action": "restore", "registration": row, "member": member, "email": row.normalized_email}
+    if member.registration_id is not None:
+        return None
+    name = " ".join((member.display_name or " ".join(filter(None, (member.first_name, member.last_name)))).casefold().split())
+    if not name or any(" ".join(filter(None, (row.first_name, row.last_name))).casefold().strip() == name for row in all_registrations):
+        return None
+    return {"action": "create", "registration": None, "member": member, "email": addresses[0]}
+
+
 def message_evidence(client, message_id):
     if not message_id:
         return {"insights": "no_provider_id"}
@@ -35,7 +62,7 @@ def message_evidence(client, message_id):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--operation", choices=("inventory", "send"), required=True)
+    parser.add_argument("--operation", choices=("inventory", "reconcile", "send"), required=True)
     parser.add_argument("--batch", required=True)
     parser.add_argument("--expected-count", type=int)
     parser.add_argument("--expected-fingerprint")
@@ -43,7 +70,7 @@ def main():
     if not args.batch.isalnum() or len(args.batch) > 40:
         raise SystemExit("Invalid batch")
     from db import get_local_session
-    from models import EmailDelivery, Event, EventRegistration, EventTeamMember
+    from models import EmailDelivery, Event, EventRegistration, EventTeamMember, EventTeam
     from scripts.onboard_event_auth0 import database_users
     from scripts.remind_event_accounts import load_recipient_emails, suppression_reason, validate_ses_delivery_posture
     from services.account_setup import issue_account_setup_link
@@ -65,20 +92,26 @@ def main():
     try:
         event = session.query(Event).filter_by(slug="duquantum-2026").one()
         rows = session.query(EventRegistration).filter(EventRegistration.event_id == event.id, EventRegistration.normalized_email.in_(all_addresses)).all()
+        all_registrations = session.query(EventRegistration).filter_by(event_id=event.id).all()
         settings = SesSettings.from_environment()
         mailer = SesEmailSender(settings)
         print("SES posture:", json.dumps(validate_ses_delivery_posture(mailer.client, settings)), flush=True)
         auth_settings = Auth0OnboardingSettings.from_environment()
         campaign = f"reported-invitation-{args.batch}"
         plan = []
+        repairs = []
         with Auth0OnboardingClient(auth_settings) as auth0:
             for index, request in enumerate(requests, 1):
                 emails = request["emails"]
                 registration, blocker = choose_registration(emails, rows)
                 report = {"request": index, "blocker": blocker}
                 report["matching_registrations"] = [{"address_index": emails.index(row.normalized_email), "admission_status": row.admission_status, "rsvp_status": row.rsvp_status, "source": row.source, "attendance_commitment": row.attendance_commitment, "photo_release_consent": row.photo_release_consent, "mlh_code_of_conduct_consent": row.mlh_code_of_conduct_consent, "mlh_privacy_policy_consent": row.mlh_privacy_policy_consent, "data_sharing_consent": row.data_sharing_consent, "marketing_opt_in": row.mlh_marketing_opt_in, "prior_message_count": len(row.email_deliveries)} for row in rows if row.normalized_email in emails]
-                members = session.query(EventTeamMember).filter(EventTeamMember.event_id == event.id, EventTeamMember.normalized_email.in_(emails)).all()
+                members = session.query(EventTeamMember).join(EventTeam, EventTeam.id == EventTeamMember.team_id).filter(EventTeamMember.event_id == event.id, EventTeamMember.normalized_email.in_(emails), EventTeam.active.is_(True), EventTeam.source == "final_teams_xlsx").all()
                 report["team_matches"] = [{"address_index": emails.index(member.normalized_email), "linked": member.registration_id is not None, "match_status": member.match_status} for member in members]
+                repair = roster_repair(emails, rows, members, all_registrations)
+                if repair:
+                    report["roster_repair"] = repair["action"]
+                    repairs.append((index, repair))
                 if registration is None:
                     print("AUDIT", json.dumps(report), flush=True)
                     continue
@@ -109,6 +142,31 @@ def main():
                     report["planned_template"] = action
                     plan.append((index, registration, matches[0] if matches else None, action))
                 print("AUDIT", json.dumps(report), flush=True)
+            repair_fingerprint = hashlib.sha256(json.dumps([(i, repair["action"], str(repair["registration"].id) if repair["registration"] else None, str(repair["member"].id), repair["email"]) for i, repair in repairs], separators=(",", ":")).encode()).hexdigest()
+            print("REPAIR_PLAN", json.dumps({"records": len(repairs), "fingerprint": repair_fingerprint}), flush=True)
+            if args.operation == "reconcile":
+                if args.expected_count != len(repairs) or args.expected_fingerprint != repair_fingerprint:
+                    raise SystemExit("Roster repair plan changed; no changes made")
+                for index, repair in repairs:
+                    row, member = repair["registration"], repair["member"]
+                    if row is None:
+                        parts = (member.display_name or "").split(maxsplit=1)
+                        row = EventRegistration(event_id=event.id, email=repair["email"], normalized_email=repair["email"], first_name=member.first_name or (parts[0] if parts else None), last_name=member.last_name or (parts[1] if len(parts) > 1 else None), source="organizer_final_team_reconciliation")
+                        session.add(row)
+                    row.admission_status = "accepted"
+                    row.rsvp_status = "confirmed"
+                    row.source_data = {**(row.source_data or {}), "_organizer_reconciliation": {"batch": args.batch, "reason": "reported_missing_invitation_on_final_team", "team_member_id": str(member.id), "at": datetime.now(timezone.utc).isoformat()}}
+                    session.flush()
+                    member.registration_id = row.id
+                    member.match_status = "matched"
+                    member.match_method = "email" if member.normalized_email == row.normalized_email else "exact_unique_name_email_mismatch"
+                    member.match_detail = "organizer_reported_invitation"
+                    if row.event_pass is not None and row.event_pass.state == "revoked":
+                        row.event_pass.state = "active"
+                        row.event_pass.revoked_at = None
+                    print("ROSTER_RECONCILED", index, repair["action"], flush=True)
+                session.commit()
+                return 0
             fingerprint = hashlib.sha256(json.dumps([(i, str(row.id), row.normalized_email, user.get("user_id") if user else None, action) for i, row, user, action in plan], separators=(",", ":")).encode()).hexdigest()
             print("PLAN", json.dumps({"recipients": len(plan), "fingerprint": fingerprint}), flush=True)
             if args.operation == "inventory":

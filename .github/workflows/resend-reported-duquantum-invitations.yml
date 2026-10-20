@@ -4,7 +4,7 @@ on:
     inputs:
       operation:
         type: choice
-        options: [inventory, send]
+        options: [inventory, reconcile, send]
         default: inventory
         required: true
       confirm_event:
@@ -42,7 +42,7 @@ jobs:
           test "$CONFIRM_EVENT" = duquantum-2026
           test -n "$REQUESTS"
           printf '%s' "$BATCH" | grep -Eq '^[A-Za-z0-9]{1,40}$'
-          if [ "$OPERATION" = send ]; then
+          if [ "$OPERATION" != inventory ]; then
             printf '%s' "$COUNT" | grep -Eq '^[0-9]+$'
             printf '%s' "$FINGERPRINT" | grep -Eq '^[0-9a-f]{64}$'
           fi
@@ -64,6 +64,6 @@ jobs:
           test -n "$backend_id"
           test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
           args=(--operation "$2" --batch "$3")
-          if [ "$2" = send ]; then args+=(--expected-count "$4" --expected-fingerprint "$5"); fi
+          if [ "$2" != inventory ]; then args+=(--expected-count "$4" --expected-fingerprint "$5"); fi
           docker exec -i "$backend_id" python -c "$(cat "${base}.py")" "${args[@]}" < "${base}.json"
           REMOTE
