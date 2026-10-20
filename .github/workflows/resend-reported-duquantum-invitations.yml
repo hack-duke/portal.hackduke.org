@@ -1,0 +1,69 @@
+name: Investigate Reported DuQuantum Invitations
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [inventory, send]
+        default: inventory
+        required: true
+      confirm_event:
+        type: string
+        required: true
+      batch:
+        type: string
+        required: true
+      expected_count:
+        type: string
+      expected_fingerprint:
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: duquantum-account-reminders
+  cancel-in-progress: false
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit or resend the protected list
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          REQUESTS: ${{ secrets.DUQUANTUM_REPORTED_INVITATIONS }}
+          OPERATION: ${{ inputs.operation }}
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+          BATCH: ${{ inputs.batch }}
+          COUNT: ${{ inputs.expected_count }}
+          FINGERPRINT: ${{ inputs.expected_fingerprint }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_EVENT" = duquantum-2026
+          test -n "$REQUESTS"
+          printf '%s' "$BATCH" | grep -Eq '^[A-Za-z0-9]{1,40}$'
+          if [ "$OPERATION" = send ]; then
+            printf '%s' "$COUNT" | grep -Eq '^[0-9]+$'
+            printf '%s' "$FINGERPRINT" | grep -Eq '^[0-9a-f]{64}$'
+          fi
+          umask 077
+          local_requests="$(mktemp)"
+          remote_base=".duquantum-reported-${GITHUB_RUN_ID}"
+          trap 'rm -f -- key.pem "$local_requests"' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          printf '%s' "$REQUESTS" > "$local_requests"
+          scp -i key.pem -o StrictHostKeyChecking=no "$local_requests" "ec2-user@$EC2_IP:${remote_base}.json"
+          scp -i key.pem -o StrictHostKeyChecking=no .github/scripts/resend_reported_duquantum_invitations.py "ec2-user@$EC2_IP:${remote_base}.py"
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$remote_base" "$OPERATION" "$BATCH" "${COUNT:-none}" "${FINGERPRINT:-none}" << 'REMOTE'
+          set -euo pipefail
+          base="$1"
+          case "$base" in .duquantum-reported-*) ;; *) exit 2 ;; esac
+          trap 'rm -f -- "${base}.json" "${base}.py"' EXIT
+          chmod 600 "${base}.json"
+          backend_id="$(docker-compose ps -q backend)"
+          test -n "$backend_id"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
+          args=(--operation "$2" --batch "$3")
+          if [ "$2" = send ]; then args+=(--expected-count "$4" --expected-fingerprint "$5"); fi
+          docker exec -i "$backend_id" python -c "$(cat "${base}.py")" "${args[@]}" < "${base}.json"
+          REMOTE
