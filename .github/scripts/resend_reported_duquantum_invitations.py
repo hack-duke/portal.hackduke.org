@@ -76,6 +76,7 @@ def main():
                 emails = request["emails"]
                 registration, blocker = choose_registration(emails, rows)
                 report = {"request": index, "blocker": blocker}
+                report["matching_registrations"] = [{"address_index": emails.index(row.normalized_email), "admission_status": row.admission_status, "rsvp_status": row.rsvp_status, "source": row.source, "attendance_commitment": row.attendance_commitment, "photo_release_consent": row.photo_release_consent, "mlh_code_of_conduct_consent": row.mlh_code_of_conduct_consent, "mlh_privacy_policy_consent": row.mlh_privacy_policy_consent, "data_sharing_consent": row.data_sharing_consent, "marketing_opt_in": row.mlh_marketing_opt_in, "prior_message_count": len(row.email_deliveries)} for row in rows if row.normalized_email in emails]
                 members = session.query(EventTeamMember).filter(EventTeamMember.event_id == event.id, EventTeamMember.normalized_email.in_(emails)).all()
                 report["team_matches"] = [{"address_index": emails.index(member.normalized_email), "linked": member.registration_id is not None, "match_status": member.match_status} for member in members]
                 if registration is None:
