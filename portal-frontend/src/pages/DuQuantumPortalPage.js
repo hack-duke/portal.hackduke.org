@@ -90,6 +90,8 @@ const DuQuantumPortalPage = () => {
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState("");
   const [needsClaim, setNeedsClaim] = useState(false);
+  const hasTeam = Boolean(registration?.team);
+  const assignmentsVisible = registration?.team?.assignments_visible === true;
 
   const loadPortal = useCallback(async () => {
     setLoading(true);
@@ -148,6 +150,38 @@ const DuQuantumPortalPage = () => {
   useEffect(() => {
     loadPortal();
   }, [loadPortal]);
+
+  // Refresh locked assignments after an organizer checks the attendee in.
+  useEffect(() => {
+    if (!hasTeam || assignmentsVisible) return;
+    let active = true;
+    const refresh = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const token = await getAccessTokenSilently();
+        const response = await axios.get(
+          `${process.env.REACT_APP_BACKEND_URL}/events/${EVENT_SLUG}/me`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (active) {
+          const payload = unpackEventResponse(response.data);
+          if (payload.event) setEvent(payload.event);
+          if (payload.registration) setRegistration(payload.registration);
+        }
+      } catch (_) {
+        // Keep the pass available when a background refresh fails.
+      }
+    };
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [getAccessTokenSilently, hasTeam, assignmentsVisible]);
 
   const claimRegistration = async () => {
     setClaiming(true);
@@ -419,36 +453,49 @@ const DuQuantumPortalPage = () => {
                         <dt>Team name</dt>
                         <dd>{formatTeamValue(team.name)}</dd>
                       </div>
-                      <div>
-                        <dt>Final track</dt>
-                        <dd>{formatTeamValue(team.track)}</dd>
-                      </div>
-                      <div>
-                        <dt>Assigned challenge</dt>
-                        <dd>{formatTeamValue(team.challenge)}</dd>
-                      </div>
-                      <div>
-                        <dt>Sponsor</dt>
-                        <dd>{formatTeamValue(team.sponsor)}</dd>
-                      </div>
-                      <div>
-                        <dt>Sponsor contact</dt>
-                        <dd>
-                          {team.sponsorContactEmail ? (
-                            <span className="dq-team-contact">
-                              {team.sponsorContactName && (
-                                <span>{team.sponsorContactName}</span>
+                      {assignmentsVisible && (
+                        <>
+                          <div>
+                            <dt>Final track</dt>
+                            <dd>{formatTeamValue(team.track)}</dd>
+                          </div>
+                          <div>
+                            <dt>Assigned challenge</dt>
+                            <dd>{formatTeamValue(team.challenge)}</dd>
+                          </div>
+                          <div>
+                            <dt>Sponsor</dt>
+                            <dd>{formatTeamValue(team.sponsor)}</dd>
+                          </div>
+                          <div>
+                            <dt>Sponsor contact</dt>
+                            <dd>
+                              {team.sponsorContactEmail ? (
+                                <span className="dq-team-contact">
+                                  {team.sponsorContactName && (
+                                    <span>{team.sponsorContactName}</span>
+                                  )}
+                                  <a
+                                    href={`mailto:${team.sponsorContactEmail}`}
+                                  >
+                                    {team.sponsorContactEmail}
+                                  </a>
+                                </span>
+                              ) : (
+                                formatTeamValue(team.sponsorContactName)
                               )}
-                              <a href={`mailto:${team.sponsorContactEmail}`}>
-                                {team.sponsorContactEmail}
-                              </a>
-                            </span>
-                          ) : (
-                            formatTeamValue(team.sponsorContactName)
-                          )}
-                        </dd>
-                      </div>
+                            </dd>
+                          </div>
+                        </>
+                      )}
                     </dl>
+                    {hasTeam && !assignmentsVisible && (
+                      <p className="dq-help-copy">
+                        Challenge assignments unlock when the event starts and
+                        you have checked in at arrival. This page updates
+                        automatically.
+                      </p>
+                    )}
                     <div className="dq-team-members">
                       <h3>Teammates</h3>
                       {team.teammates.length ? (
@@ -471,31 +518,37 @@ const DuQuantumPortalPage = () => {
                         <p>N/A</p>
                       )}
                     </div>
-                    <details className="dq-attendee-team-preferences">
-                      <summary>Formation preferences</summary>
-                      <dl>
-                        <div>
-                          <dt>Track preference</dt>
-                          <dd>{formatTeamValue(team.trackPreference)}</dd>
-                        </div>
-                        <div>
-                          <dt>Challenge preferences</dt>
-                          <dd>{formatTeamValue(team.challengePreferences)}</dd>
-                        </div>
-                        <div>
-                          <dt>Requested additional teammates</dt>
-                          <dd>
-                            {formatTeamValue(team.requestedAdditionalTeammates)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Additional teammate request details</dt>
-                          <dd>
-                            {formatTeamValue(team.additionalTeammatesDetail)}
-                          </dd>
-                        </div>
-                      </dl>
-                    </details>
+                    {assignmentsVisible && (
+                      <details className="dq-attendee-team-preferences">
+                        <summary>Formation preferences</summary>
+                        <dl>
+                          <div>
+                            <dt>Track preference</dt>
+                            <dd>{formatTeamValue(team.trackPreference)}</dd>
+                          </div>
+                          <div>
+                            <dt>Challenge preferences</dt>
+                            <dd>
+                              {formatTeamValue(team.challengePreferences)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Requested additional teammates</dt>
+                            <dd>
+                              {formatTeamValue(
+                                team.requestedAdditionalTeammates,
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Additional teammate request details</dt>
+                            <dd>
+                              {formatTeamValue(team.additionalTeammatesDetail)}
+                            </dd>
+                          </div>
+                        </dl>
+                      </details>
+                    )}
                   </article>
                   <DuQuantumCommunityCard />
                   <article className="dq-panel dq-support-card">

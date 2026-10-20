@@ -133,6 +133,7 @@ class TeamResponse(BaseModel):
     id: UUID
     team_name: str
     team_number: Optional[str]
+    assignments_visible: bool = False
     track: Optional[str]
     track_preference: Optional[str]
     challenge: Optional[str]
@@ -464,13 +465,14 @@ def _team_member_display_name(member: EventTeamMember) -> Optional[str]:
 
 
 def _team_response_from_team(
-    team: EventTeam, *, admin: bool = False
+    team: EventTeam, *, admin: bool = False, assignments_visible: bool = False
 ) -> TeamResponse | AdminTeamResponse:
     sorted_members = sorted(team.members, key=lambda item: item.member_position)
     common = {
         "id": team.id,
         "team_name": team.name,
         "team_number": team.team_number,
+        "assignments_visible": admin or assignments_visible,
         "track": team.assigned_track,
         "track_preference": team.track_preference,
         "challenge": team.assigned_challenge,
@@ -482,6 +484,14 @@ def _team_response_from_team(
         "additional_teammates_detail": team.additional_teammates_detail,
         "source": team.formation_source,
     }
+    if not (admin or assignments_visible):
+        for field in (
+            "track", "track_preference", "challenge", "sponsor",
+            "sponsor_contact_name", "sponsor_contact_email",
+            "additional_teammates_detail",
+        ):
+            common[field] = None
+        common["challenge_preferences"] = []
     if admin:
         return AdminTeamResponse(
             **common,
@@ -530,7 +540,16 @@ def _team_response(
         or not membership.team.active
     ):
         return None
-    return _team_response_from_team(membership.team, admin=admin)
+    start_at = registration.event.start_at
+    visible = bool(
+        start_at is not None
+        and start_at.tzinfo is not None
+        and datetime.now(timezone.utc) >= start_at
+        and any(item.checkpoint == "arrival" for item in registration.check_ins)
+    )
+    return _team_response_from_team(
+        membership.team, admin=admin, assignments_visible=visible
+    )
 
 
 def _my_registration_response(

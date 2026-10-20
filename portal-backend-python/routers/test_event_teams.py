@@ -1,13 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 import pytest
+import routers.events as events_module
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from db import get_db
 from models import (
     Event,
+    EventCheckIn,
     EventRegistration,
     EventTeam,
     EventTeamMember,
@@ -148,6 +150,10 @@ def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
     test_session,
 ):
     event, attendee_one, _attendee_two = _setup_two_teams(test_session)
+    event.start_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    registration_row = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee_one.id).one()
+    test_session.add(EventCheckIn(event_id=event.id, registration_id=registration_row.id, checkpoint="arrival"))
+    test_session.flush()
     _set_token(attendee_one.auth0_id)
 
     response = client.get(f"/events/{event.slug}/me")
@@ -157,6 +163,7 @@ def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
     assert "source_data" not in registration
     team = registration["team"]
     assert team["team_name"] == "Team One"
+    assert team["assignments_visible"] is True
     assert team["track"] == "Introductory"
     assert team["challenge"] == "Sponsor One"
     assert team["sponsor"] == "Sponsor One"
@@ -170,6 +177,49 @@ def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
         "Unlinked Teammate",
     ]
     assert all("match_detail" not in member for member in team["teammates"])
+
+
+@pytest.mark.parametrize("started,checkpoint", [(False, None), (False, "arrival"), (True, None), (True, "lunch"), (None, "arrival")])
+def test_attendee_assignment_details_require_start_and_arrival(test_session, started, checkpoint):
+    event, attendee, _ = _setup_two_teams(test_session)
+    event.start_at = None if started is None else datetime.now(timezone.utc) + timedelta(days=-1 if started else 1)
+    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+    if checkpoint:
+        test_session.add(EventCheckIn(event_id=event.id, registration_id=registration.id, checkpoint=checkpoint))
+    test_session.flush()
+    _set_token(attendee.auth0_id)
+    response = client.get(f"/events/{event.slug}/me")
+    assert response.status_code == 200
+    team = response.json()["registration"]["team"]
+    assert team["assignments_visible"] is False
+    assert team["team_name"] == "Team One"
+    assert len(team["teammates"]) == 2
+    for field in ("track", "track_preference", "challenge", "sponsor", "sponsor_contact_name", "sponsor_contact_email", "additional_teammates_detail"):
+        assert team[field] is None
+    assert team["challenge_preferences"] == []
+
+
+@pytest.mark.parametrize("seconds,visible", [(1, False), (0, True), (-1, True)])
+def test_assignment_release_uses_server_time_at_exact_start(test_session, monkeypatch, seconds, visible):
+    moment = datetime.fromisoformat("2026-10-24T09:00:00-04:00")
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment.astimezone(tz or timezone.utc)
+
+    monkeypatch.setattr(events_module, "datetime", FrozenDatetime)
+    event, attendee, _ = _setup_two_teams(test_session)
+    event.start_at = moment + timedelta(seconds=seconds)
+    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+    test_session.add(EventCheckIn(event_id=event.id, registration_id=registration.id, checkpoint="arrival"))
+    test_session.flush()
+    _set_token(attendee.auth0_id)
+    response = client.get(f"/events/{event.slug}/me")
+    assert response.status_code == 200
+    team = response.json()["registration"]["team"]
+    assert team["assignments_visible"] is visible
+    assert team["challenge"] == ("Sponsor One" if visible else None)
 
 
 def test_admin_team_details_are_authorized_and_searchable(test_session):
@@ -196,6 +246,8 @@ def test_admin_team_details_are_authorized_and_searchable(test_session):
     registration = body["registrations"][0]
     assert registration["source_data"] == {"private": "admin only"}
     assert registration["team"]["team_name"] == "Team One"
+    assert registration["team"]["assignments_visible"] is True
+    assert registration["team"]["challenge"] == "Sponsor One"
     assert registration["team"]["teammates"][0]["match_status"] == "matched"
     assert registration["team"]["teammates"][1]["match_detail"] == "email_not_found"
 

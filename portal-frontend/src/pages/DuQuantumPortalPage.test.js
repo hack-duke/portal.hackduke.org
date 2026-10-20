@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { MemoryRouter } from "react-router-dom";
 import axios from "axios";
@@ -60,6 +60,7 @@ describe("DuQuantumPortalPage", () => {
             event_pass: { public_id: "evt_safe-pass-id", state: "active" },
             team: {
               id: "team-7",
+              assignments_visible: true,
               team_name: "Quantum Quokkas",
               team_number: 7,
               track: "Hardware",
@@ -134,5 +135,47 @@ describe("DuQuantumPortalPage", () => {
     expect(
       screen.getByText("Requested additional teammates").nextElementSibling,
     ).toHaveTextContent("N/A");
+  });
+
+  test("hides locked assignments and refreshes them after server-authorized check-in", async () => {
+    const listen = jest.spyOn(window, "addEventListener");
+    const visibility = jest
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    const originalGet = axios.get.getMockImplementation();
+    let visible = false;
+    axios.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (response.data.registration?.team) {
+        response.data.registration.team.assignments_visible = visible;
+      }
+      return response;
+    });
+    render(
+      <MemoryRouter>
+        <DuQuantumPortalPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText(/Challenge assignments unlock/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Quantum Quokkas")).toBeInTheDocument();
+    expect(screen.getByText("Avery Teammate")).toBeInTheDocument();
+    expect(screen.queryByText("Quantum sensing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hardware")).not.toBeInTheDocument();
+    expect(screen.queryByText("Formation preferences")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pass-qr")).toBeInTheDocument();
+    visible = true;
+    await waitFor(() =>
+      expect(listen).toHaveBeenCalledWith("focus", expect.any(Function)),
+    );
+    fireEvent(window, new Event("focus"));
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3));
+    expect(await screen.findAllByText("Quantum sensing")).toHaveLength(2);
+    expect(
+      screen.queryByText(/Challenge assignments unlock/),
+    ).not.toBeInTheDocument();
+    visibility.mockRestore();
+    listen.mockRestore();
   });
 });
