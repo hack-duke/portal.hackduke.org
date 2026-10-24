@@ -16,6 +16,10 @@ from db import get_local_session
 from models import EmailDelivery, Event, EventRegistration
 from services.account_setup import issue_account_setup_link
 from services.auth0_onboarding import Auth0OnboardingClient, Auth0OnboardingSettings
+from scripts.remind_event_accounts import (
+    suppression_reason,
+    validate_ses_delivery_posture,
+)
 from services.event_email_campaign import (
     CAMPAIGN_TEMPLATE_VERSIONS,
     SesEmailSender,
@@ -75,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
     first_name, last_name = _split_name(display_name)
     auth_settings = Auth0OnboardingSettings.from_environment()
     mail_settings = SesSettings.from_environment()
+    mailer = SesEmailSender(mail_settings)
+    validate_ses_delivery_posture(mailer.client, mail_settings)
+    if suppression_reason(mailer.client, email) is not None:
+        raise RuntimeError("test recipient is suppressed; no invitation was sent")
     session = get_local_session()
 
     try:
@@ -104,6 +112,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             session.add(registration)
             session.flush()
+        elif (
+            registration.admission_status != "accepted"
+            or registration.rsvp_status != "confirmed"
+        ):
+            raise RuntimeError("existing registration is not eligible; no invitation was sent")
 
         with Auth0OnboardingClient(auth_settings) as auth0:
             users = auth0.find_users_by_email(email)
@@ -152,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         session.commit()
 
         try:
-            message_id = SesEmailSender(mail_settings).send(
+            message_id = mailer.send(
                 recipient=email,
                 rendered=rendered,
             )
