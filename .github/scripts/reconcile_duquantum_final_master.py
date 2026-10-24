@@ -192,12 +192,17 @@ def build_teams(payload):
 
 
 def backup(session, event, path):
-    from models import EventRegistration, EventTeam, EventTeamMember
+    from models import EventRegistration, EventTeam, EventTeamMember, EventPass, EventAccountSetup
     if not path:
         raise ValueError("Private backup path is required")
     data = {}
-    for model in (EventRegistration, EventTeam, EventTeamMember):
-        data[model.__tablename__] = [{column.name: getattr(row, column.name) for column in model.__table__.columns} for row in session.query(model).filter_by(event_id=event.id).all()]
+    for model in (EventRegistration, EventTeam, EventTeamMember, EventPass, EventAccountSetup):
+        query = session.query(model)
+        if model is EventPass:
+            query = query.join(EventRegistration, EventRegistration.id == EventPass.registration_id).filter(EventRegistration.event_id == event.id)
+        else:
+            query = query.filter(model.event_id == event.id)
+        data[model.__tablename__] = [{column.name: getattr(row, column.name) for column in model.__table__.columns} for row in query.all()]
     Path(path).write_text(json.dumps(data, default=str), encoding="utf-8")
     Path(path).chmod(0o600)
 
@@ -221,8 +226,11 @@ def account_inventory(plan, auth0, auth_settings, session):
             if user is None or linked.auth0_id != user["user_id"]:
                 mismatch += 1
         result.append((person, row, user))
+    account_ids = [user["user_id"] for _, _, user in result if user is not None]
+    if len(account_ids) != len(set(account_ids)):
+        raise ValueError("Two confirmed attendees resolve to one Auth0 account")
     fingerprint = digest([(person["row"], str(row.id), row.normalized_email, user["user_id"] if user else None) for person, row, user in result])
-    summary = {"total": len(plan), "existing": sum(user is not None for _, _, user in result), "missing": sum(user is None for _, _, user in result), "lookup_errors": errors, "ambiguous": ambiguous, "linked_identity_mismatches": mismatch, "fingerprint": fingerprint}
+    summary = {"total": len(plan), "existing": sum(user is not None for _, _, user in result), "unique_accounts": len(set(account_ids)), "missing": sum(user is None for _, _, user in result), "lookup_errors": errors, "ambiguous": ambiguous, "linked_identity_mismatches": mismatch, "fingerprint": fingerprint}
     emit("ACCOUNT_PLAN", summary)
     if errors or ambiguous or mismatch:
         raise ValueError("Account inventory has blockers; no account or email changes made")
