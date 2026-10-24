@@ -41,6 +41,7 @@ jobs:
           EC2_USER: ec2-user
           RECIPIENT_EMAIL: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_EMAIL }}
           RECIPIENT_NAME: ${{ secrets.DUQUANTUM_TEST_RECIPIENT_NAME }}
+          SUPERSEDED_EMAIL: ${{ secrets.DUQUANTUM_TEST_SUPERSEDED_EMAIL }}
         run: |
           set -euo pipefail
           trap 'rm -f key.pem' EXIT
@@ -54,12 +55,17 @@ jobs:
 
           email_b64="$(printf '%s' "$RECIPIENT_EMAIL" | base64 -w0)"
           name_b64="$(printf '%s' "$RECIPIENT_NAME" | base64 -w0)"
+          superseded_b64="$(printf '%s' "$SUPERSEDED_EMAIL" | base64 -w0)"
           ssh -i key.pem -o StrictHostKeyChecking=no "$EC2_USER@$EC2_IP" \
-            bash -s -- "$remote_script" "$email_b64" "$name_b64" << 'EOF'
+            bash -s -- "$remote_script" "$email_b64" "$name_b64" "${superseded_b64:-none}" << 'EOF'
             set -euo pipefail
             remote_script="$1"
             recipient_email="$(printf '%s' "$2" | base64 -d)"
             recipient_name="$(printf '%s' "$3" | base64 -d)"
+            extra_args=()
+            if [ "$4" != none ]; then
+              extra_args+=(--superseded-email "$(printf '%s' "$4" | base64 -d)")
+            fi
             script_path="$HOME/$remote_script"
             trap 'rm -f -- "$script_path"' EXIT
 
@@ -70,5 +76,5 @@ jobs:
             docker exec -i "$backend_id" python - \
               --recipient-email "$recipient_email" \
               --recipient-name "$recipient_name" \
-              --confirm-event duquantum-2026 < "$script_path"
+              --confirm-event duquantum-2026 "${extra_args[@]}" < "$script_path"
           EOF

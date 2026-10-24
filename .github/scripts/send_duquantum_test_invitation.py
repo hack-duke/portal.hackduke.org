@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--recipient-email", required=True)
     parser.add_argument("--recipient-name", required=True)
+    parser.add_argument("--superseded-email")
     parser.add_argument("--confirm-event", required=True)
     return parser
 
@@ -69,6 +70,24 @@ def _database_user(users, connection: str):
     return matches[0] if matches else None
 
 
+def _retire_test_registration(registration, *, first_name, last_name, now):
+    if (
+        registration.source != "manual_test_invitation"
+        or (registration.source_data or {}).get("purpose") != "operator_test_invitation"
+        or (registration.first_name or "").strip().casefold() != first_name.casefold()
+        or (registration.last_name or "").strip().casefold() != last_name.casefold()
+    ):
+        raise RuntimeError("superseded record is not the matching test invitation")
+    registration.admission_status = "revoked"
+    registration.rsvp_status = "declined"
+    registration.source_data = {**registration.source_data, "superseded_test_invitation_at": now.isoformat()}
+    if registration.account_setup is not None:
+        registration.account_setup.expires_at = now
+    if registration.event_pass is not None:
+        registration.event_pass.state = "revoked"
+        registration.event_pass.revoked_at = now
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.confirm_event != EVENT_SLUG:
@@ -89,6 +108,20 @@ def main(argv: list[str] | None = None) -> int:
         event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
         if event is None:
             raise RuntimeError("the DuQuantum event seed is missing")
+
+        if args.superseded_email:
+            old_email = _validated_email(args.superseded_email)
+            if old_email == email:
+                raise ValueError("superseded and corrected emails must differ")
+            old_registration = session.query(EventRegistration).filter(
+                EventRegistration.event_id == event.id,
+                EventRegistration.normalized_email == old_email,
+            ).with_for_update().one_or_none()
+            if old_registration is None:
+                raise RuntimeError("superseded test registration was not found")
+            _retire_test_registration(old_registration, first_name=first_name, last_name=last_name, now=datetime.now(timezone.utc))
+            session.commit()
+            print("Superseded test registration retired and its setup link expired", flush=True)
 
         registration = (
             session.query(EventRegistration)
