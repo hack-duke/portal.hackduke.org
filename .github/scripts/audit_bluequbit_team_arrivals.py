@@ -13,7 +13,7 @@ def main():
         session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         event = session.query(Event).filter_by(slug="duquantum-2026").one()
         arrivals = {row.registration_id: row.checked_in_at.isoformat() for row in session.query(EventCheckIn).filter_by(event_id=event.id, checkpoint="arrival")}
-        teams = session.query(EventTeam).filter_by(event_id=event.id, active=True, assigned_track="Introductory", assigned_challenge="BlueQubit").all()
+        teams = session.query(EventTeam).filter_by(event_id=event.id, active=True).all()
         result = []
         for team in sorted(teams, key=lambda t: int(t.team_number)):
             members = []
@@ -25,7 +25,9 @@ def main():
                 if source_row is None:
                     raise ValueError("Member lacks master source reference")
                 members.append({"master_row": source_row, "arrival_at": arrivals.get(registration.id), "rsvp": registration.rsvp_status})
-            result.append({"number": team.team_number, "name": team.name, "members": members, "checked_in": sum(m["arrival_at"] is not None for m in members)})
+            checked_in = sum(m["arrival_at"] is not None for m in members)
+            if checked_in == 3:
+                result.append({"number": team.team_number, "name": team.name, "track": team.assigned_track, "challenge": team.assigned_challenge, "members": members, "checked_in": checked_in})
         print("TEAM_AVAILABILITY " + json.dumps({"as_of_utc": datetime.now(timezone.utc).isoformat(), "checkpoint": "arrival", "teams": result}), flush=True)
     finally:
         session.rollback()
