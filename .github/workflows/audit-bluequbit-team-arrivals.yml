@@ -10,7 +10,7 @@ on:
         description: Optional challenge to inspect
         type: choice
         required: false
-        options: ['', DQC, BlueQubit, IQM, Pasqal, Google QAI, Alice & Bob]
+        options: [All, DQC, BlueQubit, IQM, Pasqal, Google QAI, Alice & Bob]
 permissions:
   contents: read
 jobs:
@@ -30,5 +30,5 @@ jobs:
           trap 'rm -f -- key.pem' EXIT
           printf '%s' "$PRIVATE_KEY" > key.pem
           case "$TEAM_NUMBER" in *[!0-9]*) exit 2 ;; esac
-          case "$CHALLENGE" in ''|DQC|BlueQubit|IQM|Pasqal|'Google QAI'|'Alice & Bob') ;; *) exit 2 ;; esac
+          case "$CHALLENGE" in All) CHALLENGE='' ;; ''|DQC|BlueQubit|IQM|Pasqal|'Google QAI'|'Alice & Bob') ;; *) exit 2 ;; esac
           ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" "set -eu; backend_id=\$(docker-compose ps -q backend); test -n \"\$backend_id\"; docker exec -i -e AUDIT_TEAM_NUMBER='$TEAM_NUMBER' -e AUDIT_CHALLENGE='$CHALLENGE' \"\$backend_id\" python" < .github/scripts/audit_bluequbit_team_arrivals.py
