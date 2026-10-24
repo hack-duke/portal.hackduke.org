@@ -6,6 +6,11 @@ on:
         description: Optional specific team number to inspect
         type: string
         required: false
+      challenge:
+        description: Optional challenge to inspect
+        type: choice
+        required: false
+        options: ['', DQC, BlueQubit, IQM, Pasqal, Google QAI, Alice & Bob]
 permissions:
   contents: read
 jobs:
@@ -18,10 +23,12 @@ jobs:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_IP: ${{ secrets.EC2_IP }}
           TEAM_NUMBER: ${{ inputs.team_number }}
+          CHALLENGE: ${{ inputs.challenge }}
         run: |
           set -euo pipefail
           umask 077
           trap 'rm -f -- key.pem' EXIT
           printf '%s' "$PRIVATE_KEY" > key.pem
           case "$TEAM_NUMBER" in *[!0-9]*) exit 2 ;; esac
-          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" "set -eu; backend_id=\$(docker-compose ps -q backend); test -n \"\$backend_id\"; docker exec -i -e AUDIT_TEAM_NUMBER='$TEAM_NUMBER' \"\$backend_id\" python" < .github/scripts/audit_bluequbit_team_arrivals.py
+          case "$CHALLENGE" in ''|DQC|BlueQubit|IQM|Pasqal|'Google QAI'|'Alice & Bob') ;; *) exit 2 ;; esac
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" "set -eu; backend_id=\$(docker-compose ps -q backend); test -n \"\$backend_id\"; docker exec -i -e AUDIT_TEAM_NUMBER='$TEAM_NUMBER' -e AUDIT_CHALLENGE='$CHALLENGE' \"\$backend_id\" python" < .github/scripts/audit_bluequbit_team_arrivals.py

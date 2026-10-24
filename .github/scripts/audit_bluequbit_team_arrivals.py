@@ -16,10 +16,13 @@ def main():
         arrivals = {row.registration_id: row.checked_in_at.isoformat() for row in session.query(EventCheckIn).filter_by(event_id=event.id, checkpoint="arrival")}
         teams = session.query(EventTeam).filter_by(event_id=event.id, active=True).all()
         requested_team = os.environ.get("AUDIT_TEAM_NUMBER", "").strip()
+        requested_challenge = os.environ.get("AUDIT_CHALLENGE", "").strip()
         if requested_team:
             teams = [team for team in teams if team.team_number == requested_team]
             if len(teams) != 1:
                 raise ValueError("Requested team is not uniquely active")
+        if requested_challenge:
+            teams = [team for team in teams if team.assigned_challenge == requested_challenge]
         result = []
         for team in sorted(teams, key=lambda t: int(t.team_number)):
             members = []
@@ -32,7 +35,7 @@ def main():
                     raise ValueError("Member lacks master source reference")
                 members.append({"master_row": source_row, "arrival_at": arrivals.get(registration.id), "rsvp": registration.rsvp_status})
             checked_in = sum(m["arrival_at"] is not None for m in members)
-            if requested_team or checked_in == 3:
+            if requested_team or requested_challenge or checked_in == 3:
                 result.append({"number": team.team_number, "name": team.name, "track": team.assigned_track, "challenge": team.assigned_challenge, "members": members, "checked_in": checked_in})
         print("TEAM_AVAILABILITY " + json.dumps({"as_of_utc": datetime.now(timezone.utc).isoformat(), "checkpoint": "arrival", "teams": result}), flush=True)
     finally:
