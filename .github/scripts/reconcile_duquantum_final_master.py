@@ -298,6 +298,8 @@ def main():
         event = session.query(Event).filter_by(slug=EVENT).one()
         plan, fingerprint = registration_plan(payload, session, event)
         if args.phase == "roster":
+            if any(row is not None and ((row.source_data or {}).get("organizer_team_override") or (row.source_data or {}).get("organizer_withdrawal")) for _, row in plan):
+                raise ValueError("Organizer changes supersede this workbook; reconcile overrides before reimporting")
             confirm(len(plan), fingerprint)
             backup(session, event, args.backup)
             for person, row in plan:
