@@ -233,9 +233,12 @@ class AdminRegistrationListResponse(BaseModel):
     offset: int
 
 
-class EventCheckInRequest(BaseModel):
-    pass_id: str = Field(min_length=10, max_length=100)
+class ManualEventCheckInRequest(BaseModel):
     checkpoint: str = Field(default="arrival", min_length=1, max_length=100)
+
+
+class EventCheckInRequest(ManualEventCheckInRequest):
+    pass_id: str = Field(min_length=10, max_length=100)
 
 
 class EventCheckInResponse(BaseModel):
@@ -1189,7 +1192,53 @@ async def create_event_check_in(
             status_code=404, detail="Active pass not found for this event"
         )
 
-    registration = event_pass.registration
+    return _record_event_check_in(db, event, event_pass.registration, scanner, checkpoint)
+
+
+@router.post(
+    "/{slug}/registrations/{registration_id}/check-ins",
+    response_model=EventCheckInResponse,
+)
+async def create_manual_event_check_in(
+    slug: str,
+    registration_id: UUID,
+    request: ManualEventCheckInRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Admins can check in an identified attendee even without a claimed pass."""
+    event = get_event_or_404(db, slug)
+    scanner = get_role_user(auth_payload, db)
+    require_admin(db, scanner.id)
+    checkpoint = request.checkpoint.strip().lower()
+    if not CHECKPOINT_PATTERN.fullmatch(checkpoint):
+        raise HTTPException(status_code=422, detail="Invalid checkpoint key")
+    registration = (
+        db.query(EventRegistration)
+        .filter(
+            EventRegistration.id == registration_id,
+            EventRegistration.event_id == event.id,
+        )
+        .with_for_update()
+        .one_or_none()
+    )
+    if registration is None:
+        raise HTTPException(status_code=404, detail="Registration not found for this event")
+    if (
+        registration.event_pass is not None
+        and registration.event_pass.state != "active"
+    ):
+        raise HTTPException(status_code=403, detail="Attendee pass is not active")
+    return _record_event_check_in(db, event, registration, scanner, checkpoint)
+
+
+def _record_event_check_in(
+    db: Session,
+    event: Event,
+    registration: EventRegistration,
+    scanner: User,
+    checkpoint: str,
+) -> EventCheckInResponse:
     if not registration_is_pass_eligible(event, registration):
         raise HTTPException(
             status_code=403, detail="Registration is not eligible for check-in"

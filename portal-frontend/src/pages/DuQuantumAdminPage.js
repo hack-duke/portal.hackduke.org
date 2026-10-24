@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
@@ -300,13 +306,14 @@ const checkInsFor = (registration) => {
 };
 
 const isCheckedIn = (registration) =>
-  Boolean(
-    registration.checked_in ||
-      registration.checked_in_at ||
-      registration.check_in_at ||
-      registration.check_in_count > 0 ||
-      checkInsFor(registration).length,
-  );
+  checkInsFor(registration).length
+    ? checkInsFor(registration).some((item) => item.checkpoint === "arrival")
+    : Boolean(
+        registration.checked_in ||
+          registration.checked_in_at ||
+          registration.check_in_at ||
+          registration.check_in_count > 0,
+      );
 
 const DuQuantumAdminPage = () => {
   const { getAccessTokenSilently, logout } = useAuth0();
@@ -319,6 +326,52 @@ const DuQuantumAdminPage = () => {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("eligible");
   const [expanded, setExpanded] = useState(null);
+  const [checkInTarget, setCheckInTarget] = useState(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkInMessage, setCheckInMessage] = useState("");
+  const checkInPending = useRef(false);
+
+  const confirmArrival = async () => {
+    if (!checkInTarget || checkInPending.current) return;
+    checkInPending.current = true;
+    setCheckingIn(true);
+    setCheckInMessage("");
+    try {
+      const token = await getAccessTokenSilently();
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/events/${EVENT_SLUG}/registrations/${checkInTarget.id}/check-ins`,
+        { checkpoint: "arrival" },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setRegistrations((current) =>
+        current.map((row) =>
+          row.id === checkInTarget.id
+            ? { ...row, check_ins: [...checkInsFor(row), response.data] }
+            : row,
+        ),
+      );
+      setCheckInMessage(
+        `${fullNameFor(checkInTarget)} checked in for arrival.`,
+      );
+      setCheckInTarget(null);
+    } catch (error) {
+      if (error?.response?.status === 409) {
+        await loadRegistrations();
+        setCheckInTarget(null);
+        setCheckInMessage("This attendee is already checked in for arrival.");
+      } else {
+        const detail = error?.response?.data?.detail;
+        setCheckInMessage(
+          typeof detail === "string"
+            ? detail
+            : "Check-in failed. Please try again.",
+        );
+      }
+    } finally {
+      checkInPending.current = false;
+      setCheckingIn(false);
+    }
+  };
 
   const loadRegistrations = useCallback(async () => {
     setLoading(true);
@@ -439,9 +492,11 @@ const DuQuantumAdminPage = () => {
         )
           return false;
         if (!normalizedQuery) return true;
-        return JSON.stringify(registration)
-          .toLowerCase()
-          .includes(normalizedQuery);
+        const searchable =
+          `${fullNameFor(registration)} ${JSON.stringify(registration)}`.toLowerCase();
+        return normalizedQuery
+          .split(/\s+/)
+          .every((word) => searchable.includes(word));
       })
       .sort((a, b) => fullNameFor(a).localeCompare(fullNameFor(b)));
   }, [filter, query, registrations]);
@@ -496,6 +551,11 @@ const DuQuantumAdminPage = () => {
             {loading ? "Refreshing…" : "Refresh data"}
           </button>
         </div>
+        {checkInMessage && (
+          <p role="status" className="dq-help-copy">
+            {checkInMessage}
+          </p>
+        )}
 
         <div className="dq-privacy-note" role="note">
           <strong>Private attendee data.</strong> Use this view only for
@@ -752,6 +812,54 @@ const DuQuantumAdminPage = () => {
                                 ? `Checked in${checkIns.length > 1 ? ` ×${checkIns.length}` : ""}`
                                 : "Not yet"}
                             </span>
+                            {!isCheckedIn(registration) &&
+                              (checkInTarget?.id === registration.id ? (
+                                <div
+                                  className="dq-arrival-confirm"
+                                  role="group"
+                                  aria-label={`Confirm arrival for ${fullNameFor(registration)}`}
+                                >
+                                  <p>
+                                    Verify this attendee's name and email before
+                                    confirming arrival.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="dq-secondary-button"
+                                    onClick={confirmArrival}
+                                    disabled={checkingIn}
+                                  >
+                                    {checkingIn
+                                      ? "Checking in…"
+                                      : "Confirm arrival check-in"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="dq-inline-operation"
+                                    onClick={() => setCheckInTarget(null)}
+                                    disabled={checkingIn}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="dq-inline-operation"
+                                  aria-label={`Check in ${fullNameFor(registration)}`}
+                                  disabled={
+                                    checkingIn ||
+                                    !isCurrentParticipant(registration) ||
+                                    (passState && passState !== "active")
+                                  }
+                                  onClick={() => {
+                                    setCheckInTarget(registration);
+                                    setCheckInMessage("");
+                                  }}
+                                >
+                                  Check in
+                                </button>
+                              ))}
                           </td>
                           <td>
                             {formatDateTime(

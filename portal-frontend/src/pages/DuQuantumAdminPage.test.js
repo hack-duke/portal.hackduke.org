@@ -1,5 +1,11 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { MemoryRouter } from "react-router-dom";
 import axios from "axios";
@@ -10,7 +16,7 @@ const mockLogout = jest.fn();
 
 jest.mock("axios", () => ({
   __esModule: true,
-  default: { get: jest.fn() },
+  default: { get: jest.fn(), post: jest.fn() },
 }));
 jest.mock("@auth0/auth0-react", () => ({
   useAuth0: () => ({
@@ -306,5 +312,76 @@ describe("DuQuantumAdminPage", () => {
     expect(
       within(rosterDetails).getByText("Sponsor contact").nextElementSibling,
     ).toHaveTextContent("N/A");
+  });
+
+  test("searches a full name and confirms arrival without a claimed account or pass", async () => {
+    axios.post.mockResolvedValue({
+      data: { id: "manual-arrival", checkpoint: "arrival" },
+    });
+    render(
+      <MemoryRouter>
+        <DuQuantumAdminPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Invited Participant");
+    fireEvent.change(screen.getByLabelText("Search attendees"), {
+      target: { value: "Invited Participant" },
+    });
+    expect(screen.queryByText("Connected Participant")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check in Invited Participant" }),
+    );
+    expect(axios.post).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm arrival check-in" }),
+    );
+    expect(
+      await screen.findByText("Invited Participant checked in for arrival."),
+    ).toBeInTheDocument();
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining("/registrations/invited/check-ins"),
+      { checkpoint: "arrival" },
+      { headers: { Authorization: "Bearer admin-token" } },
+    );
+    expect(
+      screen.queryByRole("button", { name: "Check in Invited Participant" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByText("Invited Participant").closest("tr")).getByText(
+        "Checked in",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  test("keeps a failed check-in retryable and does not mark arrival on error", async () => {
+    axios.post.mockRejectedValue({
+      response: {
+        status: 403,
+        data: { detail: "Attendee pass is not active" },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <DuQuantumAdminPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Invited Participant");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check in Invited Participant" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm arrival check-in" }),
+    );
+    expect(
+      await screen.findByText("Attendee pass is not active"),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Confirm arrival check-in" }),
+      ).toBeEnabled(),
+    );
+    expect(
+      screen.queryByText("Invited Participant checked in for arrival."),
+    ).not.toBeInTheDocument();
   });
 });

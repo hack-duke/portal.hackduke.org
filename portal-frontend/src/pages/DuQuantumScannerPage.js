@@ -32,6 +32,7 @@ const DuQuantumScannerPage = () => {
   const [checkpoint, setCheckpoint] = useState("arrival");
   const [manualPass, setManualPass] = useState("");
   const [scannerActive, setScannerActive] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingLog, setLoadingLog] = useState(true);
   const [recentCheckIns, setRecentCheckIns] = useState([]);
@@ -45,6 +46,12 @@ const DuQuantumScannerPage = () => {
   const streamRef = useRef(null);
   const frameRef = useRef(null);
   const scanReadyRef = useRef(true);
+  const pendingRef = useRef(false);
+  const submitPassRef = useRef(null);
+  const lastCodeRef = useRef(null);
+  const cameraSessionRef = useRef(0);
+  const startingRef = useRef(false);
+  const logRequestRef = useRef(0);
 
   const getToken = useCallback(async () => {
     const authToken = createGetAuthToken(getAccessTokenSilently, (message) =>
@@ -54,6 +61,7 @@ const DuQuantumScannerPage = () => {
   }, [getAccessTokenSilently]);
 
   const loadLog = useCallback(async () => {
+    const request = ++logRequestRef.current;
     setLoadingLog(true);
     try {
       const token = await getToken();
@@ -64,9 +72,12 @@ const DuQuantumScannerPage = () => {
           params: { checkpoint, limit: 100 },
         },
       );
-      setRecentCheckIns(response.data?.check_ins || []);
-      setTotal(response.data?.total || 0);
+      if (request === logRequestRef.current) {
+        setRecentCheckIns(response.data?.check_ins || []);
+        setTotal(response.data?.total || 0);
+      }
     } catch (error) {
+      if (request !== logRequestRef.current) return;
       setStatus({
         type: "error",
         message:
@@ -75,7 +86,7 @@ const DuQuantumScannerPage = () => {
             : errorMessage(error),
       });
     } finally {
-      setLoadingLog(false);
+      if (request === logRequestRef.current) setLoadingLog(false);
     }
   }, [checkpoint, getToken]);
 
@@ -86,7 +97,8 @@ const DuQuantumScannerPage = () => {
   const submitPass = useCallback(
     async (passId) => {
       const value = String(passId || "").trim();
-      if (!value || submitting) return;
+      if (!value || pendingRef.current) return;
+      pendingRef.current = true;
       setSubmitting(true);
       scanReadyRef.current = false;
       setStatus({ type: "working", message: "Verifying DuQuantum pass…" });
@@ -105,43 +117,85 @@ const DuQuantumScannerPage = () => {
         setManualPass("");
         await loadLog();
       } catch (error) {
-        setStatus({ type: "error", message: errorMessage(error) });
+        setStatus({
+          type: error?.response?.status === 409 ? "warning" : "error",
+          message: errorMessage(error),
+        });
+        if (error?.response?.status === 409) await loadLog();
       } finally {
+        pendingRef.current = false;
         setSubmitting(false);
-        window.setTimeout(() => {
-          scanReadyRef.current = true;
-        }, 2200);
+        scanReadyRef.current = true;
       }
     },
-    [checkpoint, getToken, loadLog, submitting],
+    [checkpoint, getToken, loadLog],
   );
+
+  useEffect(() => {
+    submitPassRef.current = submitPass;
+  }, [submitPass]);
 
   const scanFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+    if (
+      video &&
+      canvas &&
+      video.readyState >= 2 &&
+      video.videoWidth > 0 &&
+      video.videoHeight > 0
+    ) {
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const image = context.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(image.data, image.width, image.height);
-      if (code?.data && scanReadyRef.current) submitPass(code.data);
+      if (context) {
+        canvas.width = Math.min(video.videoWidth, 1280);
+        canvas.height = Math.round(
+          (video.videoHeight * canvas.width) / video.videoWidth,
+        );
+        try {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const image = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(image.data, image.width, image.height);
+          if (!code?.data) lastCodeRef.current = null;
+          else if (scanReadyRef.current && code.data !== lastCodeRef.current) {
+            lastCodeRef.current = code.data;
+            submitPassRef.current?.(code.data);
+          }
+        } catch (_) {
+          // A transient video frame can be unavailable while the camera warms up.
+        }
+      }
     }
     frameRef.current = window.requestAnimationFrame(scanFrame);
-  }, [submitPass]);
+  }, []);
 
   const stopCamera = useCallback(() => {
-    if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
+    cameraSessionRef.current += 1;
+    startingRef.current = false;
+    if (frameRef.current !== null)
+      window.cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
     if (streamRef.current)
       streamRef.current.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setScannerActive(false);
+    setCameraStarting(false);
+    lastCodeRef.current = null;
   }, []);
 
   const startCamera = async () => {
+    if (startingRef.current || streamRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus({
+        type: "error",
+        message:
+          "Camera access requires a supported browser over HTTPS. Use the manual pass field or check in by name in the attendee manifest.",
+      });
+      return;
+    }
+    startingRef.current = true;
+    setCameraStarting(true);
+    const session = ++cameraSessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -151,11 +205,16 @@ const DuQuantumScannerPage = () => {
         },
         audio: false,
       });
+      if (session !== cameraSessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      if (session !== cameraSessionRef.current) return;
       setScannerActive(true);
       setStatus({
         type: "idle",
@@ -163,10 +222,20 @@ const DuQuantumScannerPage = () => {
       });
       frameRef.current = window.requestAnimationFrame(scanFrame);
     } catch (error) {
+      if (session !== cameraSessionRef.current) return;
+      stopCamera();
       setStatus({
         type: "error",
-        message: `Camera unavailable: ${error.message}`,
+        message:
+          error.name === "NotAllowedError"
+            ? "Camera permission was denied. Allow camera access in your browser settings, or check in by name in the attendee manifest."
+            : `Camera unavailable: ${error.message}. You can use a manual pass ID or check in by name in the attendee manifest.`,
       });
+    } finally {
+      if (session === cameraSessionRef.current) {
+        startingRef.current = false;
+        setCameraStarting(false);
+      }
     }
   };
 
@@ -206,7 +275,11 @@ const DuQuantumScannerPage = () => {
             <span>Checkpoint</span>
             <select
               value={checkpoint}
-              onChange={(event) => setCheckpoint(event.target.value)}
+              disabled={submitting}
+              onChange={(event) => {
+                lastCodeRef.current = null;
+                setCheckpoint(event.target.value);
+              }}
             >
               {CHECKPOINTS.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -232,8 +305,13 @@ const DuQuantumScannerPage = () => {
                 }
                 type="button"
                 onClick={scannerActive ? stopCamera : startCamera}
+                disabled={cameraStarting}
               >
-                {scannerActive ? "Close camera" : "Open camera"}
+                {cameraStarting
+                  ? "Opening camera…"
+                  : scannerActive
+                    ? "Close camera"
+                    : "Open camera"}
               </button>
             </div>
             <div

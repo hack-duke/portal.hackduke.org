@@ -705,6 +705,24 @@
   font-weight: 700;
 }
 
+button.dq-inline-operation {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  font: inherit;
+  color: var(--dq-yellow);
+}
+button.dq-inline-operation:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button.dq-inline-operation:focus-visible {
+  outline: 2px solid var(--dq-yellow);
+  outline-offset: 3px;
+}
+
 .dq-delivery-history ol {
   margin: 0;
   padding: 0;
@@ -984,6 +1002,22 @@
 .dq-scan-status.error {
   border-color: #d56c69;
   color: #ffe4de;
+}
+
+.dq-scan-status.warning {
+  color: #f4c76a;
+}
+.dq-arrival-confirm {
+  min-width: 210px;
+  max-width: 320px;
+  padding: 0.7rem 0;
+}
+.dq-arrival-confirm p {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.dq-arrival-confirm button {
+  margin: 0.2rem 0.3rem 0.2rem 0;
 }
 .dq-scan-status.working {
   border-color: #b995dd;

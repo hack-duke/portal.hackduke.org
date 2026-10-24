@@ -375,3 +375,64 @@ def test_attendee_can_enable_and_disable_event_notifications(
     assert disabled.json()["subscribed"] is False
     test_session.refresh(subscription)
     assert subscription.active is False
+
+
+def make_check_in_admin(test_session, role=RoleEnum.ADMIN):
+    staff = User(auth0_id=f"auth0|manual-check-in-{uuid4()}")
+    test_session.add(staff)
+    test_session.flush()
+    if role is not None:
+        test_session.add(UserRole(user_id=staff.id, role=role))
+        test_session.flush()
+    set_token({"sub": staff.auth0_id})
+    return staff
+
+
+def test_admin_can_check_in_by_registration_without_account_or_pass(event, registration, test_session):
+    admin = make_check_in_admin(test_session)
+    url = f"/events/{event.slug}/registrations/{registration.id}/check-ins"
+    result = client.post(url, json={"checkpoint": "arrival"})
+    assert result.status_code == 200
+    assert result.json()["registration_id"] == str(registration.id)
+    assert result.json()["checked_in_by"] == str(admin.id)
+    assert registration.user_id is None
+    assert registration.event_pass is None
+    assert client.post(url, json={"checkpoint": "arrival"}).status_code == 409
+    listing = client.get(f"/events/{event.slug}/check-ins").json()
+    assert listing["total"] == 1
+
+
+@pytest.mark.parametrize("role", [RoleEnum.CHECK_IN, None])
+def test_manual_registration_check_in_requires_admin(event, registration, test_session, role):
+    make_check_in_admin(test_session, role)
+    result = client.post(f"/events/{event.slug}/registrations/{registration.id}/check-ins", json={})
+    assert result.status_code == 403
+
+
+def test_manual_check_in_rejects_wrong_event_ineligible_and_bad_checkpoint(event, registration, test_session):
+    make_check_in_admin(test_session)
+    other = Event(slug=f"other-{uuid4()}", name="Other", state="active", pass_eligibility="confirmed")
+    test_session.add(other)
+    test_session.flush()
+    assert client.post(f"/events/{other.slug}/registrations/{registration.id}/check-ins", json={}).status_code == 404
+    url = f"/events/{event.slug}/registrations/{registration.id}/check-ins"
+    assert client.post(url, json={"checkpoint": "bad checkpoint"}).status_code == 422
+    registration.admission_status = "revoked"
+    test_session.flush()
+    assert client.post(url, json={}).status_code == 403
+
+
+@pytest.mark.parametrize("manual_first", [True, False])
+def test_qr_and_manual_check_in_share_duplicate_protection(event, registration, test_session, manual_first):
+    pass_id = claim(event).json()["registration"]["event_pass"]["public_id"]
+    make_check_in_admin(test_session)
+    manual = (f"/events/{event.slug}/registrations/{registration.id}/check-ins", {"checkpoint": "arrival"})
+    qr = (f"/events/{event.slug}/check-ins", {"pass_id": pass_id, "checkpoint": "arrival"})
+    first, second = (manual, qr) if manual_first else (qr, manual)
+    assert client.post(first[0], json=first[1]).status_code == 200
+    assert client.post(second[0], json=second[1]).status_code == 409
+    assert client.get(f"/events/{event.slug}/check-ins").json()["total"] == 1
+    registration.event_pass.state = "revoked"
+    test_session.flush()
+    assert client.post(manual[0], json={"checkpoint": "saturday_lunch"}).status_code == 403
+    assert client.post(qr[0], json={"pass_id": pass_id, "checkpoint": "saturday_lunch"}).status_code == 404
