@@ -1,6 +1,11 @@
 name: Audit BlueQubit team arrivals
 on:
   workflow_dispatch:
+    inputs:
+      team_number:
+        description: Optional specific team number to inspect
+        type: string
+        required: false
 permissions:
   contents: read
 jobs:
@@ -12,9 +17,11 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_IP: ${{ secrets.EC2_IP }}
+          TEAM_NUMBER: ${{ inputs.team_number }}
         run: |
           set -euo pipefail
           umask 077
           trap 'rm -f -- key.pem' EXIT
           printf '%s' "$PRIVATE_KEY" > key.pem
-          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" 'set -eu; backend_id="$(docker-compose ps -q backend)"; test -n "$backend_id"; docker exec -i "$backend_id" python' < .github/scripts/audit_bluequbit_team_arrivals.py
+          case "$TEAM_NUMBER" in *[!0-9]*) exit 2 ;; esac
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" "set -eu; backend_id=\$(docker-compose ps -q backend); test -n \"\$backend_id\"; docker exec -i -e AUDIT_TEAM_NUMBER='$TEAM_NUMBER' \"\$backend_id\" python" < .github/scripts/audit_bluequbit_team_arrivals.py
