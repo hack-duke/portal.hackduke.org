@@ -216,6 +216,14 @@ def select_existing_account(all_users, database_users, linked_id=None):
     return verified[0] if not database_users and len(verified) == 1 else None
 
 
+def reminder_template(row, user, prior_sent, explicitly_reported):
+    if row.user_id is not None or row.claimed_at is not None:
+        return "auth0-invitation-existing" if explicitly_reported else None
+    if user.get("email_verified") is True:
+        return "auth0-invitation-existing-reminder"
+    return "auth0-invitation-reminder" if prior_sent else "auth0-invitation"
+
+
 def account_inventory(plan, auth0, auth_settings, session):
     from scripts.onboard_event_auth0 import database_users
     from models import User
@@ -371,17 +379,15 @@ def main():
                 if recorded is not None and recorded.status in ("queued", "sent"):
                     counts["batch_" + recorded.status] += 1
                     continue
-                if row.user_id is not None or row.claimed_at is not None:
+                template = reminder_template(row, user, any(item.status == "sent" for item in row.email_deliveries), bool(set(person["aliases"]) & set(REPORTED)))
+                if template is None:
                     counts["completed"] += 1
                     continue
                 reason = suppression_reason(mailer.client, row.email)
                 if reason:
                     counts["suppressed_" + reason] += 1
                     continue
-                setup = user.get("email_verified") is not True
-                template = "auth0-invitation-reminder" if setup else "auth0-invitation-existing-reminder"
-                if setup and not any(item.status == "sent" for item in row.email_deliveries):
-                    template = "auth0-invitation"
+                setup = template in ("auth0-invitation", "auth0-invitation-reminder")
                 reminder_plan.append((person, row, user, template, recorded))
                 counts["setup" if setup else "signin"] += 1
             reminder_fp = digest([(person["row"], str(row.id), row.normalized_email, user["user_id"], template) for person, row, user, template, _ in reminder_plan])
@@ -401,16 +407,20 @@ def main():
             for person, row, user, template, delivery in reminder_plan:
                 try:
                     session.refresh(row)
-                    if row.user_id is not None or row.claimed_at is not None:
+                    reported = bool(set(person["aliases"]) & set(REPORTED))
+                    connected = row.user_id is not None or row.claimed_at is not None
+                    if connected and not reported:
                         late_completed += 1
                         continue
+                    if connected:
+                        template = "auth0-invitation-existing"
                     if row.normalized_email != planned_emails[str(row.id)] or row.admission_status != "accepted" or row.rsvp_status != "confirmed":
                         raise ValueError("Recipient changed during delivery")
                     current = auth0.find_users_by_email(row.normalized_email)
                     selected = next((item for item in current if item["user_id"] == user["user_id"]), None)
                     if selected is None:
                         raise ValueError("Account identity changed during delivery")
-                    if selected.get("email_verified") is True and template in ("auth0-invitation", "auth0-invitation-reminder"):
+                    if not connected and selected.get("email_verified") is True and template in ("auth0-invitation", "auth0-invitation-reminder"):
                         template = "auth0-invitation-existing-reminder"
                     setup_url = None
                     if template in ("auth0-invitation", "auth0-invitation-reminder"):

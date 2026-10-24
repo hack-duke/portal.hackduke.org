@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from reconcile_duquantum_final_master import pick_registration, build_teams, prepare, people, select_existing_account
+from reconcile_duquantum_final_master import pick_registration, build_teams, prepare, people, select_existing_account, reminder_template
 
 
 def row(email, **extra):
@@ -42,6 +42,16 @@ def test_existing_social_login_is_preserved_instead_of_switching_to_database_ide
     assert select_existing_account([google], [], google["user_id"]) is google
     assert select_existing_account([google], []) is google
     assert select_existing_account([google, database], [database], "unknown") is None
+
+
+def test_reminders_skip_completed_people_except_explicitly_reported_requests():
+    connected = SimpleNamespace(user_id="user", claimed_at=None)
+    pending = SimpleNamespace(user_id=None, claimed_at=None)
+    assert reminder_template(connected, {"email_verified": True}, True, False) is None
+    assert reminder_template(connected, {"email_verified": True}, True, True) == "auth0-invitation-existing"
+    assert reminder_template(pending, {"email_verified": True}, True, False) == "auth0-invitation-existing-reminder"
+    assert reminder_template(pending, {"email_verified": False}, False, False) == "auth0-invitation"
+    assert reminder_template(pending, {"email_verified": False}, True, False) == "auth0-invitation-reminder"
 
 
 def test_master_rows_and_larger_teams_are_preserved_without_editing_sources():
