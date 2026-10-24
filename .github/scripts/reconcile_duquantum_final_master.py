@@ -207,24 +207,44 @@ def backup(session, event, path):
     Path(path).chmod(0o600)
 
 
+def select_existing_account(all_users, database_users, linked_id=None):
+    if linked_id:
+        return next((user for user in all_users if user["user_id"] == linked_id), None)
+    if len(database_users) == 1:
+        return database_users[0]
+    verified = [user for user in all_users if user.get("email_verified") is True]
+    return verified[0] if not database_users and len(verified) == 1 else None
+
+
 def account_inventory(plan, auth0, auth_settings, session):
     from scripts.onboard_event_auth0 import database_users
     from models import User
     result, errors, ambiguous, mismatch = [], 0, 0, 0
     for person, row in plan:
         try:
-            users = database_users(auth0.find_users_by_email(row.normalized_email), auth_settings.database_connection)
+            all_users = auth0.find_users_by_email(row.normalized_email)
+            users = database_users(all_users, auth_settings.database_connection)
         except Exception:
             errors += 1
             continue
         if len(users) > 1:
             ambiguous += 1
             continue
-        user = users[0] if users else None
+        user = select_existing_account(all_users, users)
         if row.user_id is not None:
             linked = session.query(User).filter_by(id=row.user_id).one()
-            if user is None or linked.auth0_id != user["user_id"]:
+            user = select_existing_account(all_users, users, linked.auth0_id)
+            if user is None:
+                from services.auth0_management import get_auth0_management_client
+                try:
+                    candidate = get_auth0_management_client().get_user_by_id(linked.auth0_id)
+                    if candidate and norm(candidate.get("email")) in person["aliases"]:
+                        user = candidate
+                except Exception:
+                    errors += 1
+            if user is None:
                 mismatch += 1
+                emit("LINKED_IDENTITY_REVIEW", {"master_row": person["row"], "provider": linked.auth0_id.split("|", 1)[0]})
         result.append((person, row, user))
     account_ids = [user["user_id"] for _, _, user in result if user is not None]
     if len(account_ids) != len(set(account_ids)):
@@ -341,6 +361,7 @@ def main():
                 if args.phase == "inventory":
                     return 0
                 raise ValueError("All attendee accounts must exist before reminders")
+            session.expire_all()
             mail_settings = SesSettings.from_environment()
             mailer = SesEmailSender(mail_settings)
             emit("SES_POSTURE", validate_ses_delivery_posture(mailer.client, mail_settings))
@@ -375,9 +396,22 @@ def main():
             if args.phase != "reminders":
                 return 0
             confirm(len(reminder_plan), reminder_fp)
-            failed = 0
+            failed, sent, late_completed = 0, 0, 0
+            planned_emails = {str(row.id): row.normalized_email for _, row, _, _, _ in reminder_plan}
             for person, row, user, template, delivery in reminder_plan:
                 try:
+                    session.refresh(row)
+                    if row.user_id is not None or row.claimed_at is not None:
+                        late_completed += 1
+                        continue
+                    if row.normalized_email != planned_emails[str(row.id)] or row.admission_status != "accepted" or row.rsvp_status != "confirmed":
+                        raise ValueError("Recipient changed during delivery")
+                    current = auth0.find_users_by_email(row.normalized_email)
+                    selected = next((item for item in current if item["user_id"] == user["user_id"]), None)
+                    if selected is None:
+                        raise ValueError("Account identity changed during delivery")
+                    if selected.get("email_verified") is True and template in ("auth0-invitation", "auth0-invitation-reminder"):
+                        template = "auth0-invitation-existing-reminder"
                     setup_url = None
                     if template in ("auth0-invitation", "auth0-invitation-reminder"):
                         setup_url = issue_account_setup_link(session, event_id=event.id, event_slug=EVENT, registration_id=row.id, auth0_user_id=user["user_id"], portal_url=mail_settings.portal_url, ttl_seconds=settings.account_setup_ttl_seconds)
@@ -397,11 +431,12 @@ def main():
                         raise
                     delivery.status, delivery.provider_message_id, delivery.sent_at = "sent", message_id, datetime.now(timezone.utc)
                     session.commit()
+                    sent += 1
                 except Exception as error:
                     session.rollback()
                     failed += 1
                     emit("SEND_FAILED", {"master_row": person["row"], "error_type": type(error).__name__})
-            emit("REMINDERS_SENT", {"accepted_by_ses": len(reminder_plan) - failed, "failed": failed})
+            emit("REMINDERS_SENT", {"accepted_by_ses": sent, "failed": failed, "completed_during_delivery_skipped": late_completed})
             return 1 if failed else 0
     finally:
         session.close()

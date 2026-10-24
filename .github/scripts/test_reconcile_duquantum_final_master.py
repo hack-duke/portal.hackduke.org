@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from reconcile_duquantum_final_master import pick_registration, build_teams, prepare, people
+from reconcile_duquantum_final_master import pick_registration, build_teams, prepare, people, select_existing_account
 
 
 def row(email, **extra):
@@ -33,6 +33,15 @@ def test_two_claimed_addresses_for_same_confirmed_person_use_exact_master_addres
 def test_superseded_test_address_is_not_reactivated_by_name_matching():
     wrong = row("typo@example.org", source_data={"superseded_test_invitation_at": "date"})
     assert pick_registration(person(), [wrong]) is None
+
+
+def test_existing_social_login_is_preserved_instead_of_switching_to_database_identity():
+    google = {"user_id": "google-oauth2|social", "email_verified": True}
+    database = {"user_id": "auth0|database", "email_verified": False}
+    assert select_existing_account([google, database], [database], google["user_id"]) is google
+    assert select_existing_account([google], [], google["user_id"]) is google
+    assert select_existing_account([google], []) is google
+    assert select_existing_account([google, database], [database], "unknown") is None
 
 
 def test_master_rows_and_larger_teams_are_preserved_without_editing_sources():
