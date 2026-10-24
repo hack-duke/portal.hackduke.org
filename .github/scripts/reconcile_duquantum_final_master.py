@@ -133,7 +133,7 @@ def people(payload):
 
 
 def pick_registration(person, registrations):
-    candidates = [row for row in registrations if row.normalized_email in person["aliases"] and not (row.source_data or {}).get("superseded_test_invitation_at")]
+    candidates = [row for row in registrations if row.normalized_email in person["aliases"] and not (row.source_data or {}).get("superseded_test_invitation_at") and not (row.source_data or {}).get("final_master_duplicate_of")]
     def select(rows):
         connected = [row for row in rows if row.user_id is not None or row.claimed_at is not None]
         active = [row for row in rows if row.admission_status == "accepted" and row.rsvp_status == "confirmed"]
@@ -142,13 +142,15 @@ def pick_registration(person, registrations):
             if len(group) == 1:
                 return group[0]
             if len(group) > 1 and group is connected:
+                if len(direct) == 1 and all(norm(f"{row.first_name or ''} {row.last_name or ''}") in person["names"] for row in connected):
+                    return direct[0]
                 raise ValueError("Multiple claimed registrations match one master attendee")
         if rows:
             raise ValueError("Ambiguous registration aliases")
         return None
     if candidates:
         return select(candidates)
-    names = [row for row in registrations if norm(f"{row.first_name or ''} {row.last_name or ''}") in person["names"] and not (row.source_data or {}).get("superseded_test_invitation_at")]
+    names = [row for row in registrations if norm(f"{row.first_name or ''} {row.last_name or ''}") in person["names"] and not (row.source_data or {}).get("superseded_test_invitation_at") and not (row.source_data or {}).get("final_master_duplicate_of")]
     return select(names)
 
 
@@ -162,6 +164,7 @@ def registration_plan(payload, session, event):
         except ValueError as error:
             emit("REGISTRATION_CONFLICT", {"master_row": person["row"], "reason": str(error)})
             raise
+        person["duplicates"] = [other for other in registrations if registration is not None and other.id != registration.id and other.normalized_email in person["aliases"] and norm(f"{other.first_name or ''} {other.last_name or ''}") in person["names"] and not (other.source_data or {}).get("final_master_duplicate_of")]
         plan.append((person, registration))
     ids = [str(row.id) for _, row in plan if row is not None]
     if len(set(ids)) != len(ids):
@@ -169,8 +172,8 @@ def registration_plan(payload, session, event):
     canonical = [row.normalized_email if row is not None else person["email"] for person, row in plan]
     if len(set(canonical)) != len(canonical):
         raise ValueError("Duplicate canonical login emails")
-    fingerprint = digest([(person["row"], str(row.id) if row is not None else None, canonical[i], person["fields"]) for i, (person, row) in enumerate(plan)])
-    emit("ROSTER_PLAN", {"attendees": len(plan), "new": sum(row is None for _, row in plan), "restore": sum(row is not None and (row.admission_status != "accepted" or row.rsvp_status != "confirmed") for _, row in plan), "login_aliases_preserved": sum(row is not None and row.normalized_email != person["email"] for person, row in plan), "fingerprint": fingerprint})
+    fingerprint = digest([(person["row"], str(row.id) if row is not None else None, canonical[i], person["fields"], sorted(str(other.id) for other in person["duplicates"])) for i, (person, row) in enumerate(plan)])
+    emit("ROSTER_PLAN", {"attendees": len(plan), "new": sum(row is None for _, row in plan), "restore": sum(row is not None and (row.admission_status != "accepted" or row.rsvp_status != "confirmed") for _, row in plan), "duplicate_alias_registrations": sum(len(person["duplicates"]) for person, _ in plan), "login_aliases_preserved": sum(row is not None and row.normalized_email != person["email"] for person, row in plan), "fingerprint": fingerprint})
     return plan, fingerprint
 
 
@@ -270,6 +273,13 @@ def main():
                     setattr(row, key, value)
                 row.admission_status, row.rsvp_status = "accepted", "confirmed"
                 row.source_data = {**(row.source_data or {}), "final_master_confirmation": {"team_sha256": TEAM_SHA, "attendance_sha256": PROFILE_SHA, "master_row": person["row"], "aliases": person["aliases"], "at": datetime.now(timezone.utc).isoformat()}}
+                for duplicate in person["duplicates"]:
+                    duplicate.admission_status, duplicate.rsvp_status = "revoked", "declined"
+                    duplicate.source_data = {**(duplicate.source_data or {}), "final_master_duplicate_of": str(row.id)}
+                    if duplicate.account_setup is not None:
+                        duplicate.account_setup.expires_at = datetime.now(timezone.utc)
+                    if duplicate.event_pass is not None:
+                        duplicate.event_pass.state, duplicate.event_pass.revoked_at = "revoked", datetime.now(timezone.utc)
                 if restoring and row.event_pass is not None and row.event_pass.state == "revoked":
                     row.event_pass.state, row.event_pass.revoked_at = "active", None
             session.commit()

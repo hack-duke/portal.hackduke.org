@@ -21,7 +21,13 @@ def test_existing_claimed_login_is_preserved_across_team_form_aliases():
 
 def test_conflicting_claimed_accounts_are_never_merged():
     with pytest.raises(ValueError, match="Multiple claimed"):
-        pick_registration(person(), [row("login@example.org", user_id="u1"), row("form@example.org", user_id="u2")])
+        pick_registration(person(), [row("login@example.org", user_id="u1", last_name="Different"), row("form@example.org", user_id="u2")])
+
+
+def test_two_claimed_addresses_for_same_confirmed_person_use_exact_master_address():
+    direct = row("form@example.org", user_id="u1")
+    alias = row("login@example.org", user_id="u2")
+    assert pick_registration(person(), [direct, alias]) is direct
 
 
 def test_superseded_test_address_is_not_reactivated_by_name_matching():
