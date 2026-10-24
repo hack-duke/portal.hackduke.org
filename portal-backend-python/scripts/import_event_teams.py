@@ -205,7 +205,7 @@ def _positive_size(value: Any, row_number: int) -> int:
         size = int(value)
     except (TypeError, ValueError):
         raise TeamImportValidationError(f"invalid team size at source row {row_number}")
-    if not 1 <= size <= 4:
+    if size < 1:
         raise TeamImportValidationError(f"invalid team size at source row {row_number}")
     return size
 

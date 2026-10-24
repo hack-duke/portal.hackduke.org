@@ -78,7 +78,7 @@ class EventTeamMember(Base):
             "event_id", "registration_id", name="uq_event_team_member_registration"
         ),
         CheckConstraint(
-            "member_position BETWEEN 1 AND 4",
+            "member_position >= 1",
             name="ck_event_team_member_position",
         ),
         CheckConstraint(

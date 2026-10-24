@@ -252,6 +252,19 @@ def test_admin_team_details_are_authorized_and_searchable(test_session):
     assert registration["team"]["teammates"][1]["match_detail"] == "email_not_found"
 
 
+def test_attendee_roster_preserves_organizer_approved_six_person_team(test_session):
+    event, attendee, _ = _setup_two_teams(test_session)
+    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+    team = registration.team_membership.team
+    for position in range(3, 7):
+        test_session.add(EventTeamMember(event_id=event.id, team_id=team.id, member_position=position, display_name=f"Additional member {position}", email=f"additional-{position}@example.org", normalized_email=f"additional-{position}@example.org", match_status="unmatched", match_detail="email_not_found", source_row_number=position))
+    test_session.flush()
+    _set_token(attendee.auth0_id)
+    response = client.get(f"/events/{event.slug}/me")
+    assert response.status_code == 200
+    assert len(response.json()["registration"]["team"]["teammates"]) == 6
+
+
 def test_admin_team_directory_includes_teams_without_linked_registrations(test_session):
     event, _attendee_one, _attendee_two = _setup_two_teams(test_session)
     unlinked = EventTeam(

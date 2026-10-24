@@ -1,0 +1,76 @@
+name: Reconcile DuQuantum Confirmed Final Master
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        type: choice
+        required: true
+        options: [inventory, roster, accounts, teams, reminders, verify]
+      confirm_event:
+        type: string
+        required: true
+      expected_count:
+        type: string
+      expected_fingerprint:
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: duquantum-account-reminders
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the protected final-master phase
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          PAYLOAD: ${{ secrets.DUQUANTUM_CONFIRMED_FINAL_MASTER_GZIP_B64 }}
+          PHASE: ${{ inputs.phase }}
+          CONFIRM_EVENT: ${{ inputs.confirm_event }}
+          COUNT: ${{ inputs.expected_count }}
+          FINGERPRINT: ${{ inputs.expected_fingerprint }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_EVENT" = duquantum-2026
+          test -n "$PAYLOAD"
+          case "$PHASE" in
+            inventory|verify) ;;
+            *) printf '%s' "$COUNT" | grep -Eq '^[0-9]+$'
+               printf '%s' "$FINGERPRINT" | grep -Eq '^[0-9a-f]{64}$' ;;
+          esac
+          umask 077
+          local_payload="$(mktemp)"
+          base=".duquantum-final-master-${GITHUB_RUN_ID}"
+          trap 'rm -f -- key.pem "$local_payload"' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          printf '%s' "$PAYLOAD" | base64 --decode | gzip --decompress > "$local_payload"
+          scp -i key.pem -o StrictHostKeyChecking=no "$local_payload" "ec2-user@$EC2_IP:${base}.json"
+          scp -i key.pem -o StrictHostKeyChecking=no .github/scripts/reconcile_duquantum_final_master.py "ec2-user@$EC2_IP:${base}.py"
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$base" "$PHASE" "${COUNT:-none}" "${FINGERPRINT:-none}" << 'REMOTE'
+          set -euo pipefail
+          umask 077
+          base="$1"
+          case "$base" in .duquantum-final-master-*) ;; *) exit 2 ;; esac
+          private_dir="$HOME/data/private/duquantum-2026"
+          install -d -m 700 "$private_dir"
+          install -m 600 "${base}.json" "$private_dir/final_master_source-${base}.json"
+          backend_id="$(docker-compose ps -q backend)"
+          test -n "$backend_id"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
+          backup="/tmp/${base}-backup.json"
+          cleanup() {
+            if docker exec "$backend_id" test -f "$backup"; then
+              docker cp "$backend_id:$backup" "$private_dir/${base}-backup.json"
+              chmod 600 "$private_dir/${base}-backup.json"
+              docker exec "$backend_id" rm -f -- "$backup"
+            fi
+            rm -f -- "${base}.json" "${base}.py"
+          }
+          trap cleanup EXIT
+          args=(--phase "$2" --backup "$backup")
+          case "$2" in inventory|verify) ;; *) args+=(--expected-count "$3" --expected-fingerprint "$4") ;; esac
+          docker exec -i "$backend_id" python -c "$(cat "${base}.py")" "${args[@]}" < "${base}.json"
+          REMOTE
