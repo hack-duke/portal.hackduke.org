@@ -1,0 +1,26 @@
+name: Export attended judging roster
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export confirmed arrivals without personal contact details
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f -- key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" 'set -eu; backend_id="$(docker-compose ps -q backend)"; test -n "$backend_id"; docker exec -i "$backend_id" python' < .github/scripts/export_attended_judging_roster.py > attended-judging-roster.json
+          python -c 'import json; d=json.load(open("attended-judging-roster.json")); print("Confirmed arrivals:",d["total_confirmed_arrivals"],"Teams:",len(d["teams"]),"Unassigned:",len(d["unassigned"]))'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: attended-judging-roster
+          path: attended-judging-roster.json
+          retention-days: 1
