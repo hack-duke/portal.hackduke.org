@@ -14,7 +14,7 @@ def main():
         arrival_ids = {r.registration_id for r in session.query(EventCheckIn).filter_by(event_id=event.id, checkpoint="arrival")}
         confirmed = {r.id: r for r in session.query(EventRegistration).filter_by(event_id=event.id, admission_status="accepted", rsvp_status="confirmed") if r.id in arrival_ids}
         def person(row):
-            return {"registration_id": str(row.id), "name": " ".join(p for p in (row.first_name, row.last_name) if p).strip()}
+            return {"registration_id": str(row.id), "name": " ".join(p for p in (row.first_name, row.last_name) if p).strip(), "email": row.email}
         teams, assigned = [], set()
         for team in session.query(EventTeam).filter_by(event_id=event.id, active=True):
             members = session.query(EventTeamMember).filter_by(team_id=team.id).order_by(EventTeamMember.member_position).all()

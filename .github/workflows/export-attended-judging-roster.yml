@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Export confirmed arrivals without personal contact details
+      - name: Export confirmed arrivals for the organizer workbook
         env:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_IP: ${{ secrets.EC2_IP }}
