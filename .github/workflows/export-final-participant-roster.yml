@@ -1,0 +1,28 @@
+name: Export encrypted final participant roster
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install --quiet cryptography
+      - name: Read and encrypt the organizer roster
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+          EXPORT_KEY: ${{ secrets.DUQUANTUM_FINAL_ROSTER_EXPORT_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$EXPORT_KEY"
+          trap 'rm -f -- key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" 'set -eu; backend_id="$(docker-compose ps -q backend)"; test -n "$backend_id"; docker exec -i "$backend_id" python' < .github/scripts/export_final_participant_roster.py | python -c 'import os,sys; from cryptography.fernet import Fernet; sys.stdout.buffer.write(Fernet(os.environ["EXPORT_KEY"].encode()).encrypt(sys.stdin.buffer.read()))' > final-roster.enc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-final-roster
+          path: final-roster.enc
+          retention-days: 1
