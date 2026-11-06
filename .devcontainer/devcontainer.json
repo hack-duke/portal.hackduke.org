@@ -51,7 +51,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install && cd portal-backend-python && poetry install"
+  "postCreateCommand": "npm install"
   // "mounts": [
   //   // Experimental, mount ssh and gitconfig from host machine
   //   "type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh",
