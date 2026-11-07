@@ -7,6 +7,8 @@ never printed.
 """
 
 from __future__ import annotations
+import asyncio
+from sqlalchemy import select
 
 import argparse
 import hashlib
@@ -248,7 +250,7 @@ def _valid_send_confirmation(args: argparse.Namespace) -> bool:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
+async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if _send_requested(args) and not _valid_send_confirmation(args):
         print(
@@ -296,18 +298,16 @@ def main(argv: list[str] | None = None) -> int:
     session = get_local_session()
     counts: Counter[str] = Counter()
     try:
-        event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
+        event = await session.scalar(select(Event).where(Event.slug == EVENT_SLUG))
         if event is None:
             print("Event seed is missing; apply migrations first")
             return 1
 
         registrations = list(
-            session.query(EventRegistration)
-            .filter(
+            (await session.scalars(select(EventRegistration).where(
                 EventRegistration.event_id == event.id,
                 EventRegistration.normalized_email.in_(requested_emails),
-            )
-            .all()
+            ))).all()
         )
         registration_by_email = {
             registration.normalized_email: registration
@@ -361,8 +361,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
 
                 original_delivery = (
-                    session.query(EmailDelivery)
-                    .filter(
+                    await session.scalar(select(EmailDelivery).where(
                         EmailDelivery.event_id == event.id,
                         EmailDelivery.registration_id == registration.id,
                         EmailDelivery.campaign_key.in_(
@@ -372,13 +371,12 @@ def main(argv: list[str] | None = None) -> int:
                             )
                         ),
                         EmailDelivery.status == "sent",
-                    )
-                    .first()
+                    ))
                 )
                 if original_delivery is None:
                     counts["original_delivery_not_sent"] += 1
                     continue
-                if audit.already_sent(
+                if await audit.already_sent(
                     event_id=event.id,
                     registration_id=registration.id,
                     campaign_key=campaign_key,
@@ -458,7 +456,7 @@ def main(argv: list[str] | None = None) -> int:
             registration = item.registration
             try:
                 if item.campaign_key == REMINDER_CAMPAIGN_KEY:
-                    setup_url = issue_account_setup_link(
+                    setup_url = await issue_account_setup_link(
                         session,
                         event_id=event.id,
                         event_slug=event.slug,
@@ -481,7 +479,7 @@ def main(argv: list[str] | None = None) -> int:
                         portal_url=mail_settings.portal_url,
                         login_email=registration.email,
                     )
-                delivery = audit.queued(
+                delivery = await audit.queued(
                     event_id=event.id,
                     registration_id=registration.id,
                     campaign_key=item.campaign_key,
@@ -489,28 +487,28 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 # Persist the rotated capability and idempotency row before SES.
                 # A queued row is deliberately never retried automatically.
-                session.commit()
+                await session.commit()
                 try:
                     message_id = mailer.send(
                         recipient=registration.email,
                         rendered=rendered,
                     )
                     audit.mark_sent(delivery, message_id)
-                    session.commit()
+                    await session.commit()
                     counts["sent"] += 1
                 except Exception as error:
                     audit.mark_failed(delivery, error)
-                    session.commit()
+                    await session.commit()
                     counts["failed"] += 1
             except Exception:
-                session.rollback()
+                await session.rollback()
                 counts["failed"] += 1
 
         print(f"Reminder emails accepted by SES: {counts['sent']}")
         print(f"Reminder delivery failures: {counts['failed']}")
         return 1 if counts["failed"] else 0
     finally:
-        session.close()
+        await session.close()
 
 
 def _print_preflight(
@@ -552,6 +550,9 @@ def _print_preflight(
     )
     print(f"SES enforcement status: {ses_posture['enforcement_status']}")
 
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
 
 if __name__ == "__main__":
     raise SystemExit(main())

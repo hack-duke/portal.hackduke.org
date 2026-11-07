@@ -1,7 +1,8 @@
 """Role management endpoints and utilities."""
 
 from fastapi import APIRouter, Depends, HTTPException, Security
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional, List
 from uuid import UUID
 from pydantic import BaseModel
@@ -22,47 +23,43 @@ auth = VerifyToken()
 # ============================================================================
 
 
-def user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
+async def user_has_role(db: AsyncSession, user_id: UUID, role: RoleEnum) -> bool:
     """Check if a user has a specific role."""
     return (
-        db.query(UserRole)
-        .filter(UserRole.user_id == user_id, UserRole.role == role)
-        .first()
+        (await db.scalars(select(UserRole).where(UserRole.user_id == user_id, UserRole.role == role).limit(1))).first()
         is not None
     )
 
 
-def user_has_any_role(db: Session, user_id: UUID, roles: List[RoleEnum]) -> bool:
+async def user_has_any_role(db: AsyncSession, user_id: UUID, roles: List[RoleEnum]) -> bool:
     """Check if a user has any of the specified roles."""
     return (
-        db.query(UserRole)
-        .filter(UserRole.user_id == user_id, UserRole.role.in_(roles))
-        .first()
+        (await db.scalars(select(UserRole).where(UserRole.user_id == user_id, UserRole.role.in_(roles)).limit(1))).first()
         is not None
     )
 
 
-def get_user_roles(db: Session, user_id: UUID) -> List[RoleEnum]:
+async def get_user_roles(db: AsyncSession, user_id: UUID) -> List[RoleEnum]:
     """Get all roles for a user."""
-    user_roles = db.query(UserRole).filter(UserRole.user_id == user_id).all()
+    user_roles = (await db.scalars(select(UserRole).where(UserRole.user_id == user_id))).all()
     return [ur.role for ur in user_roles]
 
 
-def require_role(db: Session, user_id: UUID, role: RoleEnum) -> None:
+async def require_role(db: AsyncSession, user_id: UUID, role: RoleEnum) -> None:
     """Raise HTTPException if user doesn't have the required role."""
-    if not user_has_role(db, user_id, role):
+    if not await user_has_role(db, user_id, role):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
 
-def require_admin(db: Session, user_id: UUID) -> None:
+async def require_admin(db: AsyncSession, user_id: UUID) -> None:
     """Raise HTTPException if user is not an admin."""
-    if not user_has_role(db, user_id, RoleEnum.ADMIN):
+    if not await user_has_role(db, user_id, RoleEnum.ADMIN):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
-def require_check_in(db: Session, user_id: UUID) -> None:
+async def require_check_in(db: AsyncSession, user_id: UUID) -> None:
     """Allow dedicated check-in staff and full administrators to scan passes."""
-    if not user_has_any_role(db, user_id, [RoleEnum.CHECK_IN, RoleEnum.ADMIN]):
+    if not await user_has_any_role(db, user_id, [RoleEnum.CHECK_IN, RoleEnum.ADMIN]):
         raise HTTPException(status_code=403, detail="Check-in access required")
 
 
@@ -123,7 +120,7 @@ class UsersWithRolesResponse(BaseModel):
 async def search_user_by_email(
     email: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Search for a user in Auth0 by email.
@@ -133,11 +130,11 @@ async def search_user_by_email(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    require_admin(db, user.id)
+    await require_admin(db, user.id)
 
     try:
         auth0_users = search_users_by_email(email)
@@ -162,7 +159,7 @@ async def search_user_by_email(
 async def grant_role(
     request: GrantRoleRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Grant a role to a user.
@@ -173,11 +170,11 @@ async def grant_role(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    granter = db.query(User).filter(User.auth0_id == auth0_id).first()
+    granter = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not granter:
         raise HTTPException(status_code=401, detail="User not found")
 
-    require_admin(db, granter.id)
+    await require_admin(db, granter.id)
 
     # Validate role
     try:
@@ -186,7 +183,7 @@ async def grant_role(
         raise HTTPException(status_code=400, detail=f"Invalid role: {request.role}")
 
     # Find or create the target user
-    target_user = db.query(User).filter(User.auth0_id == request.auth0_id).first()
+    target_user = (await db.scalars(select(User).where(User.auth0_id == request.auth0_id).limit(1))).first()
     name = request.name.split(" ")
     if not target_user:
         target_user = User(
@@ -196,31 +193,29 @@ async def grant_role(
             last_name=name[1] if len(name) > 1 else "",
         )
         db.add(target_user)
-        db.flush()
+        await db.flush()
 
     # Check if role already exists
     existing_role = (
-        db.query(UserRole)
-        .filter(UserRole.user_id == target_user.id, UserRole.role == role)
-        .first()
+        (await db.scalars(select(UserRole).where(UserRole.user_id == target_user.id, UserRole.role == role).limit(1))).first()
     )
 
     if existing_role:
         return RoleActionResponse(
             success=True,
             message=f"User already has {role.value} role",
-            user=_build_user_with_roles(target_user, db),
+            user=await _build_user_with_roles(target_user, db),
         )
 
     # Grant the role
     user_role = UserRole(user_id=target_user.id, role=role, granted_by=granter.id)
     db.add(user_role)
-    db.commit()
+    await db.commit()
 
     return RoleActionResponse(
         success=True,
         message=f"Granted {role.value} role",
-        user=_build_user_with_roles(target_user, db),
+        user=await _build_user_with_roles(target_user, db),
     )
 
 
@@ -228,7 +223,7 @@ async def grant_role(
 async def revoke_role(
     request: RevokeRoleRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Revoke a role from a user.
@@ -238,11 +233,11 @@ async def revoke_role(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    admin_user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    admin_user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not admin_user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    require_admin(db, admin_user.id)
+    await require_admin(db, admin_user.id)
 
     # Validate role
     try:
@@ -256,7 +251,7 @@ async def revoke_role(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
-    target_user = db.query(User).filter(User.id == target_user_id).first()
+    target_user = (await db.scalars(select(User).where(User.id == target_user_id).limit(1))).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -266,32 +261,30 @@ async def revoke_role(
 
     # Find and delete the role
     user_role = (
-        db.query(UserRole)
-        .filter(UserRole.user_id == target_user.id, UserRole.role == role)
-        .first()
+        (await db.scalars(select(UserRole).where(UserRole.user_id == target_user.id, UserRole.role == role).limit(1))).first()
     )
 
     if not user_role:
         return RoleActionResponse(
             success=True,
             message=f"User does not have {role.value} role",
-            user=_build_user_with_roles(target_user, db),
+            user=await _build_user_with_roles(target_user, db),
         )
 
-    db.delete(user_role)
-    db.commit()
+    await db.delete(user_role)
+    await db.commit()
 
     return RoleActionResponse(
         success=True,
         message=f"Revoked {role.value} role",
-        user=_build_user_with_roles(target_user, db),
+        user=await _build_user_with_roles(target_user, db),
     )
 
 
 @router.get("/users", response_model=UsersWithRolesResponse)
 async def list_users_with_roles(
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List all users who have at least one role.
@@ -301,27 +294,27 @@ async def list_users_with_roles(
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    require_admin(db, user.id)
+    await require_admin(db, user.id)
 
     # Get all users with roles
     users_with_roles = (
-        db.query(User).join(UserRole, User.id == UserRole.user_id).distinct().all()
+        (await db.scalars(select(User).join(UserRole, User.id == UserRole.user_id).distinct())).all()
     )
 
     result = []
     for u in users_with_roles:
-        result.append(_build_user_with_roles(u, db))
+        result.append(await _build_user_with_roles(u, db))
 
     return UsersWithRolesResponse(users=result, total=len(result))
 
 
-def _build_user_with_roles(user: User, db: Session) -> UserWithRoles:
+async def _build_user_with_roles(user: User, db: AsyncSession) -> UserWithRoles:
     """Helper to build UserWithRoles response."""
-    roles = get_user_roles(db, user.id)
+    roles = await get_user_roles(db, user.id)
     return UserWithRoles(
         user_id=str(user.id),
         auth0_id=user.auth0_id,

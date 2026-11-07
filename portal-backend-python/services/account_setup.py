@@ -7,7 +7,9 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, urlparse
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.event_account_setup import EventAccountSetup
 
@@ -20,8 +22,8 @@ def hash_account_setup_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def issue_account_setup_link(
-    session: Session,
+async def issue_account_setup_link(
+    session: AsyncSession,
     *,
     event_id,
     event_slug: str,
@@ -45,14 +47,11 @@ def issue_account_setup_link(
     token_digest = hash_account_setup_token(raw_token)
     now = datetime.now(timezone.utc)
     setup = (
-        session.query(EventAccountSetup)
-        .filter(
+        await session.execute(select(EventAccountSetup).options(selectinload(EventAccountSetup.registration)).where(
             EventAccountSetup.event_id == event_id,
             EventAccountSetup.registration_id == registration_id,
-        )
-        .with_for_update()
-        .one_or_none()
-    )
+        ).with_for_update())
+    ).scalar_one_or_none()
     if setup is None:
         setup = EventAccountSetup(
             event_id=event_id,
@@ -67,7 +66,7 @@ def issue_account_setup_link(
         setup.token_digest = token_digest
         setup.expires_at = now + timedelta(seconds=ttl_seconds)
         setup.consumed_at = None
-    session.flush()
+    await session.flush()
 
     # A URL fragment is not sent in HTTP requests or Referer headers. The SPA
     # reads it locally and posts it in the encrypted request body.
@@ -75,8 +74,8 @@ def issue_account_setup_link(
     return f"{base_url}/events/{event_slug}/account-setup#token={safe_token}"
 
 
-def lock_valid_account_setup(
-    session: Session,
+async def lock_valid_account_setup(
+    session: AsyncSession,
     *,
     event_id,
     token: str,
@@ -85,14 +84,11 @@ def lock_valid_account_setup(
         raise InvalidAccountSetupToken
 
     setup = (
-        session.query(EventAccountSetup)
-        .filter(
+        await session.execute(select(EventAccountSetup).options(selectinload(EventAccountSetup.registration)).where(
             EventAccountSetup.event_id == event_id,
             EventAccountSetup.token_digest == hash_account_setup_token(token),
-        )
-        .with_for_update()
-        .one_or_none()
-    )
+        ).with_for_update())
+    ).scalar_one_or_none()
     now = datetime.now(timezone.utc)
     if setup is None or setup.consumed_at is not None or setup.expires_at <= now:
         raise InvalidAccountSetupToken

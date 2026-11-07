@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from sqlalchemy import delete, select
+from sqlalchemy.orm import selectinload
 
 from scripts.import_event_registrations import (
     CONSENT_HEADER_PREFIXES,
@@ -22,6 +24,7 @@ from scripts.import_event_registrations import (
     sync_database,
 )
 from models import Event, EventPass, EventRegistration
+from models.email_delivery import EmailDelivery
 from services.auth0_onboarding import (
     Auth0OnboardingClient,
     Auth0OnboardingSettings,
@@ -139,7 +142,8 @@ def test_csv_import_uses_latest_response_before_applying_eligibility(tmp_path):
 
 
 @pytest.mark.parametrize("include_ineligible", [False, True])
-def test_database_sync_archives_records_outside_the_final_manifest(
+@pytest.mark.asyncio
+async def test_database_sync_archives_records_outside_the_final_manifest(
     tmp_path, test_sessionmaker, monkeypatch, include_ineligible
 ):
     source = tmp_path / "responses.csv"
@@ -162,7 +166,7 @@ def test_database_sync_archives_records_outside_the_final_manifest(
     setup = test_sessionmaker()
     event = Event(slug="duquantum-2026", name="DuQuantum 2026", state="active")
     setup.add(event)
-    setup.flush()
+    await setup.flush()
     event_id = event.id
     included = EventRegistration(
         event_id=event.id,
@@ -190,19 +194,19 @@ def test_database_sync_archives_records_outside_the_final_manifest(
         source_data={},
     )
     setup.add_all([included, ineligible, stale])
-    setup.flush()
+    await setup.flush()
     setup.add_all(
         [
             EventPass(registration_id=ineligible.id, state="active"),
             EventPass(registration_id=stale.id, state="active"),
         ]
     )
-    setup.commit()
-    setup.close()
+    await setup.commit()
+    await setup.close()
 
     monkeypatch.setattr("db.get_local_session", test_sessionmaker)
     try:
-        counts = sync_database(
+        counts = await sync_database(
             result,
             commit=True,
             include_ineligible=include_ineligible,
@@ -221,9 +225,7 @@ def test_database_sync_archives_records_outside_the_final_manifest(
         try:
             records = {
                 item.normalized_email: item
-                for item in verify.query(EventRegistration)
-                .filter(EventRegistration.event_id == event_id)
-                .all()
+                for item in (await verify.scalars(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(EventRegistration.event_id == event_id))).all()
             }
             assert records["person@example.edu"].first_name == "Updated"
             assert records["person@example.edu"].admission_status == "accepted"
@@ -240,12 +242,12 @@ def test_database_sync_archives_records_outside_the_final_manifest(
             assert records["stale@example.edu"].rsvp_status == "declined"
             assert records["stale@example.edu"].event_pass.state == "revoked"
         finally:
-            verify.close()
+            await verify.close()
     finally:
         cleanup = test_sessionmaker()
-        cleanup.query(Event).filter(Event.slug == "duquantum-2026").delete()
-        cleanup.commit()
-        cleanup.close()
+        await cleanup.execute(delete(Event).where(Event.slug == "duquantum-2026"))
+        await cleanup.commit()
+        await cleanup.close()
 
 
 def test_email_normalization_does_not_rewrite_provider_specific_addressing():
@@ -689,36 +691,17 @@ def test_campaign_eligibility_keeps_marketing_consent_separate():
     assert not campaign_allows_registration(registration, marketing=True)
 
 
-class _FakeField:
-    def __eq__(self, _other):
-        return self
-
-    def in_(self, _values):
-        return self
-
-
-class _FakeDelivery:
-    event_id = _FakeField()
-    registration_id = _FakeField()
-    campaign_key = _FakeField()
-    status = _FakeField()
-
-    def __init__(self, **values):
-        for key, value in values.items():
-            setattr(self, key, value)
-
-
-class _FakeQuery:
+class _FakeResult:
     def __init__(self, row):
         self.row = row
 
-    def filter(self, *_conditions):
-        return self
-
-    def one_or_none(self):
+    def scalar_one_or_none(self):
         return self.row
 
     def first(self):
+        return self.row
+
+    def one_or_none(self):
         return self.row
 
 
@@ -727,18 +710,19 @@ class _FakeSession:
         self.row = row
         self.added = []
 
-    def query(self, _model):
-        return _FakeQuery(self.row)
+    async def scalars(self, _stmt):
+        return _FakeResult(self.row)
 
     def add(self, row):
         self.added.append(row)
 
-    def flush(self):
+    async def flush(self):
         pass
 
 
-def test_email_audit_reuses_failed_row_and_blocks_uncertain_queued_row():
-    failed = _FakeDelivery(
+@pytest.mark.asyncio
+async def test_email_audit_reuses_failed_row_and_blocks_uncertain_queued_row():
+    failed = EmailDelivery(
         event_id="event",
         registration_id="registration",
         campaign_key="pass-ready",
@@ -751,9 +735,9 @@ def test_email_audit_reuses_failed_row_and_blocks_uncertain_queued_row():
     )
     session = _FakeSession(failed)
     audit = OptionalEmailDeliveryAudit(session)
-    audit.model = _FakeDelivery
+    audit.model = EmailDelivery
 
-    reused = audit.queued(
+    reused = await audit.queued(
         event_id="event",
         registration_id="registration",
         campaign_key="pass-ready",
@@ -766,7 +750,7 @@ def test_email_audit_reuses_failed_row_and_blocks_uncertain_queued_row():
     assert reused.error is None
     assert reused.sent_at is None
     assert not session.added
-    assert audit.already_sent(
+    assert await audit.already_sent(
         event_id="event",
         registration_id="registration",
         campaign_key="pass-ready",

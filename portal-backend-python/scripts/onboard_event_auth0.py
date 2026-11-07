@@ -6,6 +6,8 @@ count. Attendee values and one-time links are never printed.
 """
 
 from __future__ import annotations
+import asyncio
+from sqlalchemy import select
 
 import argparse
 from collections import Counter
@@ -67,7 +69,7 @@ def database_users(
     ]
 
 
-def main(argv: list[str] | None = None) -> int:
+async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     provisioning = args.create_missing or args.commit or args.send_invitations
     if provisioning and not (
@@ -94,19 +96,16 @@ def main(argv: list[str] | None = None) -> int:
     session = get_local_session()
     counts: Counter[str] = Counter()
     try:
-        event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
+        event = await session.scalar(select(Event).where(Event.slug == EVENT_SLUG))
         if event is None:
             print("Event seed is missing; apply migrations first")
             return 1
         registrations = list(
-            session.query(EventRegistration)
-            .filter(
+            (await session.scalars(select(EventRegistration).where(
                 EventRegistration.event_id == event.id,
                 EventRegistration.admission_status == "accepted",
                 EventRegistration.rsvp_status == "confirmed",
-            )
-            .order_by(EventRegistration.created_at, EventRegistration.id)
-            .all()
+            ).order_by(EventRegistration.created_at, EventRegistration.id))).all()
         )
 
         auth_settings = Auth0OnboardingSettings.from_environment()
@@ -132,14 +131,16 @@ def main(argv: list[str] | None = None) -> int:
                 if len(matches) > 1:
                     counts["ambiguous"] += 1
                     continue
-                if any(
-                    audit.already_sent(
+                invitation_already_recorded = False
+                for campaign_key in INVITATION_CAMPAIGN_KEYS:
+                    if await audit.already_sent(
                         event_id=event.id,
                         registration_id=registration.id,
                         campaign_key=campaign_key,
-                    )
-                    for campaign_key in INVITATION_CAMPAIGN_KEYS
-                ):
+                    ):
+                        invitation_already_recorded = True
+                        break
+                if invitation_already_recorded:
                     counts["invitation_already_recorded"] += 1
                     continue
 
@@ -210,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
                         )
                     else:
                         campaign_key = SETUP_CAMPAIGN_KEY
-                        setup_url = issue_account_setup_link(
+                        setup_url = await issue_account_setup_link(
                             session,
                             event_id=event.id,
                             event_slug=event.slug,
@@ -226,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
                             account_setup_url=setup_url,
                             login_email=registration.email,
                         )
-                    delivery = audit.queued(
+                    delivery = await audit.queued(
                         event_id=event.id,
                         registration_id=registration.id,
                         campaign_key=campaign_key,
@@ -234,29 +235,29 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     # Persist the rotated single-use setup capability and queued
                     # audit before delivery. A queued row is never auto-retried.
-                    session.commit()
+                    await session.commit()
                     try:
                         message_id = mailer.send(
                             recipient=registration.email,
                             rendered=rendered,
                         )
                         audit.mark_sent(delivery, message_id)
-                        session.commit()
+                        await session.commit()
                     except Exception as exc:
                         audit.mark_failed(delivery, exc)
-                        session.commit()
+                        await session.commit()
                         raise
                     counts[account_result] += 1
                 except Exception:
                     # Never stringify exceptions: request payloads may contain
                     # attendee data or one-time invitation capabilities.
-                    session.rollback()
+                    await session.rollback()
                     counts["failed"] += 1
 
         _print_summary(len(registrations), counts, provisioning=True)
         return 1 if counts["failed"] else 0
     finally:
-        session.close()
+        await session.close()
 
 
 def _print_summary(
@@ -289,6 +290,9 @@ def _print_summary(
     if not provisioning:
         print("Inventory only; no accounts, setup links, or emails were created")
 
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
 
 if __name__ == "__main__":
     raise SystemExit(main())

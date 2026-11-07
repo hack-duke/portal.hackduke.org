@@ -2,9 +2,13 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 import routers.events as events_module
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from db import get_db
 from models import (
@@ -20,15 +24,26 @@ from models import (
 from routers.events import auth, router
 
 
+pytestmark = pytest.mark.asyncio
+
+
 app = FastAPI()
 app.include_router(prefix="/events", router=router)
-client = TestClient(app)
 
 
-@pytest.fixture(autouse=True)
-def setup_dependency_overrides(test_session):
+@pytest_asyncio.fixture
+async def client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def setup_dependency_overrides(test_session):
     app.dependency_overrides.clear()
-    app.dependency_overrides[get_db] = lambda: (yield test_session)
+    async def override_db():
+        yield test_session
+
+    app.dependency_overrides[get_db] = override_db
     yield
     app.dependency_overrides.clear()
 
@@ -37,7 +52,7 @@ def _set_token(auth0_id):
     app.dependency_overrides[auth.verify] = lambda: {"sub": auth0_id}
 
 
-def _add_team(test_session, *, event, registration, name, row_number):
+async def _add_team(test_session, *, event, registration, name, row_number):
     team = EventTeam(
         event_id=event.id,
         name=name,
@@ -54,7 +69,7 @@ def _add_team(test_session, *, event, registration, name, row_number):
         source_submitted_at=datetime.now(timezone.utc),
     )
     test_session.add(team)
-    test_session.flush()
+    await test_session.flush()
     test_session.add_all(
         [
             EventTeamMember(
@@ -90,11 +105,11 @@ def _add_team(test_session, *, event, registration, name, row_number):
             ),
         ]
     )
-    test_session.flush()
+    await test_session.flush()
     return team
 
 
-def _setup_two_teams(test_session):
+async def _setup_two_teams(test_session):
     event = Event(
         slug=f"duquantum-teams-{uuid4()}",
         name="DuQuantum Teams Test",
@@ -104,7 +119,7 @@ def _setup_two_teams(test_session):
     attendee_one = User(auth0_id=f"auth0|team-one-{uuid4()}")
     attendee_two = User(auth0_id=f"auth0|team-two-{uuid4()}")
     test_session.add_all([event, attendee_one, attendee_two])
-    test_session.flush()
+    await test_session.flush()
     registration_one = EventRegistration(
         event_id=event.id,
         user_id=attendee_one.id,
@@ -128,35 +143,35 @@ def _setup_two_teams(test_session):
         source_data={"private": "admin only"},
     )
     test_session.add_all([registration_one, registration_two])
-    test_session.flush()
-    _add_team(
+    await test_session.flush()
+    (await _add_team(
         test_session,
         event=event,
         registration=registration_one,
         name="Team One",
         row_number=2,
-    )
-    _add_team(
+    ))
+    (await _add_team(
         test_session,
         event=event,
         registration=registration_two,
         name="Team Two",
         row_number=3,
-    )
+    ))
     return event, attendee_one, attendee_two
 
 
-def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
-    test_session,
+async def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
+    test_session, client,
 ):
-    event, attendee_one, _attendee_two = _setup_two_teams(test_session)
+    event, attendee_one, _attendee_two = (await _setup_two_teams(test_session))
     event.start_at = datetime.now(timezone.utc) - timedelta(hours=1)
-    registration_row = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee_one.id).one()
+    registration_row = (await test_session.scalars(select(EventRegistration).options(selectinload(EventRegistration.team_membership).selectinload(EventTeamMember.team).selectinload(EventTeam.members)).filter_by(event_id=event.id, user_id=attendee_one.id))).one()
     test_session.add(EventCheckIn(event_id=event.id, registration_id=registration_row.id, checkpoint="arrival"))
-    test_session.flush()
+    await test_session.flush()
     _set_token(attendee_one.auth0_id)
 
-    response = client.get(f"/events/{event.slug}/me")
+    response = (await client.get(f"/events/{event.slug}/me"))
 
     assert response.status_code == 200
     registration = response.json()["registration"]
@@ -180,15 +195,15 @@ def test_attendee_receives_only_their_linked_team_and_no_raw_import_data(
 
 
 @pytest.mark.parametrize("started,checkpoint", [(False, None), (False, "arrival"), (True, None), (True, "lunch"), (None, "arrival")])
-def test_attendee_assignment_details_require_start_and_arrival(test_session, started, checkpoint):
-    event, attendee, _ = _setup_two_teams(test_session)
+async def test_attendee_assignment_details_require_start_and_arrival(test_session, started, checkpoint, client):
+    event, attendee, _ = (await _setup_two_teams(test_session))
     event.start_at = None if started is None else datetime.now(timezone.utc) + timedelta(days=-1 if started else 1)
-    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+    registration = (await test_session.scalars(select(EventRegistration).options(selectinload(EventRegistration.team_membership).selectinload(EventTeamMember.team).selectinload(EventTeam.members)).filter_by(event_id=event.id, user_id=attendee.id))).one()
     if checkpoint:
         test_session.add(EventCheckIn(event_id=event.id, registration_id=registration.id, checkpoint=checkpoint))
-    test_session.flush()
+    await test_session.flush()
     _set_token(attendee.auth0_id)
-    response = client.get(f"/events/{event.slug}/me")
+    response = (await client.get(f"/events/{event.slug}/me"))
     assert response.status_code == 200
     team = response.json()["registration"]["team"]
     assert team["assignments_visible"] is False
@@ -200,7 +215,7 @@ def test_attendee_assignment_details_require_start_and_arrival(test_session, sta
 
 
 @pytest.mark.parametrize("seconds,visible", [(1, False), (0, True), (-1, True)])
-def test_assignment_release_uses_server_time_at_exact_start(test_session, monkeypatch, seconds, visible):
+async def test_assignment_release_uses_server_time_at_exact_start(test_session, monkeypatch, seconds, visible, client):
     moment = datetime.fromisoformat("2026-10-24T09:00:00-04:00")
 
     class FrozenDatetime(datetime):
@@ -209,36 +224,36 @@ def test_assignment_release_uses_server_time_at_exact_start(test_session, monkey
             return moment.astimezone(tz or timezone.utc)
 
     monkeypatch.setattr(events_module, "datetime", FrozenDatetime)
-    event, attendee, _ = _setup_two_teams(test_session)
+    event, attendee, _ = (await _setup_two_teams(test_session))
     event.start_at = moment + timedelta(seconds=seconds)
-    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+    registration = (await test_session.scalars(select(EventRegistration).options(selectinload(EventRegistration.team_membership).selectinload(EventTeamMember.team).selectinload(EventTeam.members)).filter_by(event_id=event.id, user_id=attendee.id))).one()
     test_session.add(EventCheckIn(event_id=event.id, registration_id=registration.id, checkpoint="arrival"))
-    test_session.flush()
+    await test_session.flush()
     _set_token(attendee.auth0_id)
-    response = client.get(f"/events/{event.slug}/me")
+    response = (await client.get(f"/events/{event.slug}/me"))
     assert response.status_code == 200
     team = response.json()["registration"]["team"]
     assert team["assignments_visible"] is visible
     assert team["challenge"] == ("Sponsor One" if visible else None)
 
 
-def test_admin_team_details_are_authorized_and_searchable(test_session):
-    event, attendee_one, _attendee_two = _setup_two_teams(test_session)
+async def test_admin_team_details_are_authorized_and_searchable(test_session, client):
+    event, attendee_one, _attendee_two = (await _setup_two_teams(test_session))
     _set_token(attendee_one.auth0_id)
-    denied = client.get(f"/events/{event.slug}/registrations")
+    denied = (await client.get(f"/events/{event.slug}/registrations"))
     assert denied.status_code == 403
-    assert client.get(f"/events/{event.slug}/teams").status_code == 403
+    assert (await client.get(f"/events/{event.slug}/teams")).status_code == 403
 
     admin = User(auth0_id=f"auth0|team-admin-{uuid4()}")
     test_session.add(admin)
-    test_session.flush()
+    await test_session.flush()
     test_session.add(UserRole(user_id=admin.id, role=RoleEnum.ADMIN))
-    test_session.flush()
+    await test_session.flush()
     _set_token(admin.auth0_id)
 
-    response = client.get(
+    response = (await client.get(
         f"/events/{event.slug}/registrations", params={"q": "Team One"}
-    )
+    ))
 
     assert response.status_code == 200
     body = response.json()
@@ -252,21 +267,22 @@ def test_admin_team_details_are_authorized_and_searchable(test_session):
     assert registration["team"]["teammates"][1]["match_detail"] == "email_not_found"
 
 
-def test_attendee_roster_preserves_organizer_approved_six_person_team(test_session):
-    event, attendee, _ = _setup_two_teams(test_session)
-    registration = test_session.query(EventRegistration).filter_by(event_id=event.id, user_id=attendee.id).one()
+async def test_attendee_roster_preserves_organizer_approved_six_person_team(test_session, client):
+    event, attendee, _ = (await _setup_two_teams(test_session))
+    registration = (await test_session.scalars(select(EventRegistration).options(selectinload(EventRegistration.team_membership).selectinload(EventTeamMember.team).selectinload(EventTeam.members)).filter_by(event_id=event.id, user_id=attendee.id))).one()
     team = registration.team_membership.team
     for position in range(3, 7):
         test_session.add(EventTeamMember(event_id=event.id, team_id=team.id, member_position=position, display_name=f"Additional member {position}", email=f"additional-{position}@example.org", normalized_email=f"additional-{position}@example.org", match_status="unmatched", match_detail="email_not_found", source_row_number=position))
-    test_session.flush()
+    await test_session.flush()
     _set_token(attendee.auth0_id)
-    response = client.get(f"/events/{event.slug}/me")
+    await test_session.refresh(team, ["members"])
+    response = (await client.get(f"/events/{event.slug}/me"))
     assert response.status_code == 200
     assert len(response.json()["registration"]["team"]["teammates"]) == 6
 
 
-def test_admin_team_directory_includes_teams_without_linked_registrations(test_session):
-    event, _attendee_one, _attendee_two = _setup_two_teams(test_session)
+async def test_admin_team_directory_includes_teams_without_linked_registrations(test_session, client):
+    event, _attendee_one, _attendee_two = (await _setup_two_teams(test_session))
     unlinked = EventTeam(
         event_id=event.id,
         name="Unlinked Final Team",
@@ -282,7 +298,7 @@ def test_admin_team_directory_includes_teams_without_linked_registrations(test_s
         source_submitted_at=None,
     )
     test_session.add(unlinked)
-    test_session.flush()
+    await test_session.flush()
     test_session.add(
         EventTeamMember(
             event_id=event.id,
@@ -300,15 +316,15 @@ def test_admin_team_directory_includes_teams_without_linked_registrations(test_s
     )
     admin = User(auth0_id=f"auth0|team-directory-admin-{uuid4()}")
     test_session.add(admin)
-    test_session.flush()
+    await test_session.flush()
     test_session.add(UserRole(user_id=admin.id, role=RoleEnum.ADMIN))
-    test_session.flush()
+    await test_session.flush()
     _set_token(admin.auth0_id)
 
-    response = client.get(
+    response = (await client.get(
         f"/events/{event.slug}/teams",
         params={"track": "Standard", "source": "Random", "match_status": "unmatched"},
-    )
+    ))
 
     assert response.status_code == 200
     body = response.json()

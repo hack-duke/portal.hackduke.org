@@ -7,9 +7,10 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Security
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import Integer, and_, cast, func, or_
+from sqlalchemy import Integer, and_, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from auth import VerifyToken
 from db import get_db
@@ -373,45 +374,42 @@ def get_subject(auth_payload: Dict[str, Any]) -> str:
     return auth0_id
 
 
-def get_event_or_404(db: Session, slug: str) -> Event:
-    event = db.query(Event).filter(Event.slug == slug).first()
+async def get_event_or_404(db: AsyncSession, slug: str) -> Event:
+    event = (await db.execute(select(Event).where(Event.slug == slug).limit(1))).scalars().first()
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
 
 
-def get_notification_event_or_404(db: Session, slug: str) -> Event:
-    event = get_event_or_404(db, slug)
+async def get_notification_event_or_404(db: AsyncSession, slug: str) -> Event:
+    event = await get_event_or_404(db, slug)
     if event.slug != NOTIFICATION_EVENT_SLUG:
         raise HTTPException(status_code=404, detail="Event notifications not found")
     return event
 
 
-def get_role_user(auth_payload: Dict[str, Any], db: Session) -> User:
-    user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
+async def get_role_user(auth_payload: Dict[str, Any], db: AsyncSession) -> User:
+    user = (await db.execute(select(User).where(User.auth0_id == get_subject(auth_payload)).limit(1))).scalars().first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
 
-def get_claimed_registration(
-    db: Session,
+async def get_claimed_registration(
+    db: AsyncSession,
     *,
     event: Event,
     auth_payload: Dict[str, Any],
 ) -> EventRegistration:
-    user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
+    user = (await db.execute(select(User).where(User.auth0_id == get_subject(auth_payload)).limit(1))).scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="No claimed registration was found")
     registration = (
-        db.query(EventRegistration)
-        .options(joinedload(EventRegistration.event_pass))
-        .filter(
+        await db.execute(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(
             EventRegistration.event_id == event.id,
             EventRegistration.user_id == user.id,
-        )
-        .first()
-    )
+        ).limit(1))
+    ).scalars().first()
     if registration is None:
         raise HTTPException(status_code=404, detail="No claimed registration was found")
     if not registration_is_pass_eligible(event, registration):
@@ -639,19 +637,19 @@ def _admin_registration_response(
 
 
 @router.post("/{slug}/account-setup", response_model=AccountSetupResponse)
-def complete_event_account_setup(
+async def complete_event_account_setup(
     slug: str,
     request: AccountSetupRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Consume a portal setup capability and set the attendee's Auth0 password."""
 
-    event = get_event_or_404(db, slug)
+    event = await get_event_or_404(db, slug)
     if event.state != "active":
         raise HTTPException(status_code=409, detail="Account setup is not active")
 
     try:
-        setup = lock_valid_account_setup(
+        setup = await lock_valid_account_setup(
             db,
             event_id=event.id,
             token=request.token,
@@ -676,13 +674,13 @@ def complete_event_account_setup(
                 password=request.password,
             )
     except Auth0PasswordRejected:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=422,
             detail="Choose a stronger password that meets all listed requirements",
         )
     except Exception:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=503,
             detail="Account setup is temporarily unavailable. Please try again.",
@@ -690,9 +688,9 @@ def complete_event_account_setup(
 
     setup.consumed_at = datetime.now(timezone.utc)
     try:
-        db.commit()
+        await db.commit()
     except Exception:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=503,
             detail="Account setup is temporarily unavailable. Please try again.",
@@ -705,43 +703,37 @@ def complete_event_account_setup(
 
 
 @router.get("", response_model=List[EventResponse])
-async def list_events(db: Session = Depends(get_db)):
+async def list_events(db: AsyncSession = Depends(get_db)):
     """List event metadata safe for the participant landing page."""
 
-    return (
-        db.query(Event)
-        .filter(Event.state == "active")
-        .order_by(Event.start_at.asc().nullslast(), Event.name.asc())
-        .all()
-    )
+    result = await db.execute(select(Event).where(Event.state == "active").order_by(Event.start_at.asc().nullslast(), Event.name.asc()))
+    return result.scalars().all()
 
 
 @router.get("/{slug}/me", response_model=MyEventResponse)
 async def get_my_event_registration(
     slug: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_event_or_404(db, slug)
+    event = await get_event_or_404(db, slug)
     auth0_id = get_subject(auth_payload)
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.execute(select(User).where(User.auth0_id == auth0_id).limit(1))).scalars().first()
     registration = None
     if user is not None:
         registration = (
-            db.query(EventRegistration)
-            .options(
+            await db.execute(select(EventRegistration).options(
+                joinedload(EventRegistration.event),
                 joinedload(EventRegistration.event_pass),
                 joinedload(EventRegistration.check_ins),
                 joinedload(EventRegistration.team_membership)
                 .joinedload(EventTeamMember.team)
                 .joinedload(EventTeam.members),
-            )
-            .filter(
+            ).where(
                 EventRegistration.event_id == event.id,
                 EventRegistration.user_id == user.id,
-            )
-            .first()
-        )
+            ).limit(1))
+        ).unique().scalars().first()
 
     return MyEventResponse(
         event=EventResponse.model_validate(event),
@@ -759,9 +751,9 @@ async def get_my_event_registration(
 async def claim_event_registration(
     slug: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_event_or_404(db, slug)
+    event = await get_event_or_404(db, slug)
     if event.state != "active":
         raise HTTPException(
             status_code=409, detail="Event registration claiming is not active"
@@ -770,21 +762,18 @@ async def claim_event_registration(
     auth0_id = get_subject(auth_payload)
     normalized_email = get_verified_email(auth_payload)
     registration = (
-        db.query(EventRegistration)
-        .filter(
+        await db.execute(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(
             EventRegistration.event_id == event.id,
             EventRegistration.normalized_email == normalized_email,
-        )
-        .with_for_update()
-        .first()
-    )
+        ).limit(1).with_for_update())
+    ).scalars().first()
     if registration is None:
         raise HTTPException(
             status_code=404,
             detail="No eligible registration was found for the verified account email",
         )
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).with_for_update().first()
+    user = (await db.execute(select(User).where(User.auth0_id == auth0_id).limit(1).with_for_update())).scalars().first()
     if user is None:
         user = User(
             auth0_id=auth0_id,
@@ -793,7 +782,7 @@ async def claim_event_registration(
             last_name=registration.last_name,
         )
         db.add(user)
-        db.flush()
+        await db.flush()
     elif user.email is None:
         user.email = registration.email
 
@@ -803,14 +792,12 @@ async def claim_event_registration(
         )
 
     other_registration = (
-        db.query(EventRegistration)
-        .filter(
+        await db.execute(select(EventRegistration).where(
             EventRegistration.event_id == event.id,
             EventRegistration.user_id == user.id,
             EventRegistration.id != registration.id,
-        )
-        .first()
-    )
+        ).limit(1))
+    ).scalars().first()
     if other_registration is not None:
         raise HTTPException(
             status_code=409,
@@ -832,26 +819,24 @@ async def claim_event_registration(
         registration.event_pass.revoked_at = datetime.now(timezone.utc)
 
     try:
-        db.commit()
+        await db.commit()
     except IntegrityError:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=409, detail="Registration was claimed by another account"
         )
 
     registration = (
-        db.query(EventRegistration)
-        .options(
+        await db.execute(select(EventRegistration).options(
+            joinedload(EventRegistration.event),
             joinedload(EventRegistration.event_pass),
             joinedload(EventRegistration.check_ins),
             joinedload(EventRegistration.email_deliveries),
             joinedload(EventRegistration.team_membership)
             .joinedload(EventTeamMember.team)
             .joinedload(EventTeam.members),
-        )
-        .filter(EventRegistration.id == registration.id)
-        .first()
-    )
+        ).where(EventRegistration.id == registration.id).limit(1))
+    ).unique().scalars().first()
     return MyEventResponse(
         event=EventResponse.model_validate(event),
         claimed=True,
@@ -867,10 +852,10 @@ async def claim_event_registration(
 async def get_event_notification_config(
     slug: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_notification_event_or_404(db, slug)
-    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    event = await get_notification_event_or_404(db, slug)
+    registration = await get_claimed_registration(db, event=event, auth_payload=auth_payload)
     try:
         settings = WebPushSettings.from_environment()
     except RuntimeError:
@@ -880,15 +865,13 @@ async def get_event_notification_config(
         )
 
     subscribed = (
-        db.query(EventPushSubscription.id)
-        .filter(
+        await db.execute(select(EventPushSubscription.id).where(
             EventPushSubscription.event_id == event.id,
             EventPushSubscription.registration_id == registration.id,
             EventPushSubscription.active.is_(True),
-        )
-        .first()
-        is not None
+        ).limit(1))
     )
+    subscribed = subscribed.first() is not None
     return NotificationConfigResponse(
         enabled=settings.enabled,
         subscribed=subscribed,
@@ -908,10 +891,10 @@ async def create_event_push_subscription(
     request: PushSubscriptionRequest,
     user_agent: Optional[str] = Header(default=None, max_length=500),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_notification_event_or_404(db, slug)
-    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    event = await get_notification_event_or_404(db, slug)
+    registration = await get_claimed_registration(db, event=event, auth_payload=auth_payload)
     try:
         settings = WebPushSettings.from_environment()
     except RuntimeError:
@@ -924,14 +907,11 @@ async def create_event_push_subscription(
 
     endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
     subscription = (
-        db.query(EventPushSubscription)
-        .filter(
+        await db.execute(select(EventPushSubscription).where(
             EventPushSubscription.event_id == event.id,
             EventPushSubscription.endpoint_hash == endpoint_hash,
-        )
-        .with_for_update()
-        .first()
-    )
+        ).limit(1).with_for_update())
+    ).scalars().first()
     if subscription is None:
         subscription = EventPushSubscription(
             event_id=event.id,
@@ -951,9 +931,9 @@ async def create_event_push_subscription(
     subscription.disabled_at = None
     subscription.last_error = None
     try:
-        db.commit()
+        await db.commit()
     except IntegrityError:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=409,
             detail="This browser notification subscription could not be saved",
@@ -973,26 +953,24 @@ async def delete_event_push_subscriptions(
     slug: str,
     request: PushUnsubscriptionRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_notification_event_or_404(db, slug)
-    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    event = await get_notification_event_or_404(db, slug)
+    registration = await get_claimed_registration(db, event=event, auth_payload=auth_payload)
     endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
     subscription = (
-        db.query(EventPushSubscription)
-        .filter(
+        await db.execute(select(EventPushSubscription).where(
             EventPushSubscription.event_id == event.id,
             EventPushSubscription.registration_id == registration.id,
             EventPushSubscription.endpoint_hash == endpoint_hash,
             EventPushSubscription.active.is_(True),
-        )
-        .first()
-    )
+        ).limit(1))
+    ).scalars().first()
     if subscription is not None:
         subscription.active = False
         subscription.disabled_at = datetime.now(timezone.utc)
         subscription.last_error = "user_unsubscribed"
-    db.commit()
+    await db.commit()
     return PushSubscriptionResponse(
         subscribed=False,
         message="DuQuantum event alerts are disabled.",
@@ -1012,20 +990,20 @@ async def list_event_teams(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """List every active final team, including teams with no portal links."""
-    event = get_event_or_404(db, slug)
-    admin = get_role_user(auth_payload, db)
-    require_admin(db, admin.id)
+    event = await get_event_or_404(db, slug)
+    admin = await get_role_user(auth_payload, db)
+    await require_admin(db, admin.id)
 
-    query = db.query(EventTeam).filter(
+    query = select(EventTeam).where(
         EventTeam.event_id == event.id,
         EventTeam.active.is_(True),
     )
     if q.strip():
         pattern = f"%{q.strip()}%"
-        query = query.filter(
+        query = query.where(
             or_(
                 EventTeam.name.ilike(pattern),
                 EventTeam.team_number.ilike(pattern),
@@ -1045,30 +1023,29 @@ async def list_event_teams(
             )
         )
     if track is not None:
-        query = query.filter(
+        query = query.where(
             func.lower(EventTeam.assigned_track) == track.strip().lower()
         )
     if challenge is not None:
-        query = query.filter(
+        query = query.where(
             func.lower(EventTeam.assigned_challenge) == challenge.strip().lower()
         )
     if source is not None:
-        query = query.filter(
+        query = query.where(
             func.lower(EventTeam.formation_source) == source.strip().lower()
         )
     if match_status is not None:
-        query = query.filter(
+        query = query.where(
             EventTeam.members.any(EventTeamMember.match_status == match_status)
         )
 
-    total = query.with_entities(func.count(EventTeam.id)).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))).scalar_one() or 0
     teams = (
-        query.options(joinedload(EventTeam.members))
+        await db.execute(query.options(joinedload(EventTeam.members))
         .order_by(cast(EventTeam.team_number, Integer).asc(), EventTeam.name.asc())
         .offset(offset)
-        .limit(limit)
-        .all()
-    )
+        .limit(limit))
+    ).unique().scalars().all()
     return AdminTeamListResponse(
         teams=[_team_response_from_team(team, admin=True) for team in teams],
         total=total,
@@ -1087,16 +1064,16 @@ async def list_event_registrations(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_event_or_404(db, slug)
-    admin = get_role_user(auth_payload, db)
-    require_admin(db, admin.id)
+    event = await get_event_or_404(db, slug)
+    admin = await get_role_user(auth_payload, db)
+    await require_admin(db, admin.id)
 
-    query = db.query(EventRegistration).filter(EventRegistration.event_id == event.id)
+    query = select(EventRegistration).where(EventRegistration.event_id == event.id)
     if q.strip():
         pattern = f"%{q.strip()}%"
-        query = query.filter(
+        query = query.where(
             or_(
                 EventRegistration.first_name.ilike(pattern),
                 EventRegistration.last_name.ilike(pattern),
@@ -1126,17 +1103,18 @@ async def list_event_registrations(
             )
         )
     if admission_status is not None:
-        query = query.filter(EventRegistration.admission_status == admission_status)
+        query = query.where(EventRegistration.admission_status == admission_status)
     if rsvp_status is not None:
-        query = query.filter(EventRegistration.rsvp_status == rsvp_status)
+        query = query.where(EventRegistration.rsvp_status == rsvp_status)
     if claimed is True:
-        query = query.filter(EventRegistration.user_id.is_not(None))
+        query = query.where(EventRegistration.user_id.is_not(None))
     elif claimed is False:
-        query = query.filter(EventRegistration.user_id.is_(None))
+        query = query.where(EventRegistration.user_id.is_(None))
 
-    total = query.with_entities(func.count(EventRegistration.id)).scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))).scalar_one() or 0
     registrations = (
-        query.options(
+        await db.execute(query.options(
+            joinedload(EventRegistration.event),
             joinedload(EventRegistration.event_pass),
             joinedload(EventRegistration.check_ins),
             joinedload(EventRegistration.email_deliveries),
@@ -1151,8 +1129,8 @@ async def list_event_registrations(
         )
         .offset(offset)
         .limit(limit)
-        .all()
-    )
+        )
+    ).unique().scalars().all()
     return AdminRegistrationListResponse(
         registrations=[_admin_registration_response(item) for item in registrations],
         total=total,
@@ -1166,33 +1144,29 @@ async def create_event_check_in(
     slug: str,
     request: EventCheckInRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_event_or_404(db, slug)
-    scanner = get_role_user(auth_payload, db)
-    require_check_in(db, scanner.id)
+    event = await get_event_or_404(db, slug)
+    scanner = await get_role_user(auth_payload, db)
+    await require_check_in(db, scanner.id)
 
     checkpoint = request.checkpoint.strip().lower()
     if not CHECKPOINT_PATTERN.fullmatch(checkpoint):
         raise HTTPException(status_code=422, detail="Invalid checkpoint key")
 
     event_pass = (
-        db.query(EventPass)
-        .join(EventRegistration, EventPass.registration_id == EventRegistration.id)
-        .filter(
+        await db.execute(select(EventPass).options(selectinload(EventPass.registration)).join(EventRegistration, EventPass.registration_id == EventRegistration.id).where(
             EventPass.public_id == request.pass_id.strip(),
             EventPass.state == "active",
             EventRegistration.event_id == event.id,
-        )
-        .with_for_update()
-        .first()
-    )
+        ).limit(1).with_for_update())
+    ).scalars().first()
     if event_pass is None:
         raise HTTPException(
             status_code=404, detail="Active pass not found for this event"
         )
 
-    return _record_event_check_in(db, event, event_pass.registration, scanner, checkpoint)
+    return await _record_event_check_in(db, event, event_pass.registration, scanner, checkpoint)
 
 
 @router.post(
@@ -1204,24 +1178,21 @@ async def create_manual_event_check_in(
     registration_id: UUID,
     request: ManualEventCheckInRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Admins can check in an identified attendee even without a claimed pass."""
-    event = get_event_or_404(db, slug)
-    scanner = get_role_user(auth_payload, db)
-    require_admin(db, scanner.id)
+    event = await get_event_or_404(db, slug)
+    scanner = await get_role_user(auth_payload, db)
+    await require_admin(db, scanner.id)
     checkpoint = request.checkpoint.strip().lower()
     if not CHECKPOINT_PATTERN.fullmatch(checkpoint):
         raise HTTPException(status_code=422, detail="Invalid checkpoint key")
     registration = (
-        db.query(EventRegistration)
-        .filter(
+        await db.execute(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(
             EventRegistration.id == registration_id,
             EventRegistration.event_id == event.id,
-        )
-        .with_for_update()
-        .one_or_none()
-    )
+        ).with_for_update())
+    ).scalars().one_or_none()
     if registration is None:
         raise HTTPException(status_code=404, detail="Registration not found for this event")
     if (
@@ -1229,11 +1200,11 @@ async def create_manual_event_check_in(
         and registration.event_pass.state != "active"
     ):
         raise HTTPException(status_code=403, detail="Attendee pass is not active")
-    return _record_event_check_in(db, event, registration, scanner, checkpoint)
+    return await _record_event_check_in(db, event, registration, scanner, checkpoint)
 
 
-def _record_event_check_in(
-    db: Session,
+async def _record_event_check_in(
+    db: AsyncSession,
     event: Event,
     registration: EventRegistration,
     scanner: User,
@@ -1245,14 +1216,12 @@ def _record_event_check_in(
         )
 
     existing = (
-        db.query(EventCheckIn)
-        .filter(
+        await db.execute(select(EventCheckIn).where(
             EventCheckIn.event_id == event.id,
             EventCheckIn.registration_id == registration.id,
             EventCheckIn.checkpoint == checkpoint,
-        )
-        .first()
-    )
+        ).limit(1))
+    ).scalars().first()
     if existing is not None:
         raise HTTPException(
             status_code=409,
@@ -1270,13 +1239,13 @@ def _record_event_check_in(
     )
     db.add(check_in)
     try:
-        db.commit()
+        await db.commit()
     except IntegrityError:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=409, detail="Attendee already checked in at this checkpoint"
         )
-    db.refresh(check_in)
+    await db.refresh(check_in)
 
     return EventCheckInResponse(
         id=check_in.id,
@@ -1296,24 +1265,23 @@ async def list_event_check_ins(
     checkpoint: Optional[str] = None,
     limit: int = Query(default=500, ge=1, le=1000),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    event = get_event_or_404(db, slug)
-    scanner = get_role_user(auth_payload, db)
-    require_check_in(db, scanner.id)
+    event = await get_event_or_404(db, slug)
+    scanner = await get_role_user(auth_payload, db)
+    await require_check_in(db, scanner.id)
 
     query = (
-        db.query(EventCheckIn)
-        .join(
+        select(EventCheckIn).options(joinedload(EventCheckIn.registration)).join(
             EventRegistration,
             EventCheckIn.registration_id == EventRegistration.id,
         )
-        .filter(EventCheckIn.event_id == event.id)
+        .where(EventCheckIn.event_id == event.id)
     )
     if checkpoint:
-        query = query.filter(EventCheckIn.checkpoint == checkpoint.strip().lower())
-    total = query.with_entities(func.count(EventCheckIn.id)).scalar() or 0
-    check_ins = query.order_by(EventCheckIn.checked_in_at.desc()).limit(limit).all()
+        query = query.where(EventCheckIn.checkpoint == checkpoint.strip().lower())
+    total = (await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))).scalar_one() or 0
+    check_ins = (await db.execute(query.order_by(EventCheckIn.checked_in_at.desc()).limit(limit))).scalars().all()
 
     return EventCheckInListResponse(
         check_ins=[

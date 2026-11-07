@@ -29,10 +29,9 @@ if env == Env.PROD:
     )
 
 
-def _deliver_due_notifications() -> None:
-    db = get_local_session()
-    try:
-        counts = send_due_event_notifications(db)
+async def _deliver_due_notifications() -> None:
+    async with get_local_session() as db:
+        counts = await send_due_event_notifications(db)
         if counts["due"]:
             logger.info(
                 "Event notification cycle complete due=%s sent=%s failed=%s disabled=%s",
@@ -41,14 +40,12 @@ def _deliver_due_notifications() -> None:
                 counts["failed"],
                 counts["disabled"],
             )
-    finally:
-        db.close()
 
 
 async def _notification_loop() -> None:
     while True:
         try:
-            await asyncio.to_thread(_deliver_due_notifications)
+            await _deliver_due_notifications()
         except asyncio.CancelledError:
             raise
         except Exception as error:

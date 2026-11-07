@@ -1,6 +1,7 @@
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Security
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from db import get_db
@@ -97,15 +98,15 @@ def get_name_from_application(application: Application) -> str:
     return f"{first_name} {last_name}".strip() or "Unknown"
 
 
-def resolve_name(db: Session, user_id: str) -> Optional[str]:
+async def resolve_name(db: AsyncSession, user_id: str) -> Optional[str]:
     """Resolve a user's name from their application's submission_json."""
     try:
         # Look up application by user_id and get name from submission_json
-        application = db.query(Application).filter(
+        application = (await db.scalars(select(Application).where(
             Application.user_id == user_id,
             Application.form_key == CURRENT_FORM_KEY,
             Application.status.in_([ApplicationStatus.CONFIRMED, ApplicationStatus.ACCEPTED])
-        ).first()
+        ).limit(1))).first()
 
         if application:
             return get_name_from_application(application)
@@ -116,17 +117,17 @@ def resolve_name(db: Session, user_id: str) -> Optional[str]:
 
 
 # Helper to verify check_in role
-def _verify_check_in_access(auth_payload: Dict[str, Any], db: Session) -> User:
+async def _verify_check_in_access(auth_payload: Dict[str, Any], db: AsyncSession) -> User:
     """Verify the user has check_in role and return the user."""
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    require_check_in(db, user.id)
+    await require_check_in(db, user.id)
     return user
 
 
@@ -135,10 +136,10 @@ def _verify_check_in_access(auth_payload: Dict[str, Any], db: Session) -> User:
 async def log_user(
     request: CheckInRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Check in a user for an event. Requires check_in role."""
-    _verify_check_in_access(auth_payload, db)
+    await _verify_check_in_access(auth_payload, db)
 
     user_id = request.qr_code.strip()
     event_type = request.event_type
@@ -155,25 +156,14 @@ async def log_user(
             raise HTTPException(status_code=400, detail=f"Invalid QR code format: {user_id}")
 
         # Look up application by user_id
-        application = db.query(Application).filter(
+        application = (await db.scalars(select(Application).where(
             Application.user_id == user_id,
             Application.form_key == CURRENT_FORM_KEY,
             Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
-        ).first()
+        ).limit(1))).first()
 
         if not application:
             raise HTTPException(status_code=400, detail="User not confirmed or accepted")
-
-        # Extract name using user table 
-        # user = db.query(User).filter(User.id == user_id).first()
-
-        # if user is None:
-        #     # No user found → raise 404
-        #     raise HTTPException(status_code=404, detail="User not found")
-
-        # first_name = user.first_name
-        # last_name = user.last_name
-        # full_name = f"{first_name} {last_name}".strip() or "Unknown"
 
         #Extract name from submission_json
         submission = application.submission_json or {}
@@ -182,10 +172,10 @@ async def log_user(
         full_name = f"{first_name} {last_name}".strip() or "Unknown"
 
         # Check if user has already checked in for this event type
-        existing_check_in = db.query(CheckInLog).filter(
+        existing_check_in = (await db.scalars(select(CheckInLog).where(
             CheckInLog.user_id == user_id,
             CheckInLog.event_type == event_type
-        ).first()
+        ).limit(1))).first()
 
         if existing_check_in:
             eastern_time = (
@@ -208,8 +198,8 @@ async def log_user(
             check_in_time=datetime.now()
         )
         db.add(check_in)
-        db.commit()
-        db.refresh(check_in)
+        await db.commit()
+        await db.refresh(check_in)
 
         return CheckInResponse(
             message="Check-in successful",
@@ -235,19 +225,19 @@ async def log_user(
 async def search_users(
     q: str = "",
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Search for users by name for manual check-in. Requires check_in role."""
-    _verify_check_in_access(auth_payload, db)
+    await _verify_check_in_access(auth_payload, db)
     query = q.strip().lower()
     if not query or len(query) < 2:
         return SearchUsersResponse(users=[])
 
     # Get all applications with ACCEPTED or CONFIRMED status
-    applications = db.query(Application).filter(
+    applications = (await db.scalars(select(Application).where(
         Application.form_key == CURRENT_FORM_KEY,
         Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
-    ).all()
+    ))).all()
 
     # Filter by name in submission_json
     matching_users = []
@@ -278,15 +268,15 @@ async def search_users(
 async def get_all_check_ins(
     event_type: Optional[str] = None,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get all check-in logs ordered by most recent first. Requires check_in role."""
-    _verify_check_in_access(auth_payload, db)
-    query = db.query(CheckInLog)
+    await _verify_check_in_access(auth_payload, db)
+    query = select(CheckInLog)
     if event_type:
-        query = query.filter(CheckInLog.event_type == event_type)
+        query = query.where(CheckInLog.event_type == event_type)
 
-    logs = query.order_by(CheckInLog.check_in_time.desc()).all()
+    logs = (await db.scalars(query.order_by(CheckInLog.check_in_time.desc()))).all()
 
     return AllCheckInsResponse(
         log=[
@@ -306,20 +296,20 @@ async def get_all_check_ins(
 async def delete_log_entry(
     request: DeleteCheckInRequest,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Delete a check-in entry. Requires check_in role."""
-    _verify_check_in_access(auth_payload, db)
-    check_in = db.query(CheckInLog).filter(
+    await _verify_check_in_access(auth_payload, db)
+    check_in = (await db.scalars(select(CheckInLog).where(
         CheckInLog.user_id == request.user_id,
         CheckInLog.event_type == request.event_type
-    ).first()
+    ).limit(1))).first()
 
     if not check_in:
         raise HTTPException(status_code=404, detail="Log entry not found")
 
-    db.delete(check_in)
-    db.commit()
+    await db.delete(check_in)
+    await db.commit()
 
     return {"message": "Log entry deleted successfully"}
 
@@ -328,21 +318,21 @@ async def delete_log_entry(
 async def get_not_checked_in(
     event_type: str = "check-in",
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get all accepted users who have NOT checked in for a specific event type. Requires check_in role."""
-    _verify_check_in_access(auth_payload, db)
+    await _verify_check_in_access(auth_payload, db)
     # Get all accepted/confirmed applications
-    applications = db.query(Application).filter(
+    applications = (await db.scalars(select(Application).where(
         Application.form_key == CURRENT_FORM_KEY,
         Application.status.in_([ApplicationStatus.ACCEPTED, ApplicationStatus.CONFIRMED])
-    ).all()
+    ))).all()
 
     # Get all user_ids that have checked in for this event type
     checked_in_user_ids = set(
-        str(log.user_id) for log in db.query(CheckInLog).filter(
+        str(log.user_id) for log in (await db.scalars(select(CheckInLog).where(
             CheckInLog.event_type == event_type
-        ).all()
+        ))).all()
     )
 
     # Filter to users who haven't checked in

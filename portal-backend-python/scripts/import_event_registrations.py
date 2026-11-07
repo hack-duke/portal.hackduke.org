@@ -15,6 +15,9 @@ The command prints aggregate counts only. It never logs attendee values.
 """
 
 from __future__ import annotations
+import asyncio
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 import argparse
 import csv
@@ -396,7 +399,7 @@ def _revoke_pass(registration: Any) -> bool:
     return True
 
 
-def sync_database(
+async def sync_database(
     result: ParseResult,
     *,
     commit: bool,
@@ -410,7 +413,7 @@ def sync_database(
     counts: Counter[str] = Counter()
     session = get_local_session()
     try:
-        event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
+        event = await session.scalar(select(Event).where(Event.slug == EVENT_SLUG))
         if event is None:
             raise RuntimeError(
                 "DuQuantum event seed is missing; apply the event migration first"
@@ -421,9 +424,7 @@ def sync_database(
             for item in (*result.registrations, *result.ineligible_registrations)
         }
         existing_rows = list(
-            session.query(EventRegistration)
-            .filter(EventRegistration.event_id == event.id)
-            .all()
+            (await session.scalars(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(EventRegistration.event_id == event.id))).all()
         )
         existing_by_email = {item.normalized_email: item for item in existing_rows}
 
@@ -470,14 +471,14 @@ def sync_database(
                 counts["passes_revoked"] += 1
 
         if commit:
-            session.commit()
+            await session.commit()
         else:
-            session.rollback()
+            await session.rollback()
     except Exception:
-        session.rollback()
+        await session.rollback()
         raise
     finally:
-        session.close()
+        await session.close()
     return counts
 
 
@@ -538,7 +539,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.commit and args.confirm_event != EVENT_SLUG:
         print(f"Refusing commit: pass --confirm-event {EVENT_SLUG}")
@@ -582,7 +583,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.commit or args.database_check:
         try:
-            db_counts = sync_database(
+            db_counts = await sync_database(
                 result,
                 commit=args.commit,
                 include_ineligible=args.include_ineligible,
@@ -606,6 +607,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     return 0
 
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
 
 if __name__ == "__main__":
     raise SystemExit(main())

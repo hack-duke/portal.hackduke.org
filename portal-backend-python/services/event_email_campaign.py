@@ -15,6 +15,9 @@ from email.utils import formataddr
 from typing import Any
 from urllib.parse import urlparse
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 EVENT_SLUG = "duquantum-2026"
 DEFAULT_SENDER_NAME = "DuQuantum 2026"
@@ -537,7 +540,7 @@ class OptionalEmailDeliveryAudit:
     for idempotency and status history without changing the send service.
     """
 
-    def __init__(self, session: Any):
+    def __init__(self, session: AsyncSession):
         self.session = session
         try:
             from models.email_delivery import EmailDelivery
@@ -549,7 +552,7 @@ class OptionalEmailDeliveryAudit:
     def available(self) -> bool:
         return self.model is not None
 
-    def already_sent(
+    async def already_sent(
         self, *, event_id: Any, registration_id: Any, campaign_key: str
     ) -> bool:
         """Return true for sent or uncertain queued rows.
@@ -560,19 +563,20 @@ class OptionalEmailDeliveryAudit:
         """
         if self.model is None:
             return False
-        row = (
-            self.session.query(self.model)
+        statement = (
+            select(self.model)
             .filter(
                 self.model.event_id == event_id,
                 self.model.registration_id == registration_id,
                 self.model.campaign_key == campaign_key,
                 self.model.status.in_(("queued", "sent")),
             )
-            .first()
+            .limit(1)
         )
+        row = (await self.session.scalars(statement)).first()
         return row is not None
 
-    def queued(
+    async def queued(
         self,
         *,
         event_id: Any,
@@ -582,15 +586,15 @@ class OptionalEmailDeliveryAudit:
     ) -> Any | None:
         if self.model is None:
             return None
-        row = (
-            self.session.query(self.model)
+        statement = (
+            select(self.model)
             .filter(
                 self.model.event_id == event_id,
                 self.model.registration_id == registration_id,
                 self.model.campaign_key == campaign_key,
             )
-            .one_or_none()
         )
+        row = (await self.session.scalars(statement)).one_or_none()
         if row is None:
             row = self.model(
                 event_id=event_id,
@@ -610,7 +614,7 @@ class OptionalEmailDeliveryAudit:
             row.sent_at = None
         else:
             raise RuntimeError("delivery is already queued or sent")
-        self.session.flush()
+        await self.session.flush()
         return row
 
     @staticmethod

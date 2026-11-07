@@ -5,6 +5,7 @@ reviewed and deployed alongside the public event schedule. Push payloads are
 event-only: they never contain attendee details, registration IDs, or passes.
 """
 
+import asyncio
 import json
 import os
 from dataclasses import dataclass
@@ -14,7 +15,8 @@ from zoneinfo import ZoneInfo
 
 from pywebpush import WebPushException, webpush
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.event import Event
 from models.event_notification_delivery import EventNotificationDelivery
@@ -185,8 +187,8 @@ def _provider_status(error: WebPushException) -> Optional[int]:
     return getattr(response, "status_code", None)
 
 
-def send_due_event_notifications(
-    db: Session,
+async def send_due_event_notifications(
+    db: AsyncSession,
     *,
     now: Optional[datetime] = None,
     settings: Optional[WebPushSettings] = None,
@@ -204,30 +206,26 @@ def send_due_event_notifications(
     if not due:
         return counts
 
-    event = db.query(Event).filter(Event.slug == EVENT_SLUG).first()
+    event = (await db.execute(select(Event).where(Event.slug == EVENT_SLUG).limit(1))).scalars().first()
     if event is None:
         return counts
 
     subscriptions = (
-        db.query(EventPushSubscription)
-        .filter(
+        await db.execute(select(EventPushSubscription).where(
             EventPushSubscription.event_id == event.id,
             EventPushSubscription.active.is_(True),
-        )
-        .all()
-    )
+        ))
+    ).scalars().all()
 
     for item in due:
         scheduled_utc = item.scheduled_for.astimezone(timezone.utc)
         for subscription in subscriptions:
             delivery = (
-                db.query(EventNotificationDelivery)
-                .filter(
+                await db.execute(select(EventNotificationDelivery).where(
                     EventNotificationDelivery.subscription_id == subscription.id,
                     EventNotificationDelivery.notification_key == item.key,
-                )
-                .first()
-            )
+                ).limit(1))
+            ).scalars().first()
             if delivery is not None and delivery.status in {"sent", "skipped"}:
                 continue
             if delivery is not None and delivery.attempts >= 3:
@@ -241,17 +239,20 @@ def send_due_event_notifications(
                     status="queued",
                     attempts=0,
                 )
-                db.add(delivery)
                 try:
-                    db.commit()
+                    async with db.begin_nested():
+                        db.add(delivery)
+                        await db.flush()
                 except IntegrityError:
                     # Another worker claimed this device/event delivery first.
-                    db.rollback()
                     continue
+                # Persist the idempotency claim before calling the provider.
+                await db.commit()
 
             delivery.attempts += 1
             try:
-                response = sender(
+                response = await asyncio.to_thread(
+                    sender,
                     subscription_info={
                         "endpoint": subscription.endpoint,
                         "keys": {
@@ -287,6 +288,6 @@ def send_due_event_notifications(
                 delivery.status = "failed"
                 delivery.error = "delivery_error"
                 counts["failed"] += 1
-            db.commit()
+            await db.commit()
 
     return counts

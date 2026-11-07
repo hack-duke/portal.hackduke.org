@@ -10,6 +10,8 @@ not participant names or email addresses.
 """
 
 from __future__ import annotations
+import asyncio
+from sqlalchemy import select
 
 import argparse
 import hashlib
@@ -585,7 +587,7 @@ def reconcile_members(
     return ReconciliationResult(tuple(preliminary))
 
 
-def sync_database(
+async def sync_database(
     result: TeamParseResult,
     *,
     commit: bool,
@@ -598,19 +600,17 @@ def sync_database(
     session = get_local_session()
     counts: Counter[str] = Counter()
     try:
-        event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
+        event = await session.scalar(select(Event).where(Event.slug == EVENT_SLUG))
         if event is None:
             raise RuntimeError(
                 "DuQuantum event seed is missing; apply migrations first"
             )
         registrations = list(
-            session.query(EventRegistration)
-            .filter(
+            (await session.scalars(select(EventRegistration).where(
                 EventRegistration.event_id == event.id,
                 EventRegistration.admission_status == "accepted",
                 EventRegistration.rsvp_status == "confirmed",
-            )
-            .all()
+            ))).all()
         )
         registration_by_id = {
             registration.id: registration for registration in registrations
@@ -632,10 +632,7 @@ def sync_database(
         for item in reconciliation.members:
             reconciled_by_number[item.team.team_number].append(item)
         existing_teams = list(
-            session.query(EventTeam)
-            .options(joinedload(EventTeam.members))
-            .filter(EventTeam.event_id == event.id)
-            .all()
+            (await session.scalars(select(EventTeam).options(joinedload(EventTeam.members)).where(EventTeam.event_id == event.id))).unique().all()
         )
         existing_by_number = {
             team.team_number: team for team in existing_teams if team.team_number
@@ -659,6 +656,7 @@ def sync_database(
                     name=parsed.name,
                     normalized_name=parsed.normalized_name,
                     source_record_id=parsed.source_record_id,
+                    members=[],
                 )
                 session.add(database_team)
                 counts["teams_created"] += 1
@@ -685,7 +683,7 @@ def sync_database(
             database_team.source_submitted_at = None
             database_team.active = True
             current_database_teams[parsed.team_number] = database_team
-            session.flush()
+            await session.flush()
             selected_ids.add(database_team.id)
 
         for existing in existing_teams:
@@ -700,11 +698,11 @@ def sync_database(
                 member.match_method = None
                 member.match_detail = "team_not_in_latest_import"
 
-        session.flush()
+        await session.flush()
         for team in current_database_teams.values():
             for member in list(team.members):
-                session.delete(member)
-        session.flush()
+                await session.delete(member)
+        await session.flush()
         for parsed in result.teams:
             database_team = current_database_teams[parsed.team_number]
             for item in sorted(
@@ -731,17 +729,17 @@ def sync_database(
                     )
                 )
                 counts[f"members_{item.match_status}"] += 1
-        session.flush()
+        await session.flush()
         if commit:
-            session.commit()
+            await session.commit()
         else:
-            session.rollback()
+            await session.rollback()
         return DatabaseSyncResult(dict(counts), reconciliation)
     except Exception:
-        session.rollback()
+        await session.rollback()
         raise
     finally:
-        session.close()
+        await session.close()
 
 
 def write_report(
@@ -825,7 +823,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     required_commit_guards = (
         args.expect_source_sha256,
@@ -872,7 +870,7 @@ def main(argv: list[str] | None = None) -> int:
     database_result = None
     if args.database_check or args.commit:
         try:
-            database_result = sync_database(
+            database_result = await sync_database(
                 result,
                 commit=args.commit,
                 expected_match_counts={
@@ -897,6 +895,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     return 0
 
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
 
 if __name__ == "__main__":
     raise SystemExit(main())

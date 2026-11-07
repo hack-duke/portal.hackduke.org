@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import selectinload
 
 from models import Event, EventRegistration, EventTeam
 from scripts.import_event_teams import (
@@ -188,7 +190,8 @@ def test_reconciliation_is_email_first_then_unique_exact_name_without_fuzzy():
     ]
 
 
-def test_sync_filters_roster_and_applies_final_assignments(
+@pytest.mark.asyncio
+async def test_sync_filters_roster_and_applies_final_assignments(
     test_sessionmaker, monkeypatch
 ):
     setup = test_sessionmaker()
@@ -214,9 +217,9 @@ def test_sync_filters_roster_and_applies_final_assignments(
         source_data={},
     )
     setup.add_all([event, accepted, revoked])
-    setup.commit()
+    await setup.commit()
     event_id = event.id
-    setup.close()
+    await setup.close()
     monkeypatch.setattr("db.get_local_session", test_sessionmaker)
 
     team = _team(
@@ -226,20 +229,20 @@ def test_sync_filters_roster_and_applies_final_assignments(
         ]
     )
     with pytest.raises(TeamImportValidationError, match="match-count guard"):
-        sync_database(
+        await sync_database(
             _result(team),
             commit=True,
             expected_match_counts={"matched": 2, "unmatched": 0, "ambiguous": 0},
         )
     guard_verify = test_sessionmaker()
-    assert guard_verify.query(EventTeam).count() == 0
-    guard_verify.close()
+    assert await guard_verify.scalar(select(func.count()).select_from(EventTeam)) == 0
+    await guard_verify.close()
 
-    synced = sync_database(_result(team), commit=True)
+    synced = await sync_database(_result(team), commit=True)
     assert synced.counts["members_matched"] == 1
     assert synced.counts["members_unmatched"] == 1
     verify = test_sessionmaker()
-    database_team = verify.query(EventTeam).one()
+    database_team = (await verify.scalars(select(EventTeam).options(selectinload(EventTeam.members)))).one()
     assert database_team.team_number == "1"
     assert database_team.assigned_track == "Introductory"
     assert database_team.assigned_challenge == "Sponsor Challenge"
@@ -251,22 +254,22 @@ def test_sync_filters_roster_and_applies_final_assignments(
     database_team.track_preference = "Historical form preference"
     database_team.sponsor_contact_name = "Organizer-entered contact"
     database_team.sponsor_contact_email = "contact@example.com"
-    verify.commit()
-    verify.close()
+    await verify.commit()
+    await verify.close()
 
-    sync_database(_result(team), commit=True)
+    await sync_database(_result(team), commit=True)
     verify = test_sessionmaker()
-    database_team = verify.query(EventTeam).one()
+    database_team = (await verify.scalars(select(EventTeam).options(selectinload(EventTeam.members)))).one()
     assert database_team.track_preference == "Historical form preference"
     assert database_team.sponsor_contact_name == "Organizer-entered contact"
     assert database_team.sponsor_contact_email == "contact@example.com"
-    verify.close()
+    await verify.close()
 
     cleanup = test_sessionmaker()
-    cleanup.query(EventTeam).filter(EventTeam.event_id == event_id).delete()
-    cleanup.query(Event).filter(Event.id == event_id).delete()
-    cleanup.commit()
-    cleanup.close()
+    await cleanup.execute(delete(EventTeam).where(EventTeam.event_id == event_id))
+    await cleanup.execute(delete(Event).where(Event.id == event_id))
+    await cleanup.commit()
+    await cleanup.close()
 
 
 @pytest.mark.skipif(not REAL_WORKBOOK.is_file(), reason="private workbook not present")

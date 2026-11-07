@@ -5,6 +5,8 @@ confirmation and refuses to run without a database delivery-audit model.
 """
 
 from __future__ import annotations
+import asyncio
+from sqlalchemy import select
 
 import argparse
 from collections import Counter
@@ -42,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.limit is not None and args.limit < 1:
         print("--limit must be a positive integer")
@@ -76,15 +78,12 @@ def main(argv: list[str] | None = None) -> int:
 
     session = get_local_session()
     try:
-        event = session.query(Event).filter(Event.slug == EVENT_SLUG).one_or_none()
+        event = await session.scalar(select(Event).where(Event.slug == EVENT_SLUG))
         if event is None:
             print("Event seed is missing; apply migrations first")
             return 1
         registrations = list(
-            session.query(EventRegistration)
-            .filter(EventRegistration.event_id == event.id)
-            .order_by(EventRegistration.created_at, EventRegistration.id)
-            .all()
+            (await session.scalars(select(EventRegistration).where(EventRegistration.event_id == event.id).order_by(EventRegistration.created_at, EventRegistration.id))).all()
         )
         # These built-in campaigns are operational, not marketing. The helper
         # remains explicit so a future marketing campaign cannot omit consent.
@@ -101,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         pending = [
             registration
             for registration in eligible
-            if not audit.already_sent(
+            if not await audit.already_sent(
                 event_id=event.id,
                 registration_id=registration.id,
                 campaign_key=args.campaign,
@@ -128,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         sender = SesEmailSender(settings)
         counts: Counter[str] = Counter()
         for registration in pending:
-            delivery = audit.queued(
+            delivery = await audit.queued(
                 event_id=event.id,
                 registration_id=registration.id,
                 campaign_key=args.campaign,
@@ -137,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             # Persist the idempotency claim before talking to SES. A queued row
             # left by a crash is intentionally not retried until an operator
             # reconciles it with SES delivery events.
-            session.commit()
+            await session.commit()
             try:
                 rendered = render_campaign(
                     args.campaign,
@@ -148,20 +147,23 @@ def main(argv: list[str] | None = None) -> int:
                     recipient=registration.email, rendered=rendered
                 )
                 audit.mark_sent(delivery, message_id)
-                session.commit()
+                await session.commit()
                 counts["sent"] += 1
             except Exception as exc:
                 audit.mark_failed(delivery, exc)
                 try:
-                    session.commit()
+                    await session.commit()
                 except Exception:
-                    session.rollback()
+                    await session.rollback()
                 counts["failed"] += 1
         print(f"Sent: {counts['sent']}")
         print(f"Failed: {counts['failed']}")
         return 1 if counts["failed"] else 0
     finally:
-        session.close()
+        await session.close()
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
 
 
 if __name__ == "__main__":
