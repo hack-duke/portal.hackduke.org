@@ -13,7 +13,7 @@ uvicorn = {extras = ["standard"], version = "^0.35.0"}
 pydantic-settings = "^2.10.1"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
 python-dotenv = "^1.1.1"
-sqlalchemy = "^2.0.43"
+sqlalchemy = {extras = ["asyncio"], version = "^2.1.8"}
 pytest-asyncio = "^1.1.0"
 boto3 = "^1.40.29"
 python-multipart = "^0.0.20"
@@ -22,6 +22,7 @@ google-api-python-client = "^2.150.0"
 google-auth = "^2.36.0"
 pywebpush = "^2.5.0"
 openpyxl = "^3.1.5"
+asyncpg = "^0.32.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"
