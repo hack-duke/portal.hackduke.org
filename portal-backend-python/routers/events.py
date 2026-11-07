@@ -327,7 +327,7 @@ def _get_claim(payload: Dict[str, Any], claim_name: str) -> Any:
     return None
 
 
-def get_verified_email(auth_payload: Dict[str, Any]) -> str:
+async def get_verified_email(auth_payload: Dict[str, Any]) -> str:
     email = _get_claim(auth_payload, "email")
     email_verified = _get_claim(auth_payload, "email_verified")
 
@@ -342,7 +342,7 @@ def get_verified_email(auth_payload: Dict[str, Any]) -> str:
     # Auth0 access tokens do not include email by default. Look it up by the
     # validated token subject rather than accepting an email from the client.
     try:
-        auth0_user = get_auth0_management_client().get_user_by_id(
+        auth0_user = await get_auth0_management_client().get_user_by_id(
             get_subject(auth_payload)
         )
     except Exception:
@@ -668,8 +668,8 @@ async def complete_event_account_setup(
         )
 
     try:
-        with get_auth0_onboarding_client() as auth0_client:
-            auth0_client.set_initial_password(
+        async with get_auth0_onboarding_client() as auth0_client:
+            await auth0_client.set_initial_password(
                 user_id=setup.auth0_user_id,
                 password=request.password,
             )
@@ -760,7 +760,7 @@ async def claim_event_registration(
         )
 
     auth0_id = get_subject(auth_payload)
-    normalized_email = get_verified_email(auth_payload)
+    normalized_email = await get_verified_email(auth_payload)
     registration = (
         await db.execute(select(EventRegistration).options(selectinload(EventRegistration.event_pass)).where(
             EventRegistration.event_id == event.id,

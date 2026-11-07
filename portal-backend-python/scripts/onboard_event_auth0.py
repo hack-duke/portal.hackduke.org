@@ -115,13 +115,13 @@ async def _main(argv: list[str] | None = None) -> int:
             return 2
 
         plan: list[PlannedInvitation] = []
-        with Auth0OnboardingClient(auth_settings) as auth0:
+        async with Auth0OnboardingClient(auth_settings) as auth0:
             # Complete all read-only Auth0 checks before creating an account,
             # rotating a capability, or asking SES to send anything.
             for registration in registrations:
                 try:
                     matches = database_users(
-                        auth0.find_users_by_email(registration.normalized_email),
+                        await auth0.find_users_by_email(registration.normalized_email),
                         auth_settings.database_connection,
                     )
                 except Exception:
@@ -190,7 +190,7 @@ async def _main(argv: list[str] | None = None) -> int:
                 try:
                     auth0_user_id = item.auth0_user_id
                     if auth0_user_id is None:
-                        auth0_user_id = auth0.create_user(
+                        auth0_user_id = await auth0.create_user(
                             email=registration.email,
                             first_name=registration.first_name or "",
                             last_name=registration.last_name or "",

@@ -265,7 +265,8 @@ def test_generated_password_is_random_and_complex():
     assert "!" in first
 
 
-def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
+@pytest.mark.asyncio
+async def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
     requests = []
 
     def handler(request):
@@ -294,13 +295,17 @@ def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
         database_connection="Username-Password-Authentication",
     )
     sleeps = []
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(
+
+    async def sleeper(delay):
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(
             settings,
             http_client=http_client,
-            sleep=sleeps.append,
+            sleep=sleeper,
         ) as client:
-            assert client.find_users_by_email("attendee@example.org") == []
+            assert await client.find_users_by_email("attendee@example.org") == []
 
     lookup_requests = [
         request for request in requests if request.url.path.endswith("users-by-email")
@@ -309,7 +314,8 @@ def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
     assert sleeps == [0.1]
 
 
-def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
+@pytest.mark.asyncio
+async def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
     requests = []
 
     def handler(request):
@@ -328,9 +334,9 @@ def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
-            auth0_client.set_initial_password(
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            await auth0_client.set_initial_password(
                 user_id="auth0|attendee",
                 password="A-strong-private-password-2026",
             )
@@ -349,7 +355,8 @@ def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
     assert b'"password"' not in verification_request.content
 
 
-def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
+@pytest.mark.asyncio
+async def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
     requests = []
 
     def handler(request):
@@ -362,9 +369,9 @@ def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(settings, http_client=http_client) as client:
-            client.request_password_reset(
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            await client.request_password_reset(
                 email="Organizer@Example.org ",
                 client_id="portal-client-id",
             )
@@ -379,7 +386,8 @@ def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
     assert "authorization" not in request.headers
 
 
-def test_auth0_password_policy_rejection_has_a_safe_exception():
+@pytest.mark.asyncio
+async def test_auth0_password_policy_rejection_has_a_safe_exception():
     def handler(request):
         if request.url.path == "/oauth/token":
             return httpx.Response(
@@ -402,16 +410,17 @@ def test_auth0_password_policy_rejection_has_a_safe_exception():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
             with pytest.raises(Auth0PasswordRejected):
-                auth0_client.set_initial_password(
+                await auth0_client.set_initial_password(
                     user_id="auth0|attendee",
                     password="rejected-password",
                 )
 
 
-def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
+@pytest.mark.asyncio
+async def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
     def handler(request):
         if request.url.path == "/oauth/token":
             return httpx.Response(
@@ -434,16 +443,17 @@ def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
             with pytest.raises(httpx.HTTPStatusError):
-                auth0_client.set_initial_password(
+                await auth0_client.set_initial_password(
                     user_id="auth0|attendee",
                     password="A-strong-private-password-2026",
                 )
 
 
-def test_auth0_password_change_ticket_is_secure_and_bounded():
+@pytest.mark.asyncio
+async def test_auth0_password_change_ticket_is_secure_and_bounded():
     requests = []
 
     def handler(request):
@@ -466,9 +476,9 @@ def test_auth0_password_change_ticket_is_secure_and_bounded():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-        with Auth0OnboardingClient(settings, http_client=http_client) as client:
-            ticket = client.create_password_change_ticket(
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            ticket = await client.create_password_change_ticket(
                 user_id="auth0|organizers",
                 result_url=(
                     "https://portal.hackduke.org/admin/events/"
@@ -490,9 +500,9 @@ def test_auth0_password_change_ticket_is_secure_and_bounded():
     }
 
     with pytest.raises(ValueError):
-        with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
-            with Auth0OnboardingClient(settings, http_client=http_client) as client:
-                client.create_password_change_ticket(
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+            async with Auth0OnboardingClient(settings, http_client=http_client) as client:
+                await client.create_password_change_ticket(
                     user_id="auth0|organizers",
                     result_url="http://portal.example.org/admin",
                 )

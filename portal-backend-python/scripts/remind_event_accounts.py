@@ -329,7 +329,7 @@ async def _main(argv: list[str] | None = None) -> int:
             return 1
 
         plan: list[PlannedReminder] = []
-        with Auth0OnboardingClient(auth_settings) as auth0:
+        async with Auth0OnboardingClient(auth_settings) as auth0:
             for email in requested_emails:
                 registration = registration_by_email.get(email)
                 if registration is None:
@@ -344,7 +344,7 @@ async def _main(argv: list[str] | None = None) -> int:
 
                 try:
                     matches = database_users(
-                        auth0.find_users_by_email(email),
+                        await auth0.find_users_by_email(email),
                         auth_settings.database_connection,
                     )
                 except Exception:

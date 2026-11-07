@@ -148,13 +148,13 @@ async def test_account_setup_sets_password_marks_email_verified_and_is_single_us
     calls = []
 
     class FakeAuth0Client:
-        def __enter__(self):
+        async def __aenter__(self):
             return self
 
-        def __exit__(self, *_args):
+        async def __aexit__(self, *_args):
             return None
 
-        def set_initial_password(self, *, user_id, password):
+        async def set_initial_password(self, *, user_id, password):
             calls.append((user_id, password))
 
     monkeypatch.setattr(
@@ -189,13 +189,13 @@ async def test_account_setup_keeps_token_available_when_auth0_rejects_password(
     )
 
     class RejectingAuth0Client:
-        def __enter__(self):
+        async def __aenter__(self):
             return self
 
-        def __exit__(self, *_args):
+        async def __aexit__(self, *_args):
             return None
 
-        def set_initial_password(self, **_kwargs):
+        async def set_initial_password(self, **_kwargs):
             raise Auth0PasswordRejected
 
     monkeypatch.setattr(
@@ -214,7 +214,7 @@ async def test_account_setup_keeps_token_available_when_auth0_rejects_password(
 
 async def test_claim_falls_back_to_auth0_management_email(event, registration, monkeypatch, client):
     class FakeManagementClient:
-        def get_user_by_id(self, user_id):
+        async def get_user_by_id(self, user_id):
             assert user_id == "auth0|attendee"
             return {"email": "attendee@example.com", "email_verified": True}
 

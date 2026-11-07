@@ -137,7 +137,7 @@ async def search_user_by_email(
     await require_admin(db, user.id)
 
     try:
-        auth0_users = search_users_by_email(email)
+        auth0_users = await search_users_by_email(email)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to search Auth0: {str(e)}")
 
