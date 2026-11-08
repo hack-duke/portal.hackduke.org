@@ -1,0 +1,173 @@
+.dq-setup-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+.dq-setup-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 650px);
+}
+
+.dq-setup-brand {
+  display: block;
+  width: min(88%, 500px);
+  margin: 0 auto 1.5rem;
+}
+
+.dq-setup-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dq-setup-card {
+  padding: clamp(1.6rem, 5vw, 3.25rem);
+}
+
+.dq-setup-card h1 {
+  margin: 0;
+  color: var(--dq-white);
+  font:
+    400 clamp(2.2rem, 7vw, 4rem) / 1 "Edge of the Galaxy",
+    "Urbanist",
+    sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.dq-setup-intro,
+.dq-setup-complete p {
+  color: #e4d8c5;
+  font-size: 1rem;
+  line-height: 1.7;
+  margin: 1.4rem 0 1.6rem;
+}
+
+.dq-setup-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.dq-setup-form label {
+  color: var(--dq-white);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-top: 0.4rem;
+}
+
+.dq-setup-form input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--dq-border);
+  border-radius: 0;
+  background: #0a0517;
+  color: var(--dq-white);
+  font:
+    1rem/1.4 "Oxygen",
+    sans-serif;
+  padding: 0.75rem 0.9rem;
+}
+
+.dq-setup-form input:focus-visible,
+.dq-password-field button:focus-visible {
+  outline: 3px solid var(--dq-yellow);
+  outline-offset: 2px;
+}
+
+.dq-password-field {
+  position: relative;
+}
+
+.dq-password-field input {
+  padding-right: 4.5rem;
+}
+
+.dq-password-field button {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--dq-yellow);
+  cursor: pointer;
+  font:
+    700 0.8rem/1 "Oxygen",
+    sans-serif;
+  padding: 0.65rem;
+}
+
+.dq-password-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  list-style: none;
+  margin: 0.2rem 0 0.6rem;
+  padding: 0;
+  color: #a998b2;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.dq-password-rules li::before {
+  content: "○";
+  color: #927f9e;
+  margin-right: 0.45rem;
+}
+
+.dq-password-rules li.is-met {
+  color: #f7ddb0;
+}
+
+.dq-password-rules li.is-met::before {
+  content: "●";
+  color: var(--dq-yellow);
+}
+
+.dq-setup-submit {
+  width: fit-content;
+  margin-top: 1rem;
+}
+
+.dq-setup-help {
+  color: #a998b2;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  margin: 1.8rem 0 0;
+}
+
+.dq-setup-help a {
+  color: var(--dq-yellow);
+  font-weight: 700;
+}
+
+.dq-setup-success-mark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin-top: 1.6rem;
+  background: var(--dq-yellow);
+  box-shadow: 7px 7px 0 var(--dq-red);
+  color: var(--dq-page);
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.dq-setup-complete strong {
+  color: var(--dq-yellow);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 540px) {
+  .dq-password-rules {
+    grid-template-columns: 1fr;
+  }
+
+  .dq-setup-submit {
+    width: 100%;
+  }
+}

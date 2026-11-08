@@ -1,8 +1,40 @@
+import os
+import subprocess
+
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from models.base import Base
 from pytest_postgresql.janitor import DatabaseJanitor
+
+
+if os.name == "nt":
+    # pytest-postgresql's nested POSIX quoting is passed literally by pg_ctl
+    # on Windows and PostgreSQL 18 rejects values such as "'stderr'". Keep the
+    # upstream command everywhere else and use Windows-safe parameter values
+    # for local integration tests.
+    from pytest_postgresql.executor import PostgreSQLExecutor
+
+    PostgreSQLExecutor.BASE_PROC_START_COMMAND = (
+        '{executable} start -D "{datadir}" '
+        '-o "-F -p {port} -c log_destination=stderr '
+        "-c logging_collector=off "
+        '-c unix_socket_directories={unixsocketdir} {postgres_options}" '
+        '-l "{logfile}" {startparams}'
+    )
+
+    def _windows_postgresql_stop(self, _sig=None, _expected_sig=None):
+        if self.process is None:
+            return self
+        subprocess.run(
+            [self.executable, "stop", "-D", self.datadir, "-m", "f"],
+            check=True,
+            capture_output=True,
+        )
+        self._clear_process()
+        return self
+
+    PostgreSQLExecutor.stop = _windows_postgresql_stop
 
 
 @pytest.fixture(scope="session")

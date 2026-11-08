@@ -8,6 +8,10 @@ on:
       - "portal-backend-python/**"
   workflow_dispatch:
 
+concurrency:
+  group: production-backend-deployment
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: portal-backend
@@ -22,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -30,7 +34,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2.1.6
 
       - name: Set IMAGE_TAG to current time
         run: echo "IMAGE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
@@ -68,10 +72,157 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no portal-backend-python/populate_env_prod.sh $EC2_USER@$EC2_IP:~/
 
           # Deploy on EC2
-          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP \
+            bash -s -- "$AWS_REGION" "$ECR_REGISTRY" "$ECR_REPOSITORY" "$IMAGE_TAG" << 'EOF'
+            set -euo pipefail
+            AWS_REGION="$1"
+            ECR_REGISTRY="$2"
+            ECR_REPOSITORY="$3"
+            IMAGE_TAG="$4"
+
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
-            ./populate_env_prod.sh
+            RELEASE_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            wait_for_backend_health() {
+              local backend_id="$1"
+              local backend_health=""
+              local attempt
+
+              for attempt in $(seq 1 12); do
+                backend_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$backend_id")"
+                if [ "$backend_health" = "healthy" ]; then
+                  return 0
+                fi
+                if [ "$backend_health" = "exited" ] || [ "$backend_health" = "dead" ]; then
+                  return 1
+                fi
+                sleep 5
+              done
+
+              return 1
+            }
+
+            rollback_backend() {
+              if [ -z "$PREVIOUS_IMAGE" ]; then
+                echo "No previous backend image is available for rollback" >&2
+                return 1
+              fi
+
+              echo "Restoring the previous backend image"
+              export BACKEND_IMAGE="$PREVIOUS_IMAGE"
+              docker-compose up -d backend
+
+              local rollback_id
+              rollback_id="$(docker-compose ps -q backend)"
+              if wait_for_backend_health "$rollback_id"; then
+                echo "Previous backend image restored and healthy"
+                return 0
+              fi
+
+              echo "Previous backend image did not become healthy" >&2
+              docker logs --tail 100 "$rollback_id" || true
+              return 1
+            }
+
+            # Failed and superseded releases can exhaust this small EC2 volume.
+            # Reclaim every unused image before pulling; Docker keeps images
+            # referenced by the running backend and Caddy containers, so the
+            # currently healthy release remains available for rollback.
+            df -h /
+            docker system df || true
+            docker image prune -af
+            docker builder prune -af
+            df -h /
+
+            docker pull "$RELEASE_IMAGE"
+            PREVIOUS_IMAGE="$(docker inspect --format '{{.Config.Image}}' $(docker-compose ps -q backend) 2>/dev/null || true)"
+
+            # Web Push uses a long-lived VAPID signing identity. Bootstrap it
+            # exactly once inside the release image and write it straight to
+            # Vault; neither key is printed in the Actions log, and subsequent
+            # deployments retain the same identity so device subscriptions
+            # remain valid.
+            export VAULT_ADDR="http://db:8200"
+            export VAULT_TOKEN
+            VAULT_TOKEN="$(vault login \
+              -method=aws \
+              -no-store \
+              -token-only \
+              role=backend-ec2)"
+
+            if vault kv get -field=VAPID_PUBLIC_KEY secrets/backend_prod > /dev/null 2>&1 \
+              && vault kv get -field=VAPID_PRIVATE_KEY secrets/backend_prod > /dev/null 2>&1 \
+              && vault kv get -field=VAPID_SUBJECT secrets/backend_prod > /dev/null 2>&1; then
+              if [ "$(vault kv get -field=EVENT_NOTIFICATIONS_ENABLED secrets/backend_prod 2>/dev/null || true)" != "true" ]; then
+                if ! vault kv patch -method=rw -format=json secrets/backend_prod EVENT_NOTIFICATIONS_ENABLED=true > /dev/null; then
+                  unset VAULT_TOKEN
+                  echo "Unable to enable event notifications in Vault" >&2
+                  exit 1
+                fi
+              fi
+              echo "Event notification signing identity is configured"
+            else
+              VAPID_TMP="$(mktemp vapid.XXXXXX.json)"
+              chmod 600 "$VAPID_TMP"
+              if ! docker run --rm "$RELEASE_IMAGE" python -c 'from py_vapid import Vapid02; from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, PublicFormat; import base64, json; key = Vapid02(); key.generate_keys(); encode = lambda value: base64.urlsafe_b64encode(value).rstrip(b"=").decode(); private_key = encode(key.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())); public_key = encode(key.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)); print(json.dumps({"VAPID_PUBLIC_KEY": public_key, "VAPID_PRIVATE_KEY": private_key, "VAPID_SUBJECT": "mailto:organizers@duquantum.org", "EVENT_NOTIFICATIONS_ENABLED": "true"}))' > "$VAPID_TMP"; then
+                rm -f -- "$VAPID_TMP"
+                unset VAULT_TOKEN
+                echo "Unable to generate the event notification signing identity" >&2
+                exit 1
+              fi
+              if ! vault kv patch -method=rw -format=json secrets/backend_prod @"$VAPID_TMP" > /dev/null; then
+                rm -f -- "$VAPID_TMP"
+                unset VAULT_TOKEN
+                echo "Unable to store the event notification signing identity" >&2
+                exit 1
+              fi
+              rm -f -- "$VAPID_TMP"
+              echo "Event notification signing identity was created in Vault"
+            fi
+            unset VAULT_TOKEN
+
+            # Prefer a fresh Vault export. If Vault's AWS auth backend is
+            # temporarily unavailable, retain the protected environment that
+            # is already serving the current healthy backend. Never print its
+            # contents, and fail closed if the release cannot safely use it.
+            if ! ./populate_env_prod.sh; then
+              echo "Vault refresh failed; validating the existing protected environment"
+              ./populate_env_prod.sh --validate-existing .env
+              echo "Using the existing protected production environment"
+            fi
+
+            # Run additive schema changes with the freshly pulled release while
+            # the previous backend container remains in service. A failed
+            # migration exits this SSH step before Compose can replace it.
+            docker run --rm --env-file .env "$RELEASE_IMAGE" alembic upgrade head
+
+            export BACKEND_IMAGE="$RELEASE_IMAGE"
             docker-compose up -d
-            docker image prune -f
+
+            BACKEND_ID="$(docker-compose ps -q backend)"
+            if ! wait_for_backend_health "$BACKEND_ID"; then
+              echo "New backend failed its health check; restoring the previous image"
+              docker logs --tail 100 "$BACKEND_ID" || true
+              rollback_backend || true
+              exit 1
+            fi
+
+            PUBLIC_HEALTHY=false
+            for attempt in $(seq 1 6); do
+              if curl --fail --silent --show-error https://portal-backend.hackduke.org/health > /dev/null; then
+                PUBLIC_HEALTHY=true
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$PUBLIC_HEALTHY" != "true" ]; then
+              echo "New backend is not healthy through the public endpoint"
+              rollback_backend || true
+              exit 1
+            fi
+
+            # Once the new release has passed both health gates, remove its
+            # superseded image so the next deployment starts with free space.
+            docker image prune -af
           EOF

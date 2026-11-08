@@ -1,0 +1,773 @@
+import csv
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import httpx
+import pytest
+
+from scripts.import_event_registrations import (
+    CONSENT_HEADER_PREFIXES,
+    HEADER_AGE,
+    HEADER_COUNTRY,
+    HEADER_DEGREE,
+    HEADER_EMAIL,
+    HEADER_FIRST_NAME,
+    HEADER_LAST_NAME,
+    HEADER_PHONE,
+    HEADER_TIMESTAMP,
+    HEADER_UNIVERSITY,
+    normalize_email,
+    parse_csv,
+    sync_database,
+)
+from models import Event, EventPass, EventRegistration
+from services.auth0_onboarding import (
+    Auth0OnboardingClient,
+    Auth0OnboardingSettings,
+    Auth0PasswordRejected,
+    generate_temporary_password,
+)
+from services.event_email_campaign import render_campaign
+from services.event_email_campaign import (
+    CAMPAIGN_TEMPLATE_VERSIONS,
+    OptionalEmailDeliveryAudit,
+    RenderedEmail,
+    SesEmailSender,
+    SesSettings,
+    campaign_allows_registration,
+    is_registration_eligible,
+)
+from scripts.onboard_event_auth0 import main as auth0_onboarding_main
+
+
+def _write_synthetic_csv(path: Path) -> None:
+    headers = [
+        HEADER_TIMESTAMP,
+        HEADER_FIRST_NAME,
+        HEADER_LAST_NAME,
+        HEADER_EMAIL,
+        HEADER_PHONE,
+        HEADER_AGE,
+        HEADER_UNIVERSITY,
+        HEADER_DEGREE,
+        HEADER_COUNTRY,
+        *CONSENT_HEADER_PREFIXES.values(),
+    ]
+    base = {
+        HEADER_FIRST_NAME: "First",
+        HEADER_LAST_NAME: "Last",
+        HEADER_EMAIL: "Person@Example.edu ",
+        HEADER_PHONE: "+1 555 0100",
+        HEADER_AGE: "20",
+        HEADER_UNIVERSITY: "Example University",
+        HEADER_DEGREE: "Undergraduate",
+        HEADER_COUNTRY: "United States",
+        **{header: "I agree" for header in CONSENT_HEADER_PREFIXES.values()},
+    }
+    marketing_header = CONSENT_HEADER_PREFIXES["mlh_marketing_opt_in"]
+    older = {**base, HEADER_TIMESTAMP: "10/01/2026 09:00:00"}
+    newer = {
+        **base,
+        HEADER_TIMESTAMP: "10/02/2026 09:00:00",
+        HEADER_FIRST_NAME: "Updated",
+        marketing_header: "I do not agree",
+    }
+    with path.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows([older, newer])
+
+
+def test_csv_import_keeps_latest_and_preserves_marketing_opt_out(tmp_path):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+
+    result = parse_csv(source)
+
+    assert result.raw_rows == 2
+    assert result.duplicate_groups == 1
+    assert result.superseded_rows == 1
+    assert result.invalid_rows == 0
+    assert len(result.registrations) == 1
+    registration = result.registrations[0]
+    assert registration.first_name == "Updated"
+    assert registration.mlh_marketing_opt_in is False
+    assert registration.source_data["consents"]["mlh_marketing_opt_in"] is False
+
+
+def test_csv_import_accepts_a_clear_free_form_age(tmp_path):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    rows[-1][HEADER_AGE] = "Turn 20 that day!"
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = parse_csv(source)
+
+    assert result.invalid_rows == 0
+    assert result.registrations[0].age == 20
+
+
+def test_csv_import_uses_latest_response_before_applying_eligibility(tmp_path):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    attendance_header = CONSENT_HEADER_PREFIXES["attendance_commitment"]
+    rows[-1][attendance_header] = "No, I will not attend"
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = parse_csv(source)
+
+    assert result.raw_rows == 2
+    assert result.duplicate_groups == 1
+    assert result.superseded_rows == 1
+    assert result.invalid_rows == 0
+    assert result.ineligible_rows == 1
+    assert result.registrations == ()
+    assert len(result.ineligible_registrations) == 1
+    assert result.ineligible_registrations[0].attendance_commitment is False
+    assert result.ineligible_reasons == {
+        "latest response declined: attendance_commitment": 1
+    }
+
+
+@pytest.mark.parametrize("include_ineligible", [False, True])
+def test_database_sync_archives_records_outside_the_final_manifest(
+    tmp_path, test_sessionmaker, monkeypatch, include_ineligible
+):
+    source = tmp_path / "responses.csv"
+    _write_synthetic_csv(source)
+    rows = list(csv.DictReader(source.open(encoding="utf-8")))
+    declined = {
+        **rows[-1],
+        HEADER_EMAIL: "declined@example.edu",
+        HEADER_TIMESTAMP: "10/03/2026 09:00:00",
+        CONSENT_HEADER_PREFIXES[
+            "photo_release_consent"
+        ]: "I do not consent to the photo release",
+    }
+    with source.open("w", encoding="utf-8", newline="") as target:
+        writer = csv.DictWriter(target, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows([*rows, declined])
+    result = parse_csv(source)
+
+    setup = test_sessionmaker()
+    event = Event(slug="duquantum-2026", name="DuQuantum 2026", state="active")
+    setup.add(event)
+    setup.flush()
+    event_id = event.id
+    included = EventRegistration(
+        event_id=event.id,
+        email="person@example.edu",
+        normalized_email="person@example.edu",
+        first_name="Old",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    ineligible = EventRegistration(
+        event_id=event.id,
+        email="declined@example.edu",
+        normalized_email="declined@example.edu",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    stale = EventRegistration(
+        event_id=event.id,
+        email="stale@example.edu",
+        normalized_email="stale@example.edu",
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        source_data={},
+    )
+    setup.add_all([included, ineligible, stale])
+    setup.flush()
+    setup.add_all(
+        [
+            EventPass(registration_id=ineligible.id, state="active"),
+            EventPass(registration_id=stale.id, state="active"),
+        ]
+    )
+    setup.commit()
+    setup.close()
+
+    monkeypatch.setattr("db.get_local_session", test_sessionmaker)
+    try:
+        counts = sync_database(
+            result,
+            commit=True,
+            include_ineligible=include_ineligible,
+        )
+        expected_exception_key = (
+            "consent_override_updated" if include_ineligible else "ineligible_updated"
+        )
+        assert counts == {
+            "updated": 1,
+            expected_exception_key: 1,
+            "stale_archived": 1,
+            "passes_revoked": 1 if include_ineligible else 2,
+        }
+
+        verify = test_sessionmaker()
+        try:
+            records = {
+                item.normalized_email: item
+                for item in verify.query(EventRegistration)
+                .filter(EventRegistration.event_id == event_id)
+                .all()
+            }
+            assert records["person@example.edu"].first_name == "Updated"
+            assert records["person@example.edu"].admission_status == "accepted"
+            assert records["declined@example.edu"].admission_status == (
+                "accepted" if include_ineligible else "revoked"
+            )
+            assert records["declined@example.edu"].rsvp_status == (
+                "confirmed" if include_ineligible else "declined"
+            )
+            assert records["declined@example.edu"].event_pass.state == (
+                "active" if include_ineligible else "revoked"
+            )
+            assert records["stale@example.edu"].admission_status == "revoked"
+            assert records["stale@example.edu"].rsvp_status == "declined"
+            assert records["stale@example.edu"].event_pass.state == "revoked"
+        finally:
+            verify.close()
+    finally:
+        cleanup = test_sessionmaker()
+        cleanup.query(Event).filter(Event.slug == "duquantum-2026").delete()
+        cleanup.commit()
+        cleanup.close()
+
+
+def test_email_normalization_does_not_rewrite_provider_specific_addressing():
+    assert normalize_email(" Name+tag@Example.COM ") == "name+tag@example.com"
+
+
+def test_generated_password_is_random_and_complex():
+    first = generate_temporary_password()
+    second = generate_temporary_password()
+    assert first != second
+    assert len(first) >= 64
+    assert any(character.isupper() for character in first)
+    assert any(character.islower() for character in first)
+    assert any(character.isdigit() for character in first)
+    assert "!" in first
+
+
+def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        if (
+            len([item for item in requests if item.url.path.endswith("users-by-email")])
+            == 1
+        ):
+            return httpx.Response(
+                429,
+                request=request,
+                headers={"retry-after": "0"},
+            )
+        return httpx.Response(200, request=request, json=[])
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    sleeps = []
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(
+            settings,
+            http_client=http_client,
+            sleep=sleeps.append,
+        ) as client:
+            assert client.find_users_by_email("attendee@example.org") == []
+
+    lookup_requests = [
+        request for request in requests if request.url.path.endswith("users-by-email")
+    ]
+    assert len(lookup_requests) == 2
+    assert sleeps == [0.1]
+
+
+def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(200, request=request, json={})
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            auth0_client.set_initial_password(
+                user_id="auth0|attendee",
+                password="A-strong-private-password-2026",
+            )
+
+    update_requests = [request for request in requests if request.method == "PATCH"]
+    assert len(update_requests) == 2
+    password_request, verification_request = update_requests
+    assert password_request.url.path.endswith("/api/v2/users/auth0|attendee")
+    assert b'"email_verified"' not in password_request.content
+    assert (
+        b'"connection":"Username-Password-Authentication"' in password_request.content
+    )
+    assert b'"password":"A-strong-private-password-2026"' in password_request.content
+    assert verification_request.url.path.endswith("/api/v2/users/auth0|attendee")
+    assert b'"email_verified":true' in verification_request.content
+    assert b'"password"' not in verification_request.content
+
+
+def test_auth0_password_reset_uses_the_portal_client_and_database_connection():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, request=request, text="reset email sent")
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="management-client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            client.request_password_reset(
+                email="Organizer@Example.org ",
+                client_id="portal-client-id",
+            )
+
+    request = requests[-1]
+    assert request.url.path == "/dbconnections/change_password"
+    assert json.loads(request.content) == {
+        "client_id": "portal-client-id",
+        "email": "organizer@example.org",
+        "connection": "Username-Password-Authentication",
+    }
+    assert "authorization" not in request.headers
+
+
+def test_auth0_password_policy_rejection_has_a_safe_exception():
+    def handler(request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "message": "PasswordStrengthError: Password is too weak",
+                "errorCode": "auth0_idp_error",
+            },
+        )
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            with pytest.raises(Auth0PasswordRejected):
+                auth0_client.set_initial_password(
+                    user_id="auth0|attendee",
+                    password="rejected-password",
+                )
+
+
+def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
+    def handler(request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "message": "Cannot update password and email_verified simultaneously",
+                "errorCode": "operation_not_supported",
+            },
+        )
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
+            with pytest.raises(httpx.HTTPStatusError):
+                auth0_client.set_initial_password(
+                    user_id="auth0|attendee",
+                    password="A-strong-private-password-2026",
+                )
+
+
+def test_auth0_password_change_ticket_is_secure_and_bounded():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/oauth/token":
+            return httpx.Response(
+                200,
+                request=request,
+                json={"access_token": "management-token", "expires_in": 3600},
+            )
+        return httpx.Response(
+            201,
+            request=request,
+            json={"ticket": "https://tenant.example.org/lo/reset?ticket=single-use"},
+        )
+
+    settings = Auth0OnboardingSettings(
+        domain="tenant.example.org",
+        management_client_id="client-id",
+        management_client_secret="client-secret",
+        database_connection="Username-Password-Authentication",
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        with Auth0OnboardingClient(settings, http_client=http_client) as client:
+            ticket = client.create_password_change_ticket(
+                user_id="auth0|organizers",
+                result_url=(
+                    "https://portal.hackduke.org/admin/events/"
+                    "duquantum-2026/attendees"
+                ),
+            )
+
+    assert ticket.endswith("ticket=single-use")
+    ticket_request = requests[-1]
+    assert ticket_request.url.path == "/api/v2/tickets/password-change"
+    assert json.loads(ticket_request.content) == {
+        "user_id": "auth0|organizers",
+        "result_url": (
+            "https://portal.hackduke.org/admin/events/duquantum-2026/attendees"
+        ),
+        "ttl_sec": 604800,
+        "mark_email_as_verified": True,
+        "includeEmailInRedirect": False,
+    }
+
+    with pytest.raises(ValueError):
+        with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+            with Auth0OnboardingClient(settings, http_client=http_client) as client:
+                client.create_password_change_ticket(
+                    user_id="auth0|organizers",
+                    result_url="http://portal.example.org/admin",
+                )
+
+
+def test_campaign_escapes_display_name_and_does_not_embed_a_pass():
+    rendered = render_campaign(
+        "pass-ready",
+        first_name="<script>alert(1)</script>",
+        portal_url="https://portal.example.org",
+    )
+    assert "<script>" not in rendered.html_body
+    assert "&lt;script&gt;" in rendered.html_body
+    assert "https://portal.example.org" in rendered.text_body
+    assert "QR" not in rendered.text_body
+
+
+def test_campaign_uses_duquantum_brand_with_email_safe_fallbacks():
+    rendered = render_campaign(
+        "pass-ready",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org/",
+    )
+
+    assert 'alt="DuQuantum 2026"' in rendered.html_body
+    assert (
+        'src="https://portal.example.org/duquantum-2026/logo-email.png"'
+        in rendered.html_body
+    )
+    assert "Edge of the Galaxy" in rendered.html_body
+    assert "#f3b562" in rendered.html_body
+    assert "@keyframes duq-glow" in rendered.html_body
+    assert "prefers-reduced-motion" in rendered.html_body
+    assert "HackDuke × Duke Quantum Information Society" in rendered.html_body
+    assert "October 24–25" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["pass-ready"].endswith("-v2")
+
+
+def test_all_campaigns_share_the_branded_email_shell():
+    setup_url = "https://portal.example.org/events/test/account-setup#token=secret"
+    for campaign in (
+        "pass-ready",
+        "event-reminder",
+        "auth0-invitation",
+        "auth0-invitation-reminder",
+        "auth0-invitation-existing",
+        "auth0-invitation-existing-reminder",
+        "admin-invitation",
+    ):
+        rendered = render_campaign(
+            campaign,
+            first_name="Mohammad",
+            portal_url="https://portal.example.org",
+            account_setup_url=(
+                setup_url
+                if campaign
+                in (
+                    "auth0-invitation",
+                    "auth0-invitation-reminder",
+                    "admin-invitation",
+                )
+                else None
+            ),
+            login_email=(
+                "attendee@example.org"
+                if campaign
+                in (
+                    "auth0-invitation",
+                    "auth0-invitation-reminder",
+                    "auth0-invitation-existing",
+                    "auth0-invitation-existing-reminder",
+                    "admin-invitation",
+                )
+                else None
+            ),
+        )
+        assert "logo-email.png" in rendered.html_body
+        assert "duq-card" in rendered.html_body
+        assert "portal.hackduke.org" in rendered.html_body
+
+
+def test_invitation_explains_account_setup_without_exposing_a_pass():
+    rendered = render_campaign(
+        "auth0-invitation",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org",
+        account_setup_url=(
+            "https://portal.example.org/events/test/account-setup#token=secret"
+        ),
+        login_email="attendee@example.org",
+    )
+
+    assert "attendee@example.org" in rendered.html_body
+    assert "No temporary password is sent or stored" in rendered.html_body
+    assert "After you create your password" in rendered.html_body
+    assert "Add to Home Screen or Install app" in rendered.html_body
+    assert "Enable event alerts" in rendered.html_body
+    assert "live schedule reminders" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation"].endswith("-v3")
+    assert "QR" not in rendered.html_body
+    assert "pass ID" not in rendered.html_body
+
+
+def test_existing_account_invitation_preserves_the_users_password():
+    rendered = render_campaign(
+        "auth0-invitation-existing",
+        first_name="Mohammad",
+        portal_url="https://portal.example.org",
+        login_email="attendee@example.org",
+    )
+
+    assert rendered.subject == "Your DuQuantum 2026 participant portal is ready"
+    assert "Use your existing portal password" in rendered.html_body
+    assert "Forgot password" in rendered.text_body
+    assert "Open participant portal" in rendered.text_body
+    assert "Add to Home Screen or Install app" in rendered.html_body
+    assert "Enable event alerts" in rendered.html_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["auth0-invitation-existing"].endswith("-v1")
+
+
+def test_admin_invitation_links_to_private_operations_and_scanner():
+    setup_url = "https://tenant.example.org/reset?ticket=one-time"
+    rendered = render_campaign(
+        "admin-invitation",
+        first_name="DuQuantum Organizers",
+        portal_url="https://portal.hackduke.org",
+        account_setup_url=setup_url,
+        login_email="organizers@duquantum.org",
+    )
+
+    assert rendered.subject == "Set up your DuQuantum 2026 admin account"
+    assert setup_url in rendered.html_body
+    assert setup_url in rendered.text_body
+    assert "organizers@duquantum.org" in rendered.html_body
+    assert "Attendee manifest" in rendered.text_body
+    assert "Check-in scanner" in rendered.text_body
+    assert "private information" in rendered.text_body
+    assert CAMPAIGN_TEMPLATE_VERSIONS["admin-invitation"].endswith("-v1")
+
+
+def test_ses_sender_uses_the_duquantum_display_name():
+    class FakeClient:
+        request = None
+
+        def send_email(self, **request):
+            self.request = request
+            return {"MessageId": "message-id"}
+
+    client = FakeClient()
+    sender = SesEmailSender(
+        SesSettings(
+            region="us-east-2",
+            sender="hackers@hackduke.org",
+            portal_url="https://portal.example.org",
+        ),
+        client=client,
+    )
+    message_id = sender.send(
+        recipient="attendee@example.org",
+        rendered=RenderedEmail(subject="Subject", text_body="Text", html_body="HTML"),
+    )
+
+    assert message_id == "message-id"
+    assert client.request["FromEmailAddress"] == (
+        "DuQuantum 2026 <hackers@hackduke.org>"
+    )
+    assert client.request["ReplyToAddresses"] == ["hackers@hackduke.org"]
+
+
+def test_invitation_requires_secure_setup_url():
+    with pytest.raises(ValueError):
+        render_campaign(
+            "auth0-invitation",
+            first_name="Test",
+            portal_url="https://portal.example.org",
+            account_setup_url="http://example.org/account-setup#token=secret",
+            login_email="attendee@example.org",
+        )
+
+
+def test_auth0_provisioning_requires_all_explicit_safety_flags():
+    # The gate runs before database, Auth0, or SES objects are constructed.
+    assert auth0_onboarding_main(["--create-missing"]) == 2
+    assert auth0_onboarding_main(["--commit"]) == 2
+
+
+def test_campaign_eligibility_keeps_marketing_consent_separate():
+    event = SimpleNamespace(pass_eligibility="confirmed")
+    registration = SimpleNamespace(
+        admission_status="accepted",
+        rsvp_status="confirmed",
+        mlh_marketing_opt_in=False,
+    )
+    assert is_registration_eligible(registration, event)
+    assert campaign_allows_registration(registration, marketing=False)
+    assert not campaign_allows_registration(registration, marketing=True)
+
+
+class _FakeField:
+    def __eq__(self, _other):
+        return self
+
+    def in_(self, _values):
+        return self
+
+
+class _FakeDelivery:
+    event_id = _FakeField()
+    registration_id = _FakeField()
+    campaign_key = _FakeField()
+    status = _FakeField()
+
+    def __init__(self, **values):
+        for key, value in values.items():
+            setattr(self, key, value)
+
+
+class _FakeQuery:
+    def __init__(self, row):
+        self.row = row
+
+    def filter(self, *_conditions):
+        return self
+
+    def one_or_none(self):
+        return self.row
+
+    def first(self):
+        return self.row
+
+
+class _FakeSession:
+    def __init__(self, row=None):
+        self.row = row
+        self.added = []
+
+    def query(self, _model):
+        return _FakeQuery(self.row)
+
+    def add(self, row):
+        self.added.append(row)
+
+    def flush(self):
+        pass
+
+
+def test_email_audit_reuses_failed_row_and_blocks_uncertain_queued_row():
+    failed = _FakeDelivery(
+        event_id="event",
+        registration_id="registration",
+        campaign_key="pass-ready",
+        recipient_email="old@example.org",
+        template_version="old",
+        status="failed",
+        provider_message_id="old-message",
+        error="OldError",
+        sent_at="old-time",
+    )
+    session = _FakeSession(failed)
+    audit = OptionalEmailDeliveryAudit(session)
+    audit.model = _FakeDelivery
+
+    reused = audit.queued(
+        event_id="event",
+        registration_id="registration",
+        campaign_key="pass-ready",
+        recipient="new@example.org",
+    )
+
+    assert reused is failed
+    assert reused.status == "queued"
+    assert reused.provider_message_id is None
+    assert reused.error is None
+    assert reused.sent_at is None
+    assert not session.added
+    assert audit.already_sent(
+        event_id="event",
+        registration_id="registration",
+        campaign_key="pass-ready",
+    )

@@ -1,0 +1,1333 @@
+import hashlib
+import re
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Security
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import Integer, and_, cast, func, or_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
+
+from auth import VerifyToken
+from db import get_db
+from models.event import Event
+from models.event_check_in import EventCheckIn
+from models.event_pass import EventPass
+from models.event_push_subscription import EventPushSubscription
+from models.event_registration import EventRegistration
+from models.event_team import EventTeam
+from models.event_team_member import EventTeamMember
+from models.user import User
+from models.user_role import RoleEnum
+from routers.roles import require_admin, require_check_in
+from services.auth0_management import get_auth0_management_client
+from services.auth0_onboarding import (
+    Auth0OnboardingClient,
+    Auth0OnboardingSettings,
+    Auth0PasswordRejected,
+)
+from services.account_setup import (
+    InvalidAccountSetupToken,
+    lock_valid_account_setup,
+)
+from services.event_notifications import (
+    DUQUANTUM_NOTIFICATIONS,
+    EVENT_SLUG as NOTIFICATION_EVENT_SLUG,
+    WebPushSettings,
+)
+
+
+router = APIRouter()
+auth = VerifyToken()
+
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+CHECKPOINT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,99}$")
+PUSH_KEY_PATTERN = r"^[A-Za-z0-9_-]+={0,2}$"
+PUSH_SERVICE_HOSTS = {
+    "fcm.googleapis.com",
+    "updates.push.services.mozilla.com",
+    "web.push.apple.com",
+}
+
+
+def validate_push_endpoint(value: str) -> str:
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").casefold()
+    recognized_service = hostname in PUSH_SERVICE_HOSTS or hostname.endswith(
+        (".push.apple.com", ".notify.windows.com")
+    )
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+        or not recognized_service
+    ):
+        raise ValueError("A valid HTTPS push endpoint is required")
+    return value
+
+
+class EventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    slug: str
+    name: str
+    start_at: Optional[datetime]
+    end_at: Optional[datetime]
+    timezone: str
+    support_email: Optional[str]
+    public_site_url: Optional[str]
+    brand_key: Optional[str]
+    state: str
+    pass_eligibility: str
+
+
+class PassResponse(BaseModel):
+    public_id: str
+    state: str
+    version: int
+    issued_at: datetime
+
+
+class CheckInResponse(BaseModel):
+    id: UUID
+    checkpoint: str
+    checked_in_at: datetime
+    checked_in_by: Optional[UUID]
+
+
+class EmailDeliveryResponse(BaseModel):
+    id: UUID
+    campaign_key: str
+    recipient_email: str
+    template_version: str
+    status: str
+    provider_message_id: Optional[str]
+    error: Optional[str]
+    created_at: datetime
+    sent_at: Optional[datetime]
+
+
+class TeamMemberResponse(BaseModel):
+    member_position: int
+    first_name: Optional[str]
+    last_name: Optional[str]
+    display_name: Optional[str]
+    email: Optional[str]
+    discord_username: Optional[str]
+
+
+class AdminTeamMemberResponse(TeamMemberResponse):
+    registration_id: Optional[UUID]
+    match_status: str
+    match_method: Optional[str]
+    match_detail: str
+
+
+class TeamResponse(BaseModel):
+    id: UUID
+    team_name: str
+    team_number: Optional[str]
+    assignments_visible: bool = False
+    track: Optional[str]
+    track_preference: Optional[str]
+    challenge: Optional[str]
+    sponsor: Optional[str]
+    sponsor_contact_name: Optional[str]
+    sponsor_contact_email: Optional[str]
+    challenge_preferences: List[str]
+    requested_additional_teammates: Optional[int]
+    additional_teammates_detail: Optional[str]
+    source: Optional[str]
+    teammates: List[TeamMemberResponse]
+
+
+class AdminTeamResponse(TeamResponse):
+    teammates: List[AdminTeamMemberResponse]
+
+
+class AdminTeamListResponse(BaseModel):
+    teams: List[AdminTeamResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class MyRegistrationResponse(BaseModel):
+    id: UUID
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    preferred_name: Optional[str]
+    phone: Optional[str]
+    age: Optional[int]
+    university: Optional[str]
+    degree_program: Optional[str]
+    country: Optional[str]
+    attendance_commitment: Optional[bool]
+    photo_release_consent: Optional[bool]
+    mlh_code_of_conduct_consent: Optional[bool]
+    mlh_privacy_policy_consent: Optional[bool]
+    data_sharing_consent: Optional[bool]
+    mlh_marketing_opt_in: Optional[bool]
+    admission_status: str
+    rsvp_status: str
+    claimed_at: Optional[datetime]
+    event_pass: Optional[PassResponse]
+    check_ins: List[CheckInResponse]
+    team: Optional[TeamResponse]
+
+
+class MyEventResponse(BaseModel):
+    event: EventResponse
+    claimed: bool
+    claim_required: bool
+    registration: Optional[MyRegistrationResponse]
+
+
+class AdminRegistrationResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    user_id: Optional[UUID]
+    email: str
+    normalized_email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    preferred_name: Optional[str]
+    phone: Optional[str]
+    age: Optional[int]
+    university: Optional[str]
+    degree_program: Optional[str]
+    country: Optional[str]
+    attendance_commitment: Optional[bool]
+    photo_release_consent: Optional[bool]
+    mlh_code_of_conduct_consent: Optional[bool]
+    mlh_privacy_policy_consent: Optional[bool]
+    data_sharing_consent: Optional[bool]
+    mlh_marketing_opt_in: Optional[bool]
+    admission_status: str
+    rsvp_status: str
+    source: str
+    source_record_id: Optional[str]
+    source_data: Dict[str, Any]
+    claimed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    pass_state: Optional[str]
+    pass_public_id: Optional[str]
+    pass_issued_at: Optional[datetime]
+    check_ins: List[CheckInResponse]
+    email_deliveries: List[EmailDeliveryResponse]
+    team: Optional[AdminTeamResponse]
+
+
+class AdminRegistrationListResponse(BaseModel):
+    registrations: List[AdminRegistrationResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class ManualEventCheckInRequest(BaseModel):
+    checkpoint: str = Field(default="arrival", min_length=1, max_length=100)
+
+
+class EventCheckInRequest(ManualEventCheckInRequest):
+    pass_id: str = Field(min_length=10, max_length=100)
+
+
+class EventCheckInResponse(BaseModel):
+    id: UUID
+    registration_id: UUID
+    first_name: Optional[str]
+    last_name: Optional[str]
+    preferred_name: Optional[str]
+    checkpoint: str
+    checked_in_at: datetime
+    checked_in_by: Optional[UUID]
+
+
+class EventCheckInListResponse(BaseModel):
+    check_ins: List[EventCheckInResponse]
+    total: int
+
+
+class AccountSetupRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=256)
+    password: str = Field(min_length=12, max_length=128)
+
+
+class AccountSetupResponse(BaseModel):
+    login_email: str
+    message: str
+
+
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str = Field(min_length=80, max_length=200, pattern=PUSH_KEY_PATTERN)
+    auth: str = Field(min_length=16, max_length=100, pattern=PUSH_KEY_PATTERN)
+
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str = Field(min_length=16, max_length=4096)
+    keys: PushSubscriptionKeys
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str) -> str:
+        return validate_push_endpoint(value)
+
+
+class PushUnsubscriptionRequest(BaseModel):
+    endpoint: str = Field(min_length=16, max_length=4096)
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str) -> str:
+        return validate_push_endpoint(value)
+
+
+class NotificationConfigResponse(BaseModel):
+    enabled: bool
+    subscribed: bool
+    public_key: Optional[str]
+    schedule_count: int
+    first_notification_at: datetime
+    last_notification_at: datetime
+
+
+class PushSubscriptionResponse(BaseModel):
+    subscribed: bool
+    message: str
+
+
+def normalize_email(email: str) -> str:
+    """Normalize only casing and surrounding whitespace; do not rewrite providers."""
+
+    return email.strip().casefold()
+
+
+def _get_claim(payload: Dict[str, Any], claim_name: str) -> Any:
+    """Read either a standard claim or a URI-namespaced Auth0 custom claim."""
+
+    if claim_name in payload:
+        return payload[claim_name]
+
+    for key, value in payload.items():
+        key_tail = key.rstrip("/").rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+        if key_tail == claim_name:
+            return value
+        if isinstance(value, dict) and claim_name in value:
+            return value[claim_name]
+    return None
+
+
+def get_verified_email(auth_payload: Dict[str, Any]) -> str:
+    email = _get_claim(auth_payload, "email")
+    email_verified = _get_claim(auth_payload, "email_verified")
+
+    if isinstance(email, str) and EMAIL_PATTERN.match(email.strip()):
+        if email_verified is not True:
+            raise HTTPException(
+                status_code=403,
+                detail="A verified email address is required to claim a registration",
+            )
+        return normalize_email(email)
+
+    # Auth0 access tokens do not include email by default. Look it up by the
+    # validated token subject rather than accepting an email from the client.
+    try:
+        auth0_user = get_auth0_management_client().get_user_by_id(
+            get_subject(auth_payload)
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to verify the account email at this time",
+        )
+    management_email = auth0_user.get("email") if auth0_user else None
+    management_email_verified = auth0_user.get("email_verified") if auth0_user else None
+    if not isinstance(management_email, str) or not EMAIL_PATTERN.match(
+        management_email.strip()
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="A valid email claim is required to claim a registration",
+        )
+    if management_email_verified is not True:
+        raise HTTPException(
+            status_code=403,
+            detail="A verified email address is required to claim a registration",
+        )
+    return normalize_email(management_email)
+
+
+def get_subject(auth_payload: Dict[str, Any]) -> str:
+    auth0_id = auth_payload.get("sub")
+    if not isinstance(auth0_id, str) or not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+    return auth0_id
+
+
+def get_event_or_404(db: Session, slug: str) -> Event:
+    event = db.query(Event).filter(Event.slug == slug).first()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
+def get_notification_event_or_404(db: Session, slug: str) -> Event:
+    event = get_event_or_404(db, slug)
+    if event.slug != NOTIFICATION_EVENT_SLUG:
+        raise HTTPException(status_code=404, detail="Event notifications not found")
+    return event
+
+
+def get_role_user(auth_payload: Dict[str, Any], db: Session) -> User:
+    user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def get_claimed_registration(
+    db: Session,
+    *,
+    event: Event,
+    auth_payload: Dict[str, Any],
+) -> EventRegistration:
+    user = db.query(User).filter(User.auth0_id == get_subject(auth_payload)).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="No claimed registration was found")
+    registration = (
+        db.query(EventRegistration)
+        .options(joinedload(EventRegistration.event_pass))
+        .filter(
+            EventRegistration.event_id == event.id,
+            EventRegistration.user_id == user.id,
+        )
+        .first()
+    )
+    if registration is None:
+        raise HTTPException(status_code=404, detail="No claimed registration was found")
+    if not registration_is_pass_eligible(event, registration):
+        raise HTTPException(
+            status_code=403,
+            detail="This registration is not eligible for event notifications",
+        )
+    return registration
+
+
+def registration_is_pass_eligible(
+    event: Event, registration: EventRegistration
+) -> bool:
+    if registration.admission_status != "accepted":
+        return False
+    if event.pass_eligibility == "confirmed":
+        return registration.rsvp_status == "confirmed"
+    return registration.rsvp_status != "declined"
+
+
+def get_auth0_onboarding_client() -> Auth0OnboardingClient:
+    return Auth0OnboardingClient(Auth0OnboardingSettings.from_environment())
+
+
+def _pass_response(event_pass: Optional[EventPass]) -> Optional[PassResponse]:
+    if event_pass is None:
+        return None
+    return PassResponse(
+        public_id=event_pass.public_id,
+        state=event_pass.state,
+        version=event_pass.version,
+        issued_at=event_pass.issued_at,
+    )
+
+
+def _check_in_response(check_in: EventCheckIn) -> CheckInResponse:
+    return CheckInResponse(
+        id=check_in.id,
+        checkpoint=check_in.checkpoint,
+        checked_in_at=check_in.checked_in_at,
+        checked_in_by=check_in.checked_in_by,
+    )
+
+
+def _team_member_display_name(member: EventTeamMember) -> Optional[str]:
+    if member.display_name and member.display_name.strip():
+        return member.display_name.strip()
+    display_name = " ".join(
+        value.strip()
+        for value in (member.first_name or "", member.last_name or "")
+        if value.strip()
+    )
+    return display_name or None
+
+
+def _team_response_from_team(
+    team: EventTeam, *, admin: bool = False, assignments_visible: bool = False
+) -> TeamResponse | AdminTeamResponse:
+    sorted_members = sorted(team.members, key=lambda item: item.member_position)
+    common = {
+        "id": team.id,
+        "team_name": team.name,
+        "team_number": team.team_number,
+        "assignments_visible": admin or assignments_visible,
+        "track": team.assigned_track,
+        "track_preference": team.track_preference,
+        "challenge": team.assigned_challenge,
+        "sponsor": team.sponsor_name,
+        "sponsor_contact_name": team.sponsor_contact_name,
+        "sponsor_contact_email": team.sponsor_contact_email,
+        "challenge_preferences": list(team.challenge_preferences or []),
+        "requested_additional_teammates": team.requested_additional_teammates,
+        "additional_teammates_detail": team.additional_teammates_detail,
+        "source": team.formation_source,
+    }
+    if not (admin or assignments_visible):
+        for field in (
+            "track", "track_preference", "challenge", "sponsor",
+            "sponsor_contact_name", "sponsor_contact_email",
+            "additional_teammates_detail",
+        ):
+            common[field] = None
+        common["challenge_preferences"] = []
+    if admin:
+        return AdminTeamResponse(
+            **common,
+            teammates=[
+                AdminTeamMemberResponse(
+                    member_position=item.member_position,
+                    first_name=item.first_name,
+                    last_name=item.last_name,
+                    display_name=_team_member_display_name(item),
+                    email=item.email,
+                    discord_username=item.discord_username,
+                    registration_id=item.registration_id,
+                    match_status=item.match_status,
+                    match_method=item.match_method,
+                    match_detail=item.match_detail,
+                )
+                for item in sorted_members
+            ],
+        )
+    return TeamResponse(
+        **common,
+        teammates=[
+            TeamMemberResponse(
+                member_position=item.member_position,
+                first_name=item.first_name,
+                last_name=item.last_name,
+                display_name=_team_member_display_name(item),
+                email=item.email,
+                discord_username=item.discord_username,
+            )
+            for item in sorted_members
+        ],
+    )
+
+
+def _team_response(
+    registration: EventRegistration,
+    *,
+    admin: bool = False,
+) -> Optional[TeamResponse | AdminTeamResponse]:
+    membership = registration.team_membership
+    if (
+        membership is None
+        or membership.match_status != "matched"
+        or membership.team is None
+        or not membership.team.active
+    ):
+        return None
+    start_at = registration.event.start_at
+    visible = bool(
+        start_at is not None
+        and start_at.tzinfo is not None
+        and datetime.now(timezone.utc) >= start_at
+        and any(item.checkpoint == "arrival" for item in registration.check_ins)
+    )
+    return _team_response_from_team(
+        membership.team, admin=admin, assignments_visible=visible
+    )
+
+
+def _my_registration_response(
+    registration: EventRegistration,
+) -> MyRegistrationResponse:
+    return MyRegistrationResponse(
+        id=registration.id,
+        email=registration.email,
+        first_name=registration.first_name,
+        last_name=registration.last_name,
+        preferred_name=registration.preferred_name,
+        phone=registration.phone,
+        age=registration.age,
+        university=registration.university,
+        degree_program=registration.degree_program,
+        country=registration.country,
+        attendance_commitment=registration.attendance_commitment,
+        photo_release_consent=registration.photo_release_consent,
+        mlh_code_of_conduct_consent=registration.mlh_code_of_conduct_consent,
+        mlh_privacy_policy_consent=registration.mlh_privacy_policy_consent,
+        data_sharing_consent=registration.data_sharing_consent,
+        mlh_marketing_opt_in=registration.mlh_marketing_opt_in,
+        admission_status=registration.admission_status,
+        rsvp_status=registration.rsvp_status,
+        claimed_at=registration.claimed_at,
+        event_pass=_pass_response(registration.event_pass),
+        check_ins=[_check_in_response(item) for item in registration.check_ins],
+        team=_team_response(registration),
+    )
+
+
+def _admin_registration_response(
+    registration: EventRegistration,
+) -> AdminRegistrationResponse:
+    event_pass = registration.event_pass
+    return AdminRegistrationResponse(
+        id=registration.id,
+        event_id=registration.event_id,
+        user_id=registration.user_id,
+        email=registration.email,
+        normalized_email=registration.normalized_email,
+        first_name=registration.first_name,
+        last_name=registration.last_name,
+        preferred_name=registration.preferred_name,
+        phone=registration.phone,
+        age=registration.age,
+        university=registration.university,
+        degree_program=registration.degree_program,
+        country=registration.country,
+        attendance_commitment=registration.attendance_commitment,
+        photo_release_consent=registration.photo_release_consent,
+        mlh_code_of_conduct_consent=registration.mlh_code_of_conduct_consent,
+        mlh_privacy_policy_consent=registration.mlh_privacy_policy_consent,
+        data_sharing_consent=registration.data_sharing_consent,
+        mlh_marketing_opt_in=registration.mlh_marketing_opt_in,
+        admission_status=registration.admission_status,
+        rsvp_status=registration.rsvp_status,
+        source=registration.source,
+        source_record_id=registration.source_record_id,
+        source_data=registration.source_data or {},
+        claimed_at=registration.claimed_at,
+        created_at=registration.created_at,
+        updated_at=registration.updated_at,
+        pass_state=event_pass.state if event_pass else None,
+        pass_public_id=event_pass.public_id if event_pass else None,
+        pass_issued_at=event_pass.issued_at if event_pass else None,
+        check_ins=[_check_in_response(item) for item in registration.check_ins],
+        email_deliveries=[
+            EmailDeliveryResponse(
+                id=item.id,
+                campaign_key=item.campaign_key,
+                recipient_email=item.recipient_email,
+                template_version=item.template_version,
+                status=item.status,
+                provider_message_id=item.provider_message_id,
+                error=item.error,
+                created_at=item.created_at,
+                sent_at=item.sent_at,
+            )
+            for item in registration.email_deliveries
+        ],
+        team=_team_response(registration, admin=True),
+    )
+
+
+@router.post("/{slug}/account-setup", response_model=AccountSetupResponse)
+def complete_event_account_setup(
+    slug: str,
+    request: AccountSetupRequest,
+    db: Session = Depends(get_db),
+):
+    """Consume a portal setup capability and set the attendee's Auth0 password."""
+
+    event = get_event_or_404(db, slug)
+    if event.state != "active":
+        raise HTTPException(status_code=409, detail="Account setup is not active")
+
+    try:
+        setup = lock_valid_account_setup(
+            db,
+            event_id=event.id,
+            token=request.token,
+        )
+    except InvalidAccountSetupToken:
+        raise HTTPException(
+            status_code=410,
+            detail="This account setup link is invalid or has expired",
+        )
+
+    registration = setup.registration
+    if not registration_is_pass_eligible(event, registration):
+        raise HTTPException(
+            status_code=403,
+            detail="This registration is not eligible for portal access",
+        )
+
+    try:
+        with get_auth0_onboarding_client() as auth0_client:
+            auth0_client.set_initial_password(
+                user_id=setup.auth0_user_id,
+                password=request.password,
+            )
+    except Auth0PasswordRejected:
+        db.rollback()
+        raise HTTPException(
+            status_code=422,
+            detail="Choose a stronger password that meets all listed requirements",
+        )
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Account setup is temporarily unavailable. Please try again.",
+        )
+
+    setup.consumed_at = datetime.now(timezone.utc)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Account setup is temporarily unavailable. Please try again.",
+        )
+
+    return AccountSetupResponse(
+        login_email=registration.email,
+        message="Your password is set. Continue to sign in to your attendee portal.",
+    )
+
+
+@router.get("", response_model=List[EventResponse])
+async def list_events(db: Session = Depends(get_db)):
+    """List event metadata safe for the participant landing page."""
+
+    return (
+        db.query(Event)
+        .filter(Event.state == "active")
+        .order_by(Event.start_at.asc().nullslast(), Event.name.asc())
+        .all()
+    )
+
+
+@router.get("/{slug}/me", response_model=MyEventResponse)
+async def get_my_event_registration(
+    slug: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_event_or_404(db, slug)
+    auth0_id = get_subject(auth_payload)
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    registration = None
+    if user is not None:
+        registration = (
+            db.query(EventRegistration)
+            .options(
+                joinedload(EventRegistration.event_pass),
+                joinedload(EventRegistration.check_ins),
+                joinedload(EventRegistration.team_membership)
+                .joinedload(EventTeamMember.team)
+                .joinedload(EventTeam.members),
+            )
+            .filter(
+                EventRegistration.event_id == event.id,
+                EventRegistration.user_id == user.id,
+            )
+            .first()
+        )
+
+    return MyEventResponse(
+        event=EventResponse.model_validate(event),
+        claimed=registration is not None,
+        claim_required=registration is None,
+        registration=(
+            _my_registration_response(registration)
+            if registration is not None
+            else None
+        ),
+    )
+
+
+@router.post("/{slug}/claim", response_model=MyEventResponse)
+async def claim_event_registration(
+    slug: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_event_or_404(db, slug)
+    if event.state != "active":
+        raise HTTPException(
+            status_code=409, detail="Event registration claiming is not active"
+        )
+
+    auth0_id = get_subject(auth_payload)
+    normalized_email = get_verified_email(auth_payload)
+    registration = (
+        db.query(EventRegistration)
+        .filter(
+            EventRegistration.event_id == event.id,
+            EventRegistration.normalized_email == normalized_email,
+        )
+        .with_for_update()
+        .first()
+    )
+    if registration is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No eligible registration was found for the verified account email",
+        )
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).with_for_update().first()
+    if user is None:
+        user = User(
+            auth0_id=auth0_id,
+            email=registration.email,
+            first_name=registration.first_name,
+            last_name=registration.last_name,
+        )
+        db.add(user)
+        db.flush()
+    elif user.email is None:
+        user.email = registration.email
+
+    if registration.user_id is not None and registration.user_id != user.id:
+        raise HTTPException(
+            status_code=409, detail="Registration has already been claimed"
+        )
+
+    other_registration = (
+        db.query(EventRegistration)
+        .filter(
+            EventRegistration.event_id == event.id,
+            EventRegistration.user_id == user.id,
+            EventRegistration.id != registration.id,
+        )
+        .first()
+    )
+    if other_registration is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This account is already linked to another event registration",
+        )
+
+    if registration.user_id is None:
+        registration.user_id = user.id
+        registration.claimed_at = datetime.now(timezone.utc)
+
+    if registration_is_pass_eligible(event, registration):
+        if registration.event_pass is None:
+            registration.event_pass = EventPass()
+    elif (
+        registration.event_pass is not None
+        and registration.event_pass.state == "active"
+    ):
+        registration.event_pass.state = "revoked"
+        registration.event_pass.revoked_at = datetime.now(timezone.utc)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409, detail="Registration was claimed by another account"
+        )
+
+    registration = (
+        db.query(EventRegistration)
+        .options(
+            joinedload(EventRegistration.event_pass),
+            joinedload(EventRegistration.check_ins),
+            joinedload(EventRegistration.email_deliveries),
+            joinedload(EventRegistration.team_membership)
+            .joinedload(EventTeamMember.team)
+            .joinedload(EventTeam.members),
+        )
+        .filter(EventRegistration.id == registration.id)
+        .first()
+    )
+    return MyEventResponse(
+        event=EventResponse.model_validate(event),
+        claimed=True,
+        claim_required=False,
+        registration=_my_registration_response(registration),
+    )
+
+
+@router.get(
+    "/{slug}/notifications",
+    response_model=NotificationConfigResponse,
+)
+async def get_event_notification_config(
+    slug: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    try:
+        settings = WebPushSettings.from_environment()
+    except RuntimeError:
+        raise HTTPException(
+            status_code=503,
+            detail="Event notifications are temporarily unavailable",
+        )
+
+    subscribed = (
+        db.query(EventPushSubscription.id)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.registration_id == registration.id,
+            EventPushSubscription.active.is_(True),
+        )
+        .first()
+        is not None
+    )
+    return NotificationConfigResponse(
+        enabled=settings.enabled,
+        subscribed=subscribed,
+        public_key=settings.public_key if settings.enabled else None,
+        schedule_count=len(DUQUANTUM_NOTIFICATIONS),
+        first_notification_at=DUQUANTUM_NOTIFICATIONS[0].scheduled_for,
+        last_notification_at=DUQUANTUM_NOTIFICATIONS[-1].scheduled_for,
+    )
+
+
+@router.post(
+    "/{slug}/notifications/subscriptions",
+    response_model=PushSubscriptionResponse,
+)
+async def create_event_push_subscription(
+    slug: str,
+    request: PushSubscriptionRequest,
+    user_agent: Optional[str] = Header(default=None, max_length=500),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    try:
+        settings = WebPushSettings.from_environment()
+    except RuntimeError:
+        settings = None
+    if settings is None or not settings.enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Event notifications are not available yet",
+        )
+
+    endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
+    subscription = (
+        db.query(EventPushSubscription)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.endpoint_hash == endpoint_hash,
+        )
+        .with_for_update()
+        .first()
+    )
+    if subscription is None:
+        subscription = EventPushSubscription(
+            event_id=event.id,
+            registration_id=registration.id,
+            endpoint=request.endpoint,
+            endpoint_hash=endpoint_hash,
+        )
+        db.add(subscription)
+    else:
+        subscription.registration_id = registration.id
+        subscription.endpoint = request.endpoint
+
+    subscription.p256dh = request.keys.p256dh
+    subscription.auth = request.keys.auth
+    subscription.user_agent = user_agent
+    subscription.active = True
+    subscription.disabled_at = None
+    subscription.last_error = None
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This browser notification subscription could not be saved",
+        )
+
+    return PushSubscriptionResponse(
+        subscribed=True,
+        message="DuQuantum event alerts are enabled on this device.",
+    )
+
+
+@router.delete(
+    "/{slug}/notifications/subscriptions",
+    response_model=PushSubscriptionResponse,
+)
+async def delete_event_push_subscriptions(
+    slug: str,
+    request: PushUnsubscriptionRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_notification_event_or_404(db, slug)
+    registration = get_claimed_registration(db, event=event, auth_payload=auth_payload)
+    endpoint_hash = hashlib.sha256(request.endpoint.encode("utf-8")).hexdigest()
+    subscription = (
+        db.query(EventPushSubscription)
+        .filter(
+            EventPushSubscription.event_id == event.id,
+            EventPushSubscription.registration_id == registration.id,
+            EventPushSubscription.endpoint_hash == endpoint_hash,
+            EventPushSubscription.active.is_(True),
+        )
+        .first()
+    )
+    if subscription is not None:
+        subscription.active = False
+        subscription.disabled_at = datetime.now(timezone.utc)
+        subscription.last_error = "user_unsubscribed"
+    db.commit()
+    return PushSubscriptionResponse(
+        subscribed=False,
+        message="DuQuantum event alerts are disabled.",
+    )
+
+
+@router.get("/{slug}/teams", response_model=AdminTeamListResponse)
+async def list_event_teams(
+    slug: str,
+    q: str = "",
+    track: Optional[str] = None,
+    challenge: Optional[str] = None,
+    source: Optional[str] = None,
+    match_status: Optional[str] = Query(
+        default=None, pattern="^(matched|unmatched|ambiguous)$"
+    ),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """List every active final team, including teams with no portal links."""
+    event = get_event_or_404(db, slug)
+    admin = get_role_user(auth_payload, db)
+    require_admin(db, admin.id)
+
+    query = db.query(EventTeam).filter(
+        EventTeam.event_id == event.id,
+        EventTeam.active.is_(True),
+    )
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                EventTeam.name.ilike(pattern),
+                EventTeam.team_number.ilike(pattern),
+                EventTeam.assigned_track.ilike(pattern),
+                EventTeam.assigned_challenge.ilike(pattern),
+                EventTeam.sponsor_name.ilike(pattern),
+                EventTeam.formation_source.ilike(pattern),
+                EventTeam.members.any(
+                    or_(
+                        EventTeamMember.display_name.ilike(pattern),
+                        EventTeamMember.first_name.ilike(pattern),
+                        EventTeamMember.last_name.ilike(pattern),
+                        EventTeamMember.email.ilike(pattern),
+                        EventTeamMember.discord_username.ilike(pattern),
+                    )
+                ),
+            )
+        )
+    if track is not None:
+        query = query.filter(
+            func.lower(EventTeam.assigned_track) == track.strip().lower()
+        )
+    if challenge is not None:
+        query = query.filter(
+            func.lower(EventTeam.assigned_challenge) == challenge.strip().lower()
+        )
+    if source is not None:
+        query = query.filter(
+            func.lower(EventTeam.formation_source) == source.strip().lower()
+        )
+    if match_status is not None:
+        query = query.filter(
+            EventTeam.members.any(EventTeamMember.match_status == match_status)
+        )
+
+    total = query.with_entities(func.count(EventTeam.id)).scalar() or 0
+    teams = (
+        query.options(joinedload(EventTeam.members))
+        .order_by(cast(EventTeam.team_number, Integer).asc(), EventTeam.name.asc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return AdminTeamListResponse(
+        teams=[_team_response_from_team(team, admin=True) for team in teams],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/{slug}/registrations", response_model=AdminRegistrationListResponse)
+async def list_event_registrations(
+    slug: str,
+    q: str = "",
+    admission_status: Optional[str] = None,
+    rsvp_status: Optional[str] = None,
+    claimed: Optional[bool] = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_event_or_404(db, slug)
+    admin = get_role_user(auth_payload, db)
+    require_admin(db, admin.id)
+
+    query = db.query(EventRegistration).filter(EventRegistration.event_id == event.id)
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                EventRegistration.first_name.ilike(pattern),
+                EventRegistration.last_name.ilike(pattern),
+                EventRegistration.preferred_name.ilike(pattern),
+                EventRegistration.email.ilike(pattern),
+                EventRegistration.university.ilike(pattern),
+                EventRegistration.team_membership.has(
+                    and_(
+                        EventTeamMember.match_status == "matched",
+                        EventTeamMember.team.has(
+                            and_(
+                                EventTeam.active.is_(True),
+                                or_(
+                                    EventTeam.name.ilike(pattern),
+                                    EventTeam.team_number.ilike(pattern),
+                                    EventTeam.track_preference.ilike(pattern),
+                                    EventTeam.assigned_track.ilike(pattern),
+                                    EventTeam.assigned_challenge.ilike(pattern),
+                                    EventTeam.sponsor_name.ilike(pattern),
+                                    EventTeam.sponsor_contact_name.ilike(pattern),
+                                    EventTeam.sponsor_contact_email.ilike(pattern),
+                                ),
+                            )
+                        ),
+                    )
+                ),
+            )
+        )
+    if admission_status is not None:
+        query = query.filter(EventRegistration.admission_status == admission_status)
+    if rsvp_status is not None:
+        query = query.filter(EventRegistration.rsvp_status == rsvp_status)
+    if claimed is True:
+        query = query.filter(EventRegistration.user_id.is_not(None))
+    elif claimed is False:
+        query = query.filter(EventRegistration.user_id.is_(None))
+
+    total = query.with_entities(func.count(EventRegistration.id)).scalar() or 0
+    registrations = (
+        query.options(
+            joinedload(EventRegistration.event_pass),
+            joinedload(EventRegistration.check_ins),
+            joinedload(EventRegistration.email_deliveries),
+            joinedload(EventRegistration.team_membership)
+            .joinedload(EventTeamMember.team)
+            .joinedload(EventTeam.members),
+        )
+        .order_by(
+            EventRegistration.last_name.asc().nullslast(),
+            EventRegistration.first_name.asc().nullslast(),
+            EventRegistration.email.asc(),
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return AdminRegistrationListResponse(
+        registrations=[_admin_registration_response(item) for item in registrations],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/{slug}/check-ins", response_model=EventCheckInResponse)
+async def create_event_check_in(
+    slug: str,
+    request: EventCheckInRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_event_or_404(db, slug)
+    scanner = get_role_user(auth_payload, db)
+    require_check_in(db, scanner.id)
+
+    checkpoint = request.checkpoint.strip().lower()
+    if not CHECKPOINT_PATTERN.fullmatch(checkpoint):
+        raise HTTPException(status_code=422, detail="Invalid checkpoint key")
+
+    event_pass = (
+        db.query(EventPass)
+        .join(EventRegistration, EventPass.registration_id == EventRegistration.id)
+        .filter(
+            EventPass.public_id == request.pass_id.strip(),
+            EventPass.state == "active",
+            EventRegistration.event_id == event.id,
+        )
+        .with_for_update()
+        .first()
+    )
+    if event_pass is None:
+        raise HTTPException(
+            status_code=404, detail="Active pass not found for this event"
+        )
+
+    return _record_event_check_in(db, event, event_pass.registration, scanner, checkpoint)
+
+
+@router.post(
+    "/{slug}/registrations/{registration_id}/check-ins",
+    response_model=EventCheckInResponse,
+)
+async def create_manual_event_check_in(
+    slug: str,
+    registration_id: UUID,
+    request: ManualEventCheckInRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Admins can check in an identified attendee even without a claimed pass."""
+    event = get_event_or_404(db, slug)
+    scanner = get_role_user(auth_payload, db)
+    require_admin(db, scanner.id)
+    checkpoint = request.checkpoint.strip().lower()
+    if not CHECKPOINT_PATTERN.fullmatch(checkpoint):
+        raise HTTPException(status_code=422, detail="Invalid checkpoint key")
+    registration = (
+        db.query(EventRegistration)
+        .filter(
+            EventRegistration.id == registration_id,
+            EventRegistration.event_id == event.id,
+        )
+        .with_for_update()
+        .one_or_none()
+    )
+    if registration is None:
+        raise HTTPException(status_code=404, detail="Registration not found for this event")
+    if (
+        registration.event_pass is not None
+        and registration.event_pass.state != "active"
+    ):
+        raise HTTPException(status_code=403, detail="Attendee pass is not active")
+    return _record_event_check_in(db, event, registration, scanner, checkpoint)
+
+
+def _record_event_check_in(
+    db: Session,
+    event: Event,
+    registration: EventRegistration,
+    scanner: User,
+    checkpoint: str,
+) -> EventCheckInResponse:
+    if not registration_is_pass_eligible(event, registration):
+        raise HTTPException(
+            status_code=403, detail="Registration is not eligible for check-in"
+        )
+
+    existing = (
+        db.query(EventCheckIn)
+        .filter(
+            EventCheckIn.event_id == event.id,
+            EventCheckIn.registration_id == registration.id,
+            EventCheckIn.checkpoint == checkpoint,
+        )
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Attendee already checked in at this checkpoint",
+                "checked_in_at": existing.checked_in_at.isoformat(),
+            },
+        )
+
+    check_in = EventCheckIn(
+        event_id=event.id,
+        registration_id=registration.id,
+        checkpoint=checkpoint,
+        checked_in_by=scanner.id,
+    )
+    db.add(check_in)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409, detail="Attendee already checked in at this checkpoint"
+        )
+    db.refresh(check_in)
+
+    return EventCheckInResponse(
+        id=check_in.id,
+        registration_id=registration.id,
+        first_name=registration.first_name,
+        last_name=registration.last_name,
+        preferred_name=registration.preferred_name,
+        checkpoint=check_in.checkpoint,
+        checked_in_at=check_in.checked_in_at,
+        checked_in_by=check_in.checked_in_by,
+    )
+
+
+@router.get("/{slug}/check-ins", response_model=EventCheckInListResponse)
+async def list_event_check_ins(
+    slug: str,
+    checkpoint: Optional[str] = None,
+    limit: int = Query(default=500, ge=1, le=1000),
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    event = get_event_or_404(db, slug)
+    scanner = get_role_user(auth_payload, db)
+    require_check_in(db, scanner.id)
+
+    query = (
+        db.query(EventCheckIn)
+        .join(
+            EventRegistration,
+            EventCheckIn.registration_id == EventRegistration.id,
+        )
+        .filter(EventCheckIn.event_id == event.id)
+    )
+    if checkpoint:
+        query = query.filter(EventCheckIn.checkpoint == checkpoint.strip().lower())
+    total = query.with_entities(func.count(EventCheckIn.id)).scalar() or 0
+    check_ins = query.order_by(EventCheckIn.checked_in_at.desc()).limit(limit).all()
+
+    return EventCheckInListResponse(
+        check_ins=[
+            EventCheckInResponse(
+                id=item.id,
+                registration_id=item.registration_id,
+                first_name=item.registration.first_name,
+                last_name=item.registration.last_name,
+                preferred_name=item.registration.preferred_name,
+                checkpoint=item.checkpoint,
+                checked_in_at=item.checked_in_at,
+                checked_in_by=item.checked_in_by,
+            )
+            for item in check_ins
+        ],
+        total=total,
+    )

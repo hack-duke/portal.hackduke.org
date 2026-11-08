@@ -118,13 +118,13 @@
   font-size: 1.1rem;
   font-weight: 600;
   background: transparent;
-  border: 2px solid #9C27B0;
-  color: #9C27B0;
+  border: 2px solid #9c27b0;
+  color: #9c27b0;
   transition: all 0.3s ease;
 }
 
 .manage-roles-btn:hover {
-  background: #9C27B0;
+  background: #9c27b0;
   color: white;
   transform: translateY(-2px);
 }
@@ -133,6 +133,55 @@
   background-color: transparent;
   border: 2px solid rgb(16, 49, 151);
   color: rgb(255, 255, 255);
+}
+
+.duquantum-admin-section {
+  margin-top: 48px;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(145deg, #171025, #0e0525);
+  border: 2px solid #632323;
+  color: #fffaf0;
+}
+
+.duquantum-admin-section span {
+  color: #f3b562;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.duquantum-admin-section h2 {
+  margin: 7px 0;
+}
+
+.duquantum-admin-section p {
+  color: #d7c5aa;
+  margin: 0;
+}
+
+.duquantum-admin-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.duquantum-admin-btn,
+.duquantum-scanner-btn {
+  min-width: 190px;
+  font-size: 0.95rem;
+  padding-inline: 1rem;
+}
+
+.duquantum-admin-btn {
+  background: #f3b562 !important;
+  color: #0e0525 !important;
+}
+.duquantum-scanner-btn {
+  background: #632323 !important;
+  color: #fffaf0 !important;
 }
 
 .modal-button {
@@ -172,6 +221,12 @@
     min-width: auto;
     width: 100%;
   }
+
+  .duquantum-admin-section,
+  .duquantum-admin-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 /* Export Section */
@@ -199,13 +254,13 @@
   min-width: 200px;
   font-size: 1rem;
   font-weight: 600;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   transition: all 0.3s ease;
 }
 
 .export-btn:hover:not(:disabled) {
-  background: #43A047;
+  background: #43a047;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }

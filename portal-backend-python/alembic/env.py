@@ -5,9 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models.base import (
-    Base,
-) 
+from models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -34,7 +32,6 @@ def get_database_url() -> str:
         )
     
     db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    print(f"alembic migrations on {db_url}")
     return db_url
 
 

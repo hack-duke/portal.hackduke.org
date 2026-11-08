@@ -1,0 +1,46 @@
+name: Move Halo into team 35
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: duquantum-account-reminders
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply the organizer requested replacement
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f -- key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          base=".duquantum-halo-${GITHUB_RUN_ID}"
+          scp -i key.pem -o StrictHostKeyChecking=no .github/scripts/move_halo_to_team_35.py "ec2-user@$EC2_IP:${base}.py"
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" bash -s -- "$base" << 'REMOTE'
+          set -euo pipefail
+          umask 077
+          base="$1"
+          case "$base" in .duquantum-halo-*) ;; *) exit 2 ;; esac
+          backend_id="$(docker-compose ps -q backend)"
+          test -n "$backend_id"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = healthy
+          private_dir="$HOME/data/private/duquantum-2026"
+          install -d -m 700 "$private_dir"
+          backup="/tmp/${base}-backup.json"
+          cleanup() {
+            if docker exec "$backend_id" test -f "$backup"; then
+              docker cp "$backend_id:$backup" "$private_dir/${base}-backup.json"
+              chmod 600 "$private_dir/${base}-backup.json"
+              docker exec "$backend_id" rm -f -- "$backup"
+            fi
+            rm -f -- "${base}.py"
+          }
+          trap cleanup EXIT
+          docker exec -e TEAM_CHANGE_BACKUP="$backup" "$backend_id" python -c "$(cat "${base}.py")"
+          REMOTE

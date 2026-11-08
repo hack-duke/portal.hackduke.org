@@ -149,6 +149,27 @@ const FormsLandingPage = () => {
         )}
 
         <div className="forms-grid">
+          <div className="form-card submitted duquantum-event-card">
+            <div className="form-card-header">
+              <div>
+                <span className="event-card-kicker">October 24–25, 2026</span>
+                <h2 className="form-card-title">DuQuantum Attendee Portal</h2>
+              </div>
+              <span className="badge submitted">Confirmation closed</span>
+            </div>
+            <p className="duquantum-event-copy">
+              Connect your submitted attendance confirmation and access your
+              event pass.
+            </p>
+            <div className="form-card-actions">
+              <Button
+                variant="primary"
+                onClick={() => navigate("/events/duquantum-2026")}
+              >
+                View DuQuantum Pass
+              </Button>
+            </div>
+          </div>
           {allForms.map((form) => {
             const status = formsStatus[form.formKey];
             return (

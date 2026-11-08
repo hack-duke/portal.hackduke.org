@@ -1,0 +1,21 @@
+name: Audit challenge attendance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read current challenge attendance counts
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_IP: ${{ secrets.EC2_IP }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f -- key.pem' EXIT
+          printf '%s' "$PRIVATE_KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no "ec2-user@$EC2_IP" 'set -eu; backend_id="$(docker-compose ps -q backend)"; test -n "$backend_id"; docker exec -i "$backend_id" python' < .github/scripts/audit_challenge_attendance.py
+
