@@ -14,10 +14,6 @@ import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
 import AdminRolesPage from "./pages/AdminRolesPage";
 import AdminEmailPage from "./pages/AdminEmailPage";
-import DuQuantumPortalPage from "./pages/DuQuantumPortalPage";
-import DuQuantumAccountSetupPage from "./pages/DuQuantumAccountSetupPage";
-import DuQuantumAdminPage from "./pages/DuQuantumAdminPage";
-import DuQuantumScannerPage from "./pages/DuQuantumScannerPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -124,22 +120,6 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminEmailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/events/duquantum-2026/attendees"
-          element={
-            <ProtectedRoute>
-              <DuQuantumAdminPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/events/duquantum-2026/check-in"
-          element={
-            <ProtectedRoute>
-              <DuQuantumScannerPage />
             </ProtectedRoute>
           }
         />
