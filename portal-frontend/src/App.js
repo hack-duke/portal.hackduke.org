@@ -136,6 +136,10 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminEmailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/events/duquantum-2026/attendees"
           element={
             <ProtectedRoute>
