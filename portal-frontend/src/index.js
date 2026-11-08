@@ -4,6 +4,7 @@ import App from "./App";
 import { Auth0Provider } from "@auth0/auth0-react";
 import "@fontsource/urbanist/700.css";
 import "@fontsource/oxygen";
+import { retireEventServiceWorkers } from "./utils/serviceWorkerCleanup";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -30,24 +31,14 @@ root.render(
         scope: "openid profile email offline_access",
       }}
       onRedirectCallback={(appState) => {
-        window.history.replaceState(
-          {},
-          document.title,
-          getSafeReturnTo(appState),
-        );
+        window.history.replaceState({}, document.title, getSafeReturnTo(appState));
       }}
       useRefreshTokens={true}
       cacheLocation="localstorage"
     >
       <App />
     </Auth0Provider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/duquantum-sw.js", { scope: "/" })
-      .catch(() => {});
-  });
-}
+retireEventServiceWorkers();
