@@ -16,6 +16,8 @@ from models.response import Response
 from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
+from utils.ses import send_email
+from routers.schema import SendEmailRequest
 
 
 def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
@@ -966,3 +968,34 @@ async def remove_exception_email(
         form_key=form.form_key,
         exception_emails=form.exception_emails or []
     )
+
+
+@router.post("/send-email")
+async def send_email_endpoint(
+    request: SendEmailRequest,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Send an email via AWS SES."""
+    auth0_id = auth_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
+
+    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    _require_admin(db, user.id)
+
+    try:
+        send_email(
+            to=request.to,
+            subject=request.subject,
+            body=request.body,
+            cc=request.cc,
+            bcc=request.bcc,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+    return {"message": "Email sent successfully"}
