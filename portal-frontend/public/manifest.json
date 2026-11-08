@@ -1,25 +1,15 @@
 {
-  "id": "/events/duquantum-2026",
-  "short_name": "DuQuantum",
-  "name": "DuQuantum 2026 Attendee Portal",
-  "description": "Your DuQuantum 2026 attendee pass and live event alerts.",
+  "short_name": "HackDuke",
+  "name": "HackDuke Portal",
   "icons": [
     {
-      "src": "/duquantum-2026/icon-192.png",
+      "src": "/images/Small_Logo.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any"
-    },
-    {
-      "src": "/duquantum-2026/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any"
+      "sizes": "any"
     }
   ],
-  "start_url": "/events/duquantum-2026",
-  "scope": "/",
+  "start_url": ".",
   "display": "standalone",
-  "theme_color": "#331a5c",
-  "background_color": "#0e0525"
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
 }

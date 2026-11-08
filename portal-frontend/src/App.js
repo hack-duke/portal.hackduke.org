@@ -80,18 +80,6 @@ function App() {
         />
         <Route path="/qr" element={<QRDisplayPage />} />
         <Route
-          path="/events/duquantum-2026/account-setup"
-          element={<DuQuantumAccountSetupPage />}
-        />
-        <Route
-          path="/events/duquantum-2026"
-          element={
-            <ProtectedRoute>
-              <DuQuantumPortalPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/admin"
           element={
             <ProtectedRoute>
