@@ -10,9 +10,6 @@ export const Navbar = () => {
     <nav className="navbar">
       <Logo />
       <div className="nav-buttons">
-        <Link to="/events/duquantum-2026" className="nav-button">
-          DuQuantum pass
-        </Link>
         <Link to="/" className="nav-button">
           application
         </Link>
@@ -24,15 +21,14 @@ export const Navbar = () => {
         >
           event
         </a>
-        <button
-          type="button"
+        <span
           onClick={() =>
             logout({ logoutParams: { returnTo: window.location.origin } })
           }
           className="nav-button"
         >
           log out
-        </button>
+        </span>
       </div>
     </nav>
   );
