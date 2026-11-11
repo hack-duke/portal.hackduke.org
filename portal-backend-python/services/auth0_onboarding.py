@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable
 from urllib.parse import quote, urlparse
 
-import httpx
+import httpx2
 
 
 @dataclass(frozen=True)
@@ -78,12 +78,12 @@ class Auth0OnboardingClient:
         self,
         settings: Auth0OnboardingSettings,
         *,
-        http_client: httpx.AsyncClient | None = None,
+        http_client: httpx2.AsyncClient | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.time,
     ):
         self.settings = settings
-        self.http = http_client or httpx.AsyncClient(timeout=20.0)
+        self.http = http_client or httpx2.AsyncClient(timeout=20.0)
         self._owns_client = http_client is None
         self._sleep = sleep
         self._clock = clock
@@ -106,7 +106,7 @@ class Auth0OnboardingClient:
 
     async def _request(
         self, method: str, url: str, **kwargs: Any
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         """Retry Auth0 rate limits without logging request or attendee data."""
 
         for attempt in range(5):

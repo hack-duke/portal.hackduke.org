@@ -5,7 +5,7 @@ import os
 import time
 from typing import Optional
 
-import httpx
+import httpx2
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import (
@@ -60,7 +60,7 @@ class VerifyToken:
             ):
                 return self._jwks
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx2.AsyncClient(timeout=10.0) as client:
                 response = await client.get(self.jwks_url)
             response.raise_for_status()
             self._jwks = jwt.PyJWKSet.from_dict(response.json())

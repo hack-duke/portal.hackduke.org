@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote
 
-import httpx
+import httpx2
 
 
 class Auth0ManagementClient:
@@ -27,7 +27,7 @@ class Auth0ManagementClient:
         self._token_expires_at: datetime | None = None
         self._token_lock = asyncio.Lock()
 
-    async def _get_management_token(self, client: httpx.AsyncClient) -> str:
+    async def _get_management_token(self, client: httpx2.AsyncClient) -> str:
         """Get a valid Management API access token, refreshing if needed."""
         now = datetime.now(timezone.utc)
         if (
@@ -65,7 +65,7 @@ class Auth0ManagementClient:
 
     async def search_users_by_email(self, email: str) -> list[dict[str, Any]]:
         """Search for users by email address."""
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx2.AsyncClient(timeout=20.0) as client:
             token = await self._get_management_token(client)
             response = await client.get(
                 f"https://{self.domain}/api/v2/users-by-email",
@@ -77,7 +77,7 @@ class Auth0ManagementClient:
 
     async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
         """Get a user by Auth0 ID, returning ``None`` when it does not exist."""
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx2.AsyncClient(timeout=20.0) as client:
             token = await self._get_management_token(client)
             response = await client.get(
                 f"https://{self.domain}/api/v2/users/{quote(user_id, safe='')}",

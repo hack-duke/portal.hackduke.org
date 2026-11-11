@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 import routers.events as events_module
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from db import get_db
 from models import (

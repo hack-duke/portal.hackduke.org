@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
@@ -272,7 +272,7 @@ async def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
     def handler(request):
         requests.append(request)
         if request.url.path == "/oauth/token":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
@@ -281,12 +281,12 @@ async def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
             len([item for item in requests if item.url.path.endswith("users-by-email")])
             == 1
         ):
-            return httpx.Response(
+            return httpx2.Response(
                 429,
                 request=request,
                 headers={"retry-after": "0"},
             )
-        return httpx.Response(200, request=request, json=[])
+        return httpx2.Response(200, request=request, json=[])
 
     settings = Auth0OnboardingSettings(
         domain="tenant.example.org",
@@ -299,7 +299,7 @@ async def test_auth0_client_retries_rate_limits_without_exposing_lookup_data():
     async def sleeper(delay):
         sleeps.append(delay)
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(
             settings,
             http_client=http_client,
@@ -321,12 +321,12 @@ async def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
     def handler(request):
         requests.append(request)
         if request.url.path == "/oauth/token":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        return httpx.Response(200, request=request, json={})
+        return httpx2.Response(200, request=request, json={})
 
     settings = Auth0OnboardingSettings(
         domain="tenant.example.org",
@@ -334,7 +334,7 @@ async def test_auth0_client_sets_chosen_password_and_verifies_mailbox():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
             await auth0_client.set_initial_password(
                 user_id="auth0|attendee",
@@ -361,7 +361,7 @@ async def test_auth0_password_reset_uses_the_portal_client_and_database_connecti
 
     def handler(request):
         requests.append(request)
-        return httpx.Response(200, request=request, text="reset email sent")
+        return httpx2.Response(200, request=request, text="reset email sent")
 
     settings = Auth0OnboardingSettings(
         domain="tenant.example.org",
@@ -369,7 +369,7 @@ async def test_auth0_password_reset_uses_the_portal_client_and_database_connecti
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(settings, http_client=http_client) as client:
             await client.request_password_reset(
                 email="Organizer@Example.org ",
@@ -390,12 +390,12 @@ async def test_auth0_password_reset_uses_the_portal_client_and_database_connecti
 async def test_auth0_password_policy_rejection_has_a_safe_exception():
     def handler(request):
         if request.url.path == "/oauth/token":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        return httpx.Response(
+        return httpx2.Response(
             400,
             request=request,
             json={
@@ -410,7 +410,7 @@ async def test_auth0_password_policy_rejection_has_a_safe_exception():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
             with pytest.raises(Auth0PasswordRejected):
                 await auth0_client.set_initial_password(
@@ -423,12 +423,12 @@ async def test_auth0_password_policy_rejection_has_a_safe_exception():
 async def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password():
     def handler(request):
         if request.url.path == "/oauth/token":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        return httpx.Response(
+        return httpx2.Response(
             400,
             request=request,
             json={
@@ -443,9 +443,9 @@ async def test_auth0_non_policy_bad_request_is_not_reported_as_a_weak_password()
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(settings, http_client=http_client) as auth0_client:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(httpx2.HTTPStatusError):
                 await auth0_client.set_initial_password(
                     user_id="auth0|attendee",
                     password="A-strong-private-password-2026",
@@ -459,12 +459,12 @@ async def test_auth0_password_change_ticket_is_secure_and_bounded():
     def handler(request):
         requests.append(request)
         if request.url.path == "/oauth/token":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 request=request,
                 json={"access_token": "management-token", "expires_in": 3600},
             )
-        return httpx.Response(
+        return httpx2.Response(
             201,
             request=request,
             json={"ticket": "https://tenant.example.org/lo/reset?ticket=single-use"},
@@ -476,7 +476,7 @@ async def test_auth0_password_change_ticket_is_secure_and_bounded():
         management_client_secret="client-secret",
         database_connection="Username-Password-Authentication",
     )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
         async with Auth0OnboardingClient(settings, http_client=http_client) as client:
             ticket = await client.create_password_change_ticket(
                 user_id="auth0|organizers",
@@ -500,7 +500,7 @@ async def test_auth0_password_change_ticket_is_secure_and_bounded():
     }
 
     with pytest.raises(ValueError):
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
             async with Auth0OnboardingClient(settings, http_client=http_client) as client:
                 await client.create_password_change_ticket(
                     user_id="auth0|organizers",

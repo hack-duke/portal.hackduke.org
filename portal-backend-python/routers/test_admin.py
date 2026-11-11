@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select, delete
 
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from uuid import uuid4
 from datetime import datetime, timedelta
 import json
