@@ -1,5 +1,3 @@
-from unittest.mock import AsyncMock
-
 import pytest
 import pytest_asyncio
 from sqlalchemy import select, delete
@@ -17,6 +15,8 @@ from db import get_db
 from routers.application import auth
 from routers.schema import GetApplicationResponse, SubmitApplicationResponse
 from models.response import Response
+from aioboto3 import Session
+from aiomoto import mock_aws
 import json
 
 pytestmark = pytest.mark.asyncio
@@ -111,79 +111,82 @@ class TestApplication:
         sample_form,
         test_session, client,
     ):
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+        monkeypatch.setenv("AWS_REGION", "us-east-1")
         monkeypatch.setenv("S3_BUCKET_NAME", "test")
-        s3_client = AsyncMock()
-        s3_client.__aenter__.return_value = s3_client
-        monkeypatch.setattr("utils.s3.get_s3_client", lambda: s3_client)
+        async with mock_aws():
+            async with Session().resource("s3", region_name="us-east-1") as s3:
+                await s3.create_bucket(Bucket="test")
 
-        form_data = {
-            "name": "John Doe",
-            "email": "john@example.com",
-            "file": "test.pdf",
-        }
-        files = [
-            (
-                "files",
-                (
-                    "test.pdf",
-                    b"I love HackDuke!",
-                    "application/pdf",
-                ),
-            )
-        ]
+                form_data = {
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "file": "test.pdf",
+                }
+                files = [
+                    (
+                        "files",
+                        (
+                            "test.pdf",
+                            b"I love HackDuke!",
+                            "application/pdf",
+                        ),
+                    )
+                ]
 
-        response = await client.post(
-            "application/submit",
-            params={"form_key": "test_form"},
-            data={
-                "form_key": "test_form",
-                "form_data": json.dumps(form_data),
-            },
-            files=files,
-        )
+                response = await client.post(
+                    "application/submit",
+                    params={"form_key": "test_form"},
+                    data={
+                        "form_key": "test_form",
+                        "form_data": json.dumps(form_data),
+                    },
+                    files=files,
+                )
 
-        response_obj = SubmitApplicationResponse(**response.json())
-        assert response.status_code == 200
-        assert response_obj.applicationId is not None
+                response_obj = SubmitApplicationResponse(**response.json())
+                assert response.status_code == 200
+                assert response_obj.applicationId is not None
 
-        application = (
-            await test_session.scalars(
-                select(Application)
-                .filter(Application.id == response_obj.applicationId)
-                .limit(1)
-            )
-        ).first()
-        assert application is not None
-        assert application.status == ApplicationStatus.PENDING
-        assert application.user_id == sample_user.id
+                application = (
+                    await test_session.scalars(
+                        select(Application)
+                        .filter(Application.id == response_obj.applicationId)
+                        .limit(1)
+                    )
+                ).first()
+                assert application is not None
+                assert application.status == ApplicationStatus.PENDING
+                assert application.user_id == sample_user.id
 
-        for key, value in form_data.items():
-            if key != "file":
-                assert application.submission_json[key] == value
+                for key, value in form_data.items():
+                    if key != "file":
+                        assert application.submission_json[key] == value
 
-        questions = (
-            await test_session.scalars(
-                select(Question).filter(Question.form_key == sample_form.form_key)
-            )
-        ).all()
+                questions = (
+                    await test_session.scalars(
+                        select(Question).filter(
+                            Question.form_key == sample_form.form_key
+                        )
+                    )
+                ).all()
 
-        responses = (
-            await test_session.scalars(
-                select(Response).filter(Response.application_id == application.id)
-            )
-        ).all()
-        assert len(responses) == 3
+                responses = (
+                    await test_session.scalars(
+                        select(Response).filter(
+                            Response.application_id == application.id
+                        )
+                    )
+                ).all()
+                assert len(responses) == 3
 
-        assert responses[0].question_id == questions[0].id
-        assert responses[0].text_answer == form_data["name"]
-        assert responses[1].question_id == questions[1].id
-        assert responses[1].text_answer == form_data["email"]
-        assert responses[2].question_id == questions[2].id
-        s3_key = responses[2].file_s3_key
+                assert responses[0].question_id == questions[0].id
+                assert responses[0].text_answer == form_data["name"]
+                assert responses[1].question_id == questions[1].id
+                assert responses[1].text_answer == form_data["email"]
+                assert responses[2].question_id == questions[2].id
 
-        s3_client.put_object.assert_awaited_once_with(
-            Bucket="test",
-            Key=s3_key,
-            Body=b"I love HackDuke!",
-            ContentType="application/pdf",
-        )
+                s3_object = await s3.Object("test", responses[2].file_s3_key)
+                file_response = await s3_object.get()
+                assert await file_response["Body"].read() == b"I love HackDuke!"
