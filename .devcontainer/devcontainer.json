@@ -2,6 +2,22 @@
   "name": "Portal Dev",
   "context": ".",
   "dockerFile": "Dockerfile",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "24"
+    },
+    "ghcr.io/devcontainers/features/python": {
+      "version": "3.12",
+      "installTools": false
+    },
+    "ghcr.io/devcontainers-extra/features/poetry:2": {
+      "version": "1.8.3"
+    },
+    "ghcr.io/roul/devcontainer-features/vault:1": {}
+  },
+  "containerEnv": {
+    "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+  },
   "remoteUser": "vscode",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000],
@@ -13,10 +29,20 @@
         "ms-azuretools.vscode-docker",
         "ms-vscode.makefile-tools",
         "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
         "charliermarsh.ruff",
         "dbaeumer.vscode-eslint"
       ],
       "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/portal-backend-python/.venv/bin/python",
+        "python-envs.pythonProjects": [
+          {
+            "path": "./portal-backend-python",
+            "envManager": "ms-python.python:poetry",
+            "packageManager": "ms-python.python:poetry"
+          }
+        ],
         "editor.formatOnSave": true,
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
