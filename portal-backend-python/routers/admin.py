@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Security, Form
-from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from sqlalchemy import or_
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
@@ -18,17 +20,17 @@ from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
 
 
-def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
+async def _user_has_role(db: AsyncSession, user_id: UUID, role: RoleEnum) -> bool:
     """Check if a user has a specific role."""
-    return db.query(UserRole).filter(
+    return (await db.scalars(select(UserRole).where(
         UserRole.user_id == user_id,
         UserRole.role == role
-    ).first() is not None
+    ).limit(1))).first() is not None
 
 
-def _require_admin(db: Session, user_id: UUID) -> None:
+async def _require_admin(db: AsyncSession, user_id: UUID) -> None:
     """Raise HTTPException if user is not an admin."""
-    if not _user_has_role(db, user_id, RoleEnum.ADMIN):
+    if not await _user_has_role(db, user_id, RoleEnum.ADMIN):
         raise HTTPException(status_code=403, detail="User is not an admin")
 
 router = APIRouter()
@@ -131,12 +133,12 @@ def _is_lock_expired(locked_at: Optional[datetime]) -> bool:
     return datetime.now(timezone.utc) - locked_at > timedelta(seconds=LOCK_TIMEOUT_SECONDS)
 
 
-def _release_expired_locks(db: Session) -> None:
+async def _release_expired_locks(db: AsyncSession) -> None:
     """Release all locks that have timed out, including skipped apps."""
     # Find apps with locked_at set (either locked or skipped)
-    apps_with_lock_time = db.query(Application).filter(
+    apps_with_lock_time = (await db.scalars(select(Application).where(
         Application.locked_at.isnot(None)
-    ).all()
+    ))).all()
 
     changed = False
     for app in apps_with_lock_time:
@@ -146,24 +148,24 @@ def _release_expired_locks(db: Session) -> None:
             changed = True
 
     if changed:
-        db.commit()
+        await db.commit()
 
 
-def _invalidate_other_sessions(
-    db: Session, user_id: UUID, new_session_id: str
+async def _invalidate_other_sessions(
+    db: AsyncSession, user_id: UUID, new_session_id: str
 ) -> None:
     """Invalidate all other sessions for this user."""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (await db.scalars(select(User).where(User.id == user_id).limit(1))).first()
     if user:
         user.current_session_id = new_session_id
-        db.commit()
+        await db.commit()
 
 
-def _validate_session(
-    db: Session, user_id: UUID, session_id: str
+async def _validate_session(
+    db: AsyncSession, user_id: UUID, session_id: str
 ) -> bool:
     """Validate that the session is still active."""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (await db.scalars(select(User).where(User.id == user_id).limit(1))).first()
     if not user or user.current_session_id != session_id:
         return False
     return True
@@ -172,7 +174,7 @@ def _validate_session(
 @router.post("/auth/check", response_model=AdminCheckResponse)
 async def check_admin_status(
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Check if the authenticated user has any privileged role.
@@ -184,33 +186,33 @@ async def check_admin_status(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get or create user
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         user = User(auth0_id=auth0_id)
         db.add(user)
-        db.flush()
+        await db.flush()
 
     # Get all roles for this user
-    user_roles = db.query(UserRole).filter(UserRole.user_id == user.id).all()
+    user_roles = (await db.scalars(select(UserRole).where(UserRole.user_id == user.id))).all()
     role_names = [ur.role.value for ur in user_roles]
     is_admin = RoleEnum.ADMIN.value in role_names
     has_any_role = len(role_names) > 0
 
     if not has_any_role:
-        db.commit()
+        await db.commit()
         return AdminCheckResponse(is_admin=False, roles=[])
 
     # Release any locks held by this user (e.g., from a previous abruptly closed session)
-    locked_apps = db.query(Application).filter(Application.locked_by == user.id).all()
+    locked_apps = (await db.scalars(select(Application).where(Application.locked_by == user.id))).all()
     if locked_apps:
         for app in locked_apps:
             app.locked_by = None
             app.locked_at = None
-        db.commit()
+        await db.commit()
 
     # Create new session ID and invalidate other sessions
     new_session_id = str(uuid_lib.uuid4())
-    _invalidate_other_sessions(db, user.id, new_session_id)
+    await _invalidate_other_sessions(db, user.id, new_session_id)
 
     return AdminCheckResponse(is_admin=is_admin, roles=role_names, session_id=new_session_id)
 
@@ -219,7 +221,7 @@ async def check_admin_status(
 async def get_next_application(
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get the next PENDING application for judging.
@@ -230,34 +232,33 @@ async def get_next_application(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Release expired locks
-    _release_expired_locks(db)
+    await _release_expired_locks(db)
 
     # Get next PENDING application (not locked, or locked by this user)
     # Only from the current form
     # Order by locked_at NULLS FIRST so skipped apps go to back of queue
     next_app = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.PENDING)
-        .filter(
+        (await db.scalars(select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.PENDING)
+        .where(
             or_(
                 Application.locked_by.is_(None),
                 Application.locked_by == user.id,
             )
         )
-        .order_by(Application.locked_at.asc().nullsfirst())
-        .first()
+        .order_by(Application.locked_at.asc().nullsfirst()).limit(1))).first()
     )
 
     if not next_app:
@@ -265,16 +266,15 @@ async def get_next_application(
 
     # Lock the application to this user
     next_app.locked_by = user.id
-    next_app.locked_at = datetime.now(timezone.utc)
-    db.commit()
+    next_app.locked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    await db.commit()
 
     # Fetch resume URL if available
     resume_url = None
     resume_response = (
-        db.query(Response)
-        .filter(Response.application_id == next_app.id)
-        .filter(Response.question_id == UUID(RESUME_QUESTION_ID))
-        .first()
+        (await db.scalars(select(Response)
+        .where(Response.application_id == next_app.id)
+        .where(Response.question_id == UUID(RESUME_QUESTION_ID)).limit(1))).first()
     )
     if resume_response and resume_response.file_s3_key:
         # normalized_key = unquote(resume_response.file_s3_key)
@@ -298,7 +298,7 @@ async def submit_decision(
     decision_request: DecisionRequest,
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit a decision (accept/reject/pending) on an application.
@@ -308,14 +308,14 @@ async def submit_decision(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Get application
@@ -324,7 +324,7 @@ async def submit_decision(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    app = db.query(Application).filter(Application.id == app_uuid).first()
+    app = (await db.scalars(select(Application).where(Application.id == app_uuid).limit(1))).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
@@ -337,11 +337,11 @@ async def submit_decision(
     if decision == "accept":
         app.status = ApplicationStatus.ACCEPTED
         app.decided_by = user.id
-        app.decided_at = datetime.now(timezone.utc)
+        app.decided_at = datetime.now(timezone.utc).replace(tzinfo=None)
     elif decision == "reject":
         app.status = ApplicationStatus.REJECTED
         app.decided_by = user.id
-        app.decided_at = datetime.now(timezone.utc)
+        app.decided_at = datetime.now(timezone.utc).replace(tzinfo=None)
     elif decision == "pending":
         # Mark as pending, clear decided_by and decided_at
         app.status = ApplicationStatus.PENDING
@@ -349,8 +349,8 @@ async def submit_decision(
         app.decided_at = None
         # Keep locked_at updated so this app goes to back of queue
         app.locked_by = None
-        app.locked_at = datetime.now(timezone.utc)
-        db.commit()
+        app.locked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await db.commit()
         return ApplicationResponse(
             id=str(app.id),
             user_id=str(app.user_id),
@@ -365,7 +365,7 @@ async def submit_decision(
     # Unlock the application (for accept/reject)
     app.locked_by = None
     app.locked_at = None
-    db.commit()
+    await db.commit()
 
     return ApplicationResponse(
         id=str(app.id),
@@ -381,7 +381,7 @@ async def submit_decision(
 async def get_stats(
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get judging statistics.
@@ -392,60 +392,54 @@ async def get_stats(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Get global stats (only for current form)
     total_pending = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.PENDING)
-        .count()
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.PENDING)).order_by(None).subquery()))
     )
     total_accepted = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.ACCEPTED)
-        .count()
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.ACCEPTED)).order_by(None).subquery()))
     )
     total_rejected = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.REJECTED)
-        .count()
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.REJECTED)).order_by(None).subquery()))
     )
     total_confirmed = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.CONFIRMED)
-        .count()
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.CONFIRMED)).order_by(None).subquery()))
     )
 
     # Get per-user stats (only for current form)
     user_accepted = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(
             Application.status == ApplicationStatus.ACCEPTED,
             Application.decided_by == user.id,
-        )
-        .count()
+        )).order_by(None).subquery()))
     )
     user_rejected = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(
+        await db.scalar(select(func.count()).select_from((select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(
             Application.status == ApplicationStatus.REJECTED,
             Application.decided_by == user.id,
-        )
-        .count()
+        )).order_by(None).subquery()))
     )
 
     return AdminStatsResponse(
@@ -464,7 +458,7 @@ async def list_applications(
     status: Optional[str] = None,
     search: Optional[str] = None,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List all applications with optional filtering and search.
@@ -474,33 +468,33 @@ async def list_applications(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Build query
-    query = db.query(Application).filter(Application.form_key == CURRENT_FORM_KEY)
+    query = select(Application).where(Application.form_key == CURRENT_FORM_KEY)
 
     # Filter by status
     if status:
         status_upper = status.upper()
         if status_upper == "PENDING":
-            query = query.filter(Application.status == ApplicationStatus.PENDING)
+            query = query.where(Application.status == ApplicationStatus.PENDING)
         elif status_upper == "ACCEPTED":
-            query = query.filter(Application.status == ApplicationStatus.ACCEPTED)
+            query = query.where(Application.status == ApplicationStatus.ACCEPTED)
         elif status_upper == "REJECTED":
-            query = query.filter(Application.status == ApplicationStatus.REJECTED)
+            query = query.where(Application.status == ApplicationStatus.REJECTED)
         elif status_upper == "CONFIRMED":
-            query = query.filter(Application.status == ApplicationStatus.CONFIRMED)
+            query = query.where(Application.status == ApplicationStatus.CONFIRMED)
 
     # Get all applications
-    applications = query.order_by(Application.created_at.desc()).all()
+    applications = (await db.scalars(query.order_by(Application.created_at.desc()))).all()
 
     # Build response with search filtering (done in Python for JSON field search)
     result = []
@@ -548,7 +542,7 @@ async def get_application(
     app_id: str,
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get a specific application by ID.
@@ -559,14 +553,14 @@ async def get_application(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Get application
@@ -575,12 +569,12 @@ async def get_application(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    app = db.query(Application).filter(Application.id == app_uuid).first()
+    app = (await db.scalars(select(Application).where(Application.id == app_uuid).limit(1))).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
     # Release expired locks first
-    _release_expired_locks(db)
+    await _release_expired_locks(db)
 
     # Check lock status
     is_locked_by_other = False
@@ -593,16 +587,15 @@ async def get_application(
     else:
         # Lock is available or already ours - acquire it
         app.locked_by = user.id
-        app.locked_at = datetime.now(timezone.utc)
-        db.commit()
+        app.locked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await db.commit()
 
     # Fetch resume URL if available
     resume_url = None
     resume_response = (
-        db.query(Response)
-        .filter(Response.application_id == app.id)
-        .filter(Response.question_id == UUID(RESUME_QUESTION_ID))
-        .first()
+        (await db.scalars(select(Response)
+        .where(Response.application_id == app.id)
+        .where(Response.question_id == UUID(RESUME_QUESTION_ID)).limit(1))).first()
     )
     if resume_response and resume_response.file_s3_key:
         encoded_key = quote(resume_response.file_s3_key, safe='/')
@@ -626,7 +619,7 @@ async def release_application_lock(
     app_id: str,
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Release the lock on a specific application.
@@ -637,14 +630,14 @@ async def release_application_lock(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Get application
@@ -653,7 +646,7 @@ async def release_application_lock(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    app = db.query(Application).filter(Application.id == app_uuid).first()
+    app = (await db.scalars(select(Application).where(Application.id == app_uuid).limit(1))).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
@@ -661,7 +654,7 @@ async def release_application_lock(
     if app.locked_by == user.id:
         app.locked_by = None
         app.locked_at = None
-        db.commit()
+        await db.commit()
 
     return {"status": "released"}
 
@@ -670,7 +663,7 @@ async def release_application_lock(
 async def ping(
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Ping endpoint to validate session is still active.
@@ -681,12 +674,12 @@ async def ping(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     return {"status": "ok"}
@@ -695,7 +688,7 @@ async def ping(
 @router.post("/release-locks-beacon")
 async def release_locks_beacon(
     session_id: str = Form(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Release all locks for a session when the browser tab/window is closed.
@@ -707,9 +700,8 @@ async def release_locks_beacon(
 
     # Find the user with this active session
     user = (
-        db.query(User)
-        .filter(User.current_session_id == session_id)
-        .first()
+        (await db.scalars(select(User)
+        .where(User.current_session_id == session_id).limit(1))).first()
     )
 
     if not user:
@@ -718,9 +710,8 @@ async def release_locks_beacon(
 
     # Release all locks held by this user
     locked_apps = (
-        db.query(Application)
-        .filter(Application.locked_by == user.id)
-        .all()
+        (await db.scalars(select(Application)
+        .where(Application.locked_by == user.id))).all()
     )
 
     for app in locked_apps:
@@ -728,7 +719,7 @@ async def release_locks_beacon(
         app.locked_at = None
 
     if locked_apps:
-        db.commit()
+        await db.commit()
 
     return {"status": "released", "count": len(locked_apps)}
 
@@ -736,7 +727,7 @@ async def release_locks_beacon(
 @router.post("/logout")
 async def logout(
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Logout - clear all locks held by this user and clear their session.
@@ -746,20 +737,20 @@ async def logout(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
     # Clear session
     user.current_session_id = None
-    db.commit()
+    await db.commit()
 
     # Clear all locks held by this user
-    locked_apps = db.query(Application).filter(Application.locked_by == user.id).all()
+    locked_apps = (await db.scalars(select(Application).where(Application.locked_by == user.id))).all()
     for app in locked_apps:
         app.locked_by = None
         app.locked_at = None
-    db.commit()
+    await db.commit()
 
     return {"status": "logged out"}
 
@@ -768,7 +759,7 @@ async def logout(
 async def export_to_sheets(
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Export accepted and rejected applicants to Google Sheets.
@@ -779,41 +770,38 @@ async def export_to_sheets(
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
     # Get user and verify admin status
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
     # Validate session
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
     # Get accepted applications ordered by decided_at
     accepted_apps = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.ACCEPTED)
-        .order_by(Application.decided_at.asc().nullslast())
-        .all()
+        (await db.scalars(select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.ACCEPTED)
+        .order_by(Application.decided_at.asc().nullslast()))).all()
     )
 
     # Get rejected applications ordered by decided_at
     rejected_apps = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.REJECTED)
-        .order_by(Application.decided_at.asc().nullslast())
-        .all()
+        (await db.scalars(select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.REJECTED)
+        .order_by(Application.decided_at.asc().nullslast()))).all()
     )
 
     # Get confirmed applications ordered by decided_at
     confirmed_apps = (
-        db.query(Application)
-        .filter(Application.form_key == CURRENT_FORM_KEY)
-        .filter(Application.status == ApplicationStatus.CONFIRMED)
-        .order_by(Application.decided_at.asc().nullslast())
-        .all()
+        (await db.scalars(select(Application)
+        .where(Application.form_key == CURRENT_FORM_KEY)
+        .where(Application.status == ApplicationStatus.CONFIRMED)
+        .order_by(Application.decided_at.asc().nullslast()))).all()
     )
 
     # Build applicant data for export
@@ -843,7 +831,12 @@ async def export_to_sheets(
 
     # Export to Google Sheets
     try:
-        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants, confirmed_applicants)
+        result = await run_in_threadpool(
+            export_applicants_to_sheets,
+            accepted_applicants,
+            rejected_applicants,
+            confirmed_applicants,
+        )
         return ExportResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")
@@ -866,23 +859,23 @@ class RemoveExceptionRequest(BaseModel):
 async def get_exception_list(
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get the list of emails with form submission exceptions."""
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
-    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    form = (await db.scalars(select(Form1).where(Form1.form_key == CURRENT_FORM_KEY).limit(1))).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
@@ -897,23 +890,23 @@ async def add_exception_email(
     request: AddExceptionRequest,
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Add an email to the exception list."""
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
-    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    form = (await db.scalars(select(Form1).where(Form1.form_key == CURRENT_FORM_KEY).limit(1))).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
@@ -924,7 +917,7 @@ async def add_exception_email(
     current_emails = form.exception_emails or []
     if email not in [e.lower() for e in current_emails]:
         form.exception_emails = current_emails + [email]
-        db.commit()
+        await db.commit()
 
     return ExceptionListResponse(
         form_key=form.form_key,
@@ -937,30 +930,30 @@ async def remove_exception_email(
     request: RemoveExceptionRequest,
     session_id: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Remove an email from the exception list."""
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    _require_admin(db, user.id)
+    await _require_admin(db, user.id)
 
-    if not _validate_session(db, user.id, session_id):
+    if not await _validate_session(db, user.id, session_id):
         raise HTTPException(status_code=403, detail="Session invalidated")
 
-    form = db.query(Form1).filter(Form1.form_key == CURRENT_FORM_KEY).first()
+    form = (await db.scalars(select(Form1).where(Form1.form_key == CURRENT_FORM_KEY).limit(1))).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
     email = request.email.strip().lower()
     current_emails = form.exception_emails or []
     form.exception_emails = [e for e in current_emails if e.lower() != email]
-    db.commit()
+    await db.commit()
 
     return ExceptionListResponse(
         form_key=form.form_key,

@@ -1,6 +1,7 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 db_host = os.getenv("DB_HOST")
 db_user = os.getenv("DB_USER")
@@ -8,32 +9,32 @@ db_password = os.getenv("DB_PASSWORD")
 db_name = os.getenv("DB_NAME")
 db_port = os.getenv("DB_PORT", "5432")
 
-DB_URL = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+DB_URL = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 
-engine = create_engine(
+engine = create_async_engine(
     DB_URL,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = async_sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-def get_db() -> Session:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Provide an async session, committing on success and rolling back on error."""
+    async with SessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def get_local_session() -> AsyncSession:
     """
-    Dependency function to get database session.
-    Use this in FastAPI endpoints with Depends(get_db)
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    Create an async session outside of FastAPI dependency injection.
 
-
-def get_local_session() -> Session:
-    """
-    Get a database session directly.
-    Use this when you need a session outside of FastAPI dependency injection.
-    Remember to close the session when done!
+    Use ``async with get_local_session() as session`` to ensure cleanup.
+    The caller is responsible for awaiting commits and rollbacks.
     """
     return SessionLocal()
