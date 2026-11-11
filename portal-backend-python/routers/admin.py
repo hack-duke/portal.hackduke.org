@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Security, Form
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy import or_
@@ -830,7 +831,12 @@ async def export_to_sheets(
 
     # Export to Google Sheets
     try:
-        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants, confirmed_applicants)
+        result = await run_in_threadpool(
+            export_applicants_to_sheets,
+            accepted_applicants,
+            rejected_applicants,
+            confirmed_applicants,
+        )
         return ExportResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")
