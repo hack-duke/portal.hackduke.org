@@ -1,7 +1,7 @@
-import { CFG_APPLICATION_2026 } from "./2026-cfg-application";
+import { CFG_APPLICATION_2027 } from "./2027-cfg-application";
 
 export const FORMS = {
-  [CFG_APPLICATION_2026.formKey]: CFG_APPLICATION_2026,
+  [CFG_APPLICATION_2027.formKey]: CFG_APPLICATION_2027,
 };
 
 export const getFormByKey = (formKey) => {

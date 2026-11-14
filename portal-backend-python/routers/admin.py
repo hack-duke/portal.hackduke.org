@@ -20,10 +20,12 @@ from services.google_sheets import export_applicants_to_sheets
 
 def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
     """Check if a user has a specific role."""
-    return db.query(UserRole).filter(
-        UserRole.user_id == user_id,
-        UserRole.role == role
-    ).first() is not None
+    return (
+        db.query(UserRole)
+        .filter(UserRole.user_id == user_id, UserRole.role == role)
+        .first()
+        is not None
+    )
 
 
 def _require_admin(db: Session, user_id: UUID) -> None:
@@ -31,13 +33,14 @@ def _require_admin(db: Session, user_id: UUID) -> None:
     if not _user_has_role(db, user_id, RoleEnum.ADMIN):
         raise HTTPException(status_code=403, detail="User is not an admin")
 
+
 router = APIRouter()
 auth = VerifyToken()
 
 # Constants
 LOCK_TIMEOUT_HOURS = 1
 LOCK_TIMEOUT_SECONDS = LOCK_TIMEOUT_HOURS * 3600
-CURRENT_FORM_KEY = "2026-cfg-application"
+CURRENT_FORM_KEY = "2027-cfg-application"
 RESUME_QUESTION_ID = "0f9782ba-7b18-418d-90ad-ec13a9b467c5"
 RESUME_S3_BASE_URL = "https://hackathon-resume-bucket.s3.us-east-2.amazonaws.com/"
 
@@ -128,15 +131,17 @@ def _is_lock_expired(locked_at: Optional[datetime]) -> bool:
     # Make locked_at timezone-aware if it isn't
     if locked_at.tzinfo is None:
         locked_at = locked_at.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) - locked_at > timedelta(seconds=LOCK_TIMEOUT_SECONDS)
+    return datetime.now(timezone.utc) - locked_at > timedelta(
+        seconds=LOCK_TIMEOUT_SECONDS
+    )
 
 
 def _release_expired_locks(db: Session) -> None:
     """Release all locks that have timed out, including skipped apps."""
     # Find apps with locked_at set (either locked or skipped)
-    apps_with_lock_time = db.query(Application).filter(
-        Application.locked_at.isnot(None)
-    ).all()
+    apps_with_lock_time = (
+        db.query(Application).filter(Application.locked_at.isnot(None)).all()
+    )
 
     changed = False
     for app in apps_with_lock_time:
@@ -149,9 +154,7 @@ def _release_expired_locks(db: Session) -> None:
         db.commit()
 
 
-def _invalidate_other_sessions(
-    db: Session, user_id: UUID, new_session_id: str
-) -> None:
+def _invalidate_other_sessions(db: Session, user_id: UUID, new_session_id: str) -> None:
     """Invalidate all other sessions for this user."""
     user = db.query(User).filter(User.id == user_id).first()
     if user:
@@ -159,9 +162,7 @@ def _invalidate_other_sessions(
         db.commit()
 
 
-def _validate_session(
-    db: Session, user_id: UUID, session_id: str
-) -> bool:
+def _validate_session(db: Session, user_id: UUID, session_id: str) -> bool:
     """Validate that the session is still active."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.current_session_id != session_id:
@@ -212,7 +213,9 @@ async def check_admin_status(
     new_session_id = str(uuid_lib.uuid4())
     _invalidate_other_sessions(db, user.id, new_session_id)
 
-    return AdminCheckResponse(is_admin=is_admin, roles=role_names, session_id=new_session_id)
+    return AdminCheckResponse(
+        is_admin=is_admin, roles=role_names, session_id=new_session_id
+    )
 
 
 @router.get("/next-application", response_model=ApplicationResponse)
@@ -278,7 +281,7 @@ async def get_next_application(
     )
     if resume_response and resume_response.file_s3_key:
         # normalized_key = unquote(resume_response.file_s3_key)
-        encoded_key = quote(resume_response.file_s3_key, safe='/')
+        encoded_key = quote(resume_response.file_s3_key, safe="/")
         resume_url = RESUME_S3_BASE_URL + encoded_key
 
     return ApplicationResponse(
@@ -330,7 +333,9 @@ async def submit_decision(
 
     # Verify this admin has the lock
     if app.locked_by != user.id:
-        raise HTTPException(status_code=403, detail="You do not have the lock on this application")
+        raise HTTPException(
+            status_code=403, detail="You do not have the lock on this application"
+        )
 
     # Process decision
     decision = decision_request.decision.lower()
@@ -522,20 +527,22 @@ async def list_applications(
             if search_lower not in searchable:
                 continue
 
-        result.append(ApplicationListItem(
-            id=str(app.id),
-            status=app.status.value,
-            first_name=first_name,
-            last_name=last_name,
-            pref_name=pref_name,
-            email=email,
-            university=university,
-            major=major,
-            graduation_year=graduation_year,
-            country=country,
-            created_at=app.created_at.isoformat(),
-            decided_by=str(app.decided_by) if app.decided_by else None,
-        ))
+        result.append(
+            ApplicationListItem(
+                id=str(app.id),
+                status=app.status.value,
+                first_name=first_name,
+                last_name=last_name,
+                pref_name=pref_name,
+                email=email,
+                university=university,
+                major=major,
+                graduation_year=graduation_year,
+                country=country,
+                created_at=app.created_at.isoformat(),
+                decided_by=str(app.decided_by) if app.decided_by else None,
+            )
+        )
 
     return ApplicationListResponse(
         applications=result,
@@ -605,7 +612,7 @@ async def get_application(
         .first()
     )
     if resume_response and resume_response.file_s3_key:
-        encoded_key = quote(resume_response.file_s3_key, safe='/')
+        encoded_key = quote(resume_response.file_s3_key, safe="/")
         resume_url = RESUME_S3_BASE_URL + encoded_key
 
     return SingleApplicationResponse(
@@ -706,22 +713,14 @@ async def release_locks_beacon(
         return {"status": "no session"}
 
     # Find the user with this active session
-    user = (
-        db.query(User)
-        .filter(User.current_session_id == session_id)
-        .first()
-    )
+    user = db.query(User).filter(User.current_session_id == session_id).first()
 
     if not user:
         # Session is invalid or already replaced by another tab
         return {"status": "invalid session"}
 
     # Release all locks held by this user
-    locked_apps = (
-        db.query(Application)
-        .filter(Application.locked_by == user.id)
-        .all()
-    )
+    locked_apps = db.query(Application).filter(Application.locked_by == user.id).all()
 
     for app in locked_apps:
         app.locked_by = None
@@ -820,33 +819,43 @@ async def export_to_sheets(
     accepted_applicants = []
     for app in accepted_apps:
         submission = app.submission_json or {}
-        accepted_applicants.append({
-            "user_id": str(app.user_id),
-            "email": submission.get("email", ""),
-        })
+        accepted_applicants.append(
+            {
+                "user_id": str(app.user_id),
+                "email": submission.get("email", ""),
+            }
+        )
 
     rejected_applicants = []
     for app in rejected_apps:
         submission = app.submission_json or {}
-        rejected_applicants.append({
-            "user_id": str(app.user_id),
-            "email": submission.get("email", ""),
-        })
+        rejected_applicants.append(
+            {
+                "user_id": str(app.user_id),
+                "email": submission.get("email", ""),
+            }
+        )
 
     confirmed_applicants = []
     for app in confirmed_apps:
         submission = app.submission_json or {}
-        confirmed_applicants.append({
-            "user_id": str(app.user_id),
-            "email": submission.get("email", ""),
-        })
+        confirmed_applicants.append(
+            {
+                "user_id": str(app.user_id),
+                "email": submission.get("email", ""),
+            }
+        )
 
     # Export to Google Sheets
     try:
-        result = export_applicants_to_sheets(accepted_applicants, rejected_applicants, confirmed_applicants)
+        result = export_applicants_to_sheets(
+            accepted_applicants, rejected_applicants, confirmed_applicants
+        )
         return ExportResponse(**result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to export to Google Sheets: {str(e)}"
+        )
 
 
 class ExceptionListResponse(BaseModel):
@@ -887,8 +896,7 @@ async def get_exception_list(
         raise HTTPException(status_code=404, detail="Form not found")
 
     return ExceptionListResponse(
-        form_key=form.form_key,
-        exception_emails=form.exception_emails or []
+        form_key=form.form_key, exception_emails=form.exception_emails or []
     )
 
 
@@ -927,8 +935,7 @@ async def add_exception_email(
         db.commit()
 
     return ExceptionListResponse(
-        form_key=form.form_key,
-        exception_emails=form.exception_emails or []
+        form_key=form.form_key, exception_emails=form.exception_emails or []
     )
 
 
@@ -963,6 +970,5 @@ async def remove_exception_email(
     db.commit()
 
     return ExceptionListResponse(
-        form_key=form.form_key,
-        exception_emails=form.exception_emails or []
+        form_key=form.form_key, exception_emails=form.exception_emails or []
     )
