@@ -39,6 +39,7 @@ def test_create_pass_sends_user_id_as_qr(monkeypatch):
     assert body["barcodeFormat"] == "QR"
     assert body["primaryFields"] == [{"label": "ATTENDEE", "value": "Ada Lovelace"}]
     assert body["expirationDate"] == "2027-02-08T23:59:00-05:00"
+    assert body["colorPreset"] == "blue"
 
 
 def test_create_pass_skips_without_api_key(monkeypatch):

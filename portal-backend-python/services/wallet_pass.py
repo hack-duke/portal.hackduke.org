@@ -50,6 +50,8 @@ def create_check_in_pass(user_id: str, attendee_name: str) -> Optional[Dict[str,
             "primaryFields": [{"label": "ATTENDEE", "value": attendee_name}],
             "secondaryFields": [{"label": "CHECK-IN", "value": "Show this QR at the door"}],
             "expirationDate": EVENT_END,
+            # Free-plan preset; a custom hex `color` and images need WalletWallet Pro.
+            "colorPreset": "blue",
         },
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
