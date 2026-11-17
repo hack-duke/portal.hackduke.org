@@ -13,6 +13,8 @@ from routers.admin import router
 from fastapi import FastAPI
 from db import get_db
 from routers.admin import auth
+from services import wallet_pass
+import httpx
 
 app = FastAPI()
 app.include_router(prefix="/admin", router=router)
@@ -30,6 +32,12 @@ def setup_dependency_overrides(test_session):
     yield
     # Clear overrides after test to prevent pollution
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def no_real_wallet_passes(monkeypatch):
+    """Never call WalletWallet from tests: it has no sandbox and creates count against quota."""
+    monkeypatch.delenv("WALLETWALLET_API_KEY", raising=False)
 
 
 @pytest.fixture
@@ -622,3 +630,78 @@ class TestLockTimeout:
         # Should be able to get the old app (lock was expired)
         assert app_response.status_code == 200
         assert app_response.json()["id"] == str(app_with_expired_lock.id)
+
+
+class TestWalletPassOnAccept:
+    def _decide(self, decision):
+        session_id = client.post("/admin/auth/check").json()["session_id"]
+        app_id = client.get(
+            "/admin/next-application", params={"session_id": session_id}
+        ).json()["id"]
+        response = client.post(
+            f"/admin/application/{app_id}/decision",
+            json={"decision": decision},
+            params={"session_id": session_id},
+        )
+        return app_id, response
+
+    def test_accept_creates_and_stores_pass(
+        self, test_admin_user, pending_applications, test_session, monkeypatch
+    ):
+        calls = []
+
+        def fake_create(user_id, attendee_name):
+            calls.append(user_id)
+            return {"serialNumber": "ww-serial-1", "shareUrl": "https://pass.walletwallet.dev/p/ww-serial-1"}
+
+        monkeypatch.setattr(wallet_pass, "create_check_in_pass", fake_create)
+
+        app_id, response = self._decide("accept")
+
+        assert response.status_code == 200
+        app_row = test_session.query(Application).filter(Application.id == app_id).first()
+        # Barcode must be the user_id, which is what /check_in/log_user expects.
+        assert calls == [str(app_row.user_id)]
+        assert app_row.wallet_pass_serial == "ww-serial-1"
+        assert app_row.wallet_pass_url == "https://pass.walletwallet.dev/p/ww-serial-1"
+
+    def test_accept_does_not_create_second_pass(
+        self, test_admin_user, pending_applications, test_session, monkeypatch
+    ):
+        for app_row in pending_applications:
+            app_row.wallet_pass_serial = "existing-serial"
+        test_session.flush()
+
+        def fail_create(user_id, attendee_name):
+            raise AssertionError("should not create a second pass")
+
+        monkeypatch.setattr(wallet_pass, "create_check_in_pass", fail_create)
+
+        _, response = self._decide("accept")
+        assert response.status_code == 200
+
+    def test_wallet_failure_does_not_block_accept(
+        self, test_admin_user, pending_applications, test_session, monkeypatch
+    ):
+        def broken_create(user_id, attendee_name):
+            raise httpx.ConnectError("walletwallet down")
+
+        monkeypatch.setattr(wallet_pass, "create_check_in_pass", broken_create)
+
+        app_id, response = self._decide("accept")
+
+        assert response.status_code == 200
+        app_row = test_session.query(Application).filter(Application.id == app_id).first()
+        assert app_row.status == ApplicationStatus.ACCEPTED
+        assert app_row.wallet_pass_serial is None
+
+    def test_reject_does_not_create_pass(
+        self, test_admin_user, pending_applications, test_session, monkeypatch
+    ):
+        def fail_create(user_id, attendee_name):
+            raise AssertionError("rejections should not get a pass")
+
+        monkeypatch.setattr(wallet_pass, "create_check_in_pass", fail_create)
+
+        _, response = self._decide("reject")
+        assert response.status_code == 200

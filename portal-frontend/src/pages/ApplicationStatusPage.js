@@ -187,6 +187,16 @@ const ApplicationStatusPage = () => {
               />
             </div>
             <p className="qr-instructions">Tap to enlarge</p>
+            {application["wallet_pass_url"] && (
+              <a
+                className="wallet-pass-link"
+                href={application["wallet_pass_url"]}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Add to Wallet
+              </a>
+            )}
           </div>
         </div>
       ) : application ? (

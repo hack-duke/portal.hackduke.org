@@ -205,4 +205,5 @@ async def get_application(
         status=application.status,
         created_at=application.created_at,
         form_data=form_data,
+        wallet_pass_url=application.wallet_pass_url,
     )

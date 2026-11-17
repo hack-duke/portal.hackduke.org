@@ -48,3 +48,9 @@ class Application(Base):
     decided_at = Column(
         DateTime, nullable=True
     )  # Timestamp when decision was made
+    wallet_pass_serial = Column(
+        String, nullable=True
+    )  # WalletWallet serial number of the check-in pass, set on acceptance
+    wallet_pass_url = Column(
+        String, nullable=True
+    )  # WalletWallet hosted "Add to Wallet" page for that pass
