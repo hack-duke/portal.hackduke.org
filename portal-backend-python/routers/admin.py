@@ -16,6 +16,7 @@ from models.response import Response
 from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
+from services.wallet_pass import issue_pass_for_application
 
 
 def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
@@ -366,6 +367,10 @@ async def submit_decision(
     app.locked_by = None
     app.locked_at = None
     db.commit()
+
+    # After the decision is committed, so a WalletWallet failure can't undo it.
+    if decision == "accept":
+        issue_pass_for_application(db, app)
 
     return ApplicationResponse(
         id=str(app.id),
