@@ -194,7 +194,7 @@ const ApplicationStatusPage = () => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Add to Apple Wallet
+                Add to Wallet
               </a>
             )}
           </div>
