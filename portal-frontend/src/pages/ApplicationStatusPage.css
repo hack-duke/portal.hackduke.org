@@ -146,3 +146,13 @@
   font-size: 0.9rem;
   margin-top: 1rem;
 }
+
+.wallet-pass-link {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  background-color: black;
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+}
