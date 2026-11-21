@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Security, Form
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy import or_
+from sqlalchemy import func, or_, select, update
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -123,31 +122,18 @@ class SingleApplicationResponse(BaseModel):
         from_attributes = True
 
 
-def _is_lock_expired(locked_at: Optional[datetime]) -> bool:
-    """Check if a lock has timed out."""
-    if not locked_at:
-        return True
-    # Make locked_at timezone-aware if it isn't
-    if locked_at.tzinfo is None:
-        locked_at = locked_at.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) - locked_at > timedelta(seconds=LOCK_TIMEOUT_SECONDS)
-
-
 async def _release_expired_locks(db: AsyncSession) -> None:
     """Release all locks that have timed out, including skipped apps."""
-    # Find apps with locked_at set (either locked or skipped)
-    apps_with_lock_time = (await db.scalars(select(Application).where(
-        Application.locked_at.isnot(None)
-    ))).all()
-
-    changed = False
-    for app in apps_with_lock_time:
-        if _is_lock_expired(app.locked_at):
-            app.locked_by = None
-            app.locked_at = None
-            changed = True
-
-    if changed:
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        seconds=LOCK_TIMEOUT_SECONDS
+    )
+    # Recheck expiry when writing in case another transaction refreshed the lock.
+    result = await db.execute(
+        update(Application)
+        .where(Application.locked_at < cutoff)
+        .values(locked_by=None, locked_at=None)
+    )
+    if result.rowcount:
         await db.commit()
 
 
@@ -248,8 +234,8 @@ async def get_next_application(
     # Get next PENDING application (not locked, or locked by this user)
     # Only from the current form
     # Order by locked_at NULLS FIRST so skipped apps go to back of queue
-    next_app = (
-        (await db.scalars(select(Application)
+    candidates = (
+        select(Application)
         .where(Application.form_key == CURRENT_FORM_KEY)
         .where(Application.status == ApplicationStatus.PENDING)
         .where(
@@ -258,8 +244,11 @@ async def get_next_application(
                 Application.locked_by == user.id,
             )
         )
-        .order_by(Application.locked_at.asc().nullsfirst()).limit(1))).first()
+        .order_by(Application.locked_at.asc().nullsfirst())
+        .limit(1)
+        .with_for_update(skip_locked=True)
     )
+    next_app = (await db.scalars(candidates)).first()
 
     if not next_app:
         raise HTTPException(status_code=404, detail="No pending applications")
@@ -569,12 +558,15 @@ async def get_application(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    app = (await db.scalars(select(Application).where(Application.id == app_uuid).limit(1))).first()
+    await _release_expired_locks(db)
+
+    app = await db.scalar(
+        select(Application)
+        .where(Application.id == app_uuid)
+        .with_for_update()
+    )
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-
-    # Release expired locks first
-    await _release_expired_locks(db)
 
     # Check lock status
     is_locked_by_other = False
@@ -588,7 +580,7 @@ async def get_application(
         # Lock is available or already ours - acquire it
         app.locked_by = user.id
         app.locked_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        await db.commit()
+    await db.commit()
 
     # Fetch resume URL if available
     resume_url = None
