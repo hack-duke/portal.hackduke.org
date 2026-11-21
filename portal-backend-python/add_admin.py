@@ -4,26 +4,28 @@ Script to add a user to the admin allowlist.
 Usage: python add_admin.py <auth0_id>
 """
 import sys
+import asyncio
+from sqlalchemy import select
 from db import SessionLocal
 from models.user import User
 from models.admin_user import AdminUser
 
-def add_admin(auth0_id: str):
+async def add_admin_async(auth0_id: str):
     """Add a user to the admin allowlist."""
     db = SessionLocal()
     
     try:
         # Get or create the user
-        user = db.query(User).filter(User.auth0_id == auth0_id).first()
+        user = await db.scalar(select(User).where(User.auth0_id == auth0_id))
         if not user:
             # Create user entry (same logic as application submission)
             user = User(auth0_id=auth0_id)
             db.add(user)
-            db.flush()
+            await db.flush()
             print(f"Created new user entry for auth0_id '{auth0_id}'")
         
         # Check if already an admin
-        admin_user = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+        admin_user = await db.scalar(select(AdminUser).where(AdminUser.user_id == user.id))
         if admin_user:
             print(f"User {auth0_id} is already an admin!")
             return True
@@ -31,7 +33,7 @@ def add_admin(auth0_id: str):
         # Add to admin allowlist
         admin_user = AdminUser(user_id=user.id)
         db.add(admin_user)
-        db.commit()
+        await db.commit()
         
         print(f"✓ Successfully added {auth0_id} to admin allowlist!")
         print(f"  User ID: {user.id}")
@@ -40,10 +42,13 @@ def add_admin(auth0_id: str):
         
     except Exception as e:
         print(f"Error: {e}")
-        db.rollback()
+        await db.rollback()
         return False
     finally:
-        db.close()
+        await db.close()
+
+def add_admin(auth0_id: str):
+    return asyncio.run(add_admin_async(auth0_id))
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

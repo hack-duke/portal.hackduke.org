@@ -1,9 +1,10 @@
 import os
 import subprocess
 
-import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+import pytest_asyncio
+from sqlalchemy import URL, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from models.base import Base
 from pytest_postgresql.janitor import DatabaseJanitor
 
@@ -37,8 +38,8 @@ if os.name == "nt":
     PostgreSQLExecutor.stop = _windows_postgresql_stop
 
 
-@pytest.fixture(scope="session")
-def test_sessionmaker(postgresql_proc):
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def test_sessionmaker(postgresql_proc):
     pg_host = postgresql_proc.host
     pg_port = postgresql_proc.port
     pg_user = postgresql_proc.user
@@ -53,36 +54,44 @@ def test_sessionmaker(postgresql_proc):
         version=postgresql_proc.version,
         password=pg_password,
     ):
-        dsn = (
-            f"postgresql+psycopg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+        dsn = URL.create(
+            "postgresql+asyncpg",
+            username=pg_user,
+            password=pg_password,
+            host=pg_host,
+            port=pg_port,
+            database=pg_db,
         )
-        engine = create_engine(dsn)
+        # Tests may use separate event loops; do not reuse connections across them.
+        engine = create_async_engine(dsn, poolclass=NullPool)
 
-        with engine.connect() as conn:
-            conn.execute(
-                text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
-            )  # needed for UUID generation
-            conn.commit()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+                )  # needed for UUID generation
+                await conn.run_sync(Base.metadata.create_all)
 
-        Base.metadata.create_all(engine)
+            yield async_sessionmaker(
+                bind=engine, autoflush=False, expire_on_commit=False
+            )
+        finally:
+            await engine.dispose()
 
-        SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-        yield SessionLocal
-        engine.dispose()
 
-
-@pytest.fixture
-def test_session(test_sessionmaker):
+@pytest_asyncio.fixture
+async def test_session(test_sessionmaker):
     """
     Provide an isolated database session for each test.
-    Creates a new session, yields it for the test, then rolls back
-    any changes and closes the session to ensure test isolation.
+    Bind the session to an outer transaction so application commits only
+    release savepoints. Roll back all test data when the fixture exits.
     """
-    session = test_sessionmaker()
-    # Start a savepoint to ensure we can rollback even with explicit flushes
-    session.begin_nested()
-    try:
-        yield session
-    finally:
-        session.rollback()
-        session.close()
+    async with test_sessionmaker.kw["bind"].connect() as conn:
+        transaction = await conn.begin()
+        try:
+            async with test_sessionmaker(
+                bind=conn, join_transaction_mode="create_savepoint"
+            ) as session:
+                yield session
+        finally:
+            await transaction.rollback()

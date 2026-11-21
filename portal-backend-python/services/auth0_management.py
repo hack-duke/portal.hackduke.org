@@ -1,9 +1,12 @@
-"""Auth0 Management API integration for user lookup."""
+"""Async Auth0 Management API integration for user lookup."""
+
+import asyncio
 import os
-from typing import Optional, Dict, Any, List
-import httpx
-from functools import lru_cache
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
+from urllib.parse import quote
+
+import httpx2
 
 
 class Auth0ManagementClient:
@@ -20,83 +23,73 @@ class Auth0ManagementClient:
                 "environment variables must be set"
             )
 
-        self._token: Optional[str] = None
-        self._token_expires_at: Optional[datetime] = None
+        self._token: str | None = None
+        self._token_expires_at: datetime | None = None
+        self._token_lock = asyncio.Lock()
 
-    def _get_management_token(self) -> str:
+    async def _get_management_token(self, client: httpx2.AsyncClient) -> str:
         """Get a valid Management API access token, refreshing if needed."""
-        # Check if we have a valid cached token
-        if self._token and self._token_expires_at:
-            if datetime.now() < self._token_expires_at - timedelta(minutes=5):
+        now = datetime.now(timezone.utc)
+        if (
+            self._token
+            and self._token_expires_at
+            and now < self._token_expires_at - timedelta(minutes=5)
+        ):
+            return self._token
+
+        async with self._token_lock:
+            now = datetime.now(timezone.utc)
+            if (
+                self._token
+                and self._token_expires_at
+                and now < self._token_expires_at - timedelta(minutes=5)
+            ):
                 return self._token
 
-        # Request new token
-        url = f"https://{self.domain}/oauth/token"
-        payload = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "audience": f"https://{self.domain}/api/v2/",
-            "grant_type": "client_credentials"
-        }
-
-        with httpx.Client() as client:
-            response = client.post(url, json=payload)
+            response = await client.post(
+                f"https://{self.domain}/oauth/token",
+                json={
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "audience": f"https://{self.domain}/api/v2/",
+                    "grant_type": "client_credentials",
+                },
+            )
             response.raise_for_status()
             data = response.json()
+            self._token = str(data["access_token"])
+            self._token_expires_at = now + timedelta(
+                seconds=int(data.get("expires_in", 86400))
+            )
+            return self._token
 
-        self._token = data["access_token"]
-        # Token typically expires in 24 hours, but use the returned value
-        expires_in = data.get("expires_in", 86400)
-        self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-
-        return self._token
-
-    def search_users_by_email(self, email: str) -> List[Dict[str, Any]]:
-        """
-        Search for users by email address.
-
-        Args:
-            email: The email address to search for
-
-        Returns:
-            List of user objects from Auth0
-        """
-        token = self._get_management_token()
-
-        url = f"https://{self.domain}/api/v2/users-by-email"
-        headers = {"Authorization": f"Bearer {token}"}
-        params = {"email": email.lower()}
-
-        with httpx.Client() as client:
-            response = client.get(url, headers=headers, params=params)
+    async def search_users_by_email(self, email: str) -> list[dict[str, Any]]:
+        """Search for users by email address."""
+        async with httpx2.AsyncClient(timeout=20.0) as client:
+            token = await self._get_management_token(client)
+            response = await client.get(
+                f"https://{self.domain}/api/v2/users-by-email",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"email": email.lower()},
+            )
             response.raise_for_status()
-            return response.json()
+            return list(response.json())
 
-    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a user by their Auth0 user ID.
-
-        Args:
-            user_id: The Auth0 user ID (e.g., "auth0|123456")
-
-        Returns:
-            User object from Auth0, or None if not found
-        """
-        token = self._get_management_token()
-
-        url = f"https://{self.domain}/api/v2/users/{user_id}"
-        headers = {"Authorization": f"Bearer {token}"}
-
-        with httpx.Client() as client:
-            response = client.get(url, headers=headers)
+    async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        """Get a user by Auth0 ID, returning ``None`` when it does not exist."""
+        async with httpx2.AsyncClient(timeout=20.0) as client:
+            token = await self._get_management_token(client)
+            response = await client.get(
+                f"https://{self.domain}/api/v2/users/{quote(user_id, safe='')}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             if response.status_code == 404:
                 return None
             response.raise_for_status()
             return response.json()
 
 
-# Singleton instance
-_client: Optional[Auth0ManagementClient] = None
+_client: Auth0ManagementClient | None = None
 
 
 def get_auth0_management_client() -> Auth0ManagementClient:
@@ -107,15 +100,7 @@ def get_auth0_management_client() -> Auth0ManagementClient:
     return _client
 
 
-def search_users_by_email(email: str) -> List[Dict[str, Any]]:
-    """
-    Search for Auth0 users by email.
-
-    Args:
-        email: The email address to search for
-
-    Returns:
-        List of matching users with their Auth0 info
-    """
+async def search_users_by_email(email: str) -> list[dict[str, Any]]:
+    """Search for users by email."""
     client = get_auth0_management_client()
-    return client.search_users_by_email(email)
+    return await client.search_users_by_email(email)

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Security, Form as FastAPIForm, File, UploadFile, Query
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List, Optional
 from auth import VerifyToken
 from db import get_db
@@ -31,13 +32,13 @@ async def form_status(
     form_key: str,
     email: Optional[str] = Query(None, description="User email to check for exception override"),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
+    form = (await db.scalars(select(FormModel).where(FormModel.form_key == form_key).limit(1))).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
@@ -58,7 +59,7 @@ async def submit_application(
     auth0_email: Optional[str] = FastAPIForm(None),  # For exception list checking
     files: List[UploadFile] = File(default=[]),
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
@@ -71,7 +72,7 @@ async def submit_application(
         raise HTTPException(status_code=400, detail="Invalid form_data JSON")
 
     # Ensure form exists and is open (or user has exception)
-    form = db.query(FormModel).filter(FormModel.form_key == form_key).first()
+    form = (await db.scalars(select(FormModel).where(FormModel.form_key == form_key).limit(1))).first()
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
@@ -84,17 +85,17 @@ async def submit_application(
             raise HTTPException(status_code=403, detail="Form is closed")
 
     user = (
-        db.query(User).filter(User.auth0_id == auth0_id).first()
+        (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     )  # TODO: User creation should not be handled here
     if not user:
         user = User(auth0_id=auth0_id)
         db.add(user)
-        db.flush()
+        await db.flush()
 
     existing_application = (
-        db.query(Application)
-        .filter(Application.user_id == user.id, Application.form_key == form_key)
-        .first()
+        (await db.scalars(select(Application).where(
+            Application.user_id == user.id, Application.form_key == form_key
+        ).limit(1))).first()
     )
 
     if existing_application:
@@ -110,7 +111,7 @@ async def submit_application(
     )
 
     db.add(application)
-    db.flush()
+    await db.flush()
 
     valid_form_data = {}
 
@@ -118,12 +119,10 @@ async def submit_application(
 
     for question_key, field_value in parsed_form_data.items():
         question = (
-            db.query(Question)
-            .filter(
+            (await db.scalars(select(Question).where(
                 Question.form_key == form_key,
                 Question.question_key == question_key,
-            )
-            .first()
+            ).limit(1))).first()
         )
 
         if not question:
@@ -167,7 +166,7 @@ async def submit_application(
 
     application.submission_json = valid_form_data
 
-    db.commit()
+    await db.commit()
 
     return SubmitApplicationResponse(applicationId=application.id)
 
@@ -176,20 +175,20 @@ async def submit_application(
 async def get_application(
     form_key: str,
     auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
 
-    user = db.query(User).filter(User.auth0_id == auth0_id).first()
+    user = (await db.scalars(select(User).where(User.auth0_id == auth0_id).limit(1))).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     application = (
-        db.query(Application)
-        .filter(Application.user_id == user.id, Application.form_key == form_key)
-        .first()
+        (await db.scalars(select(Application).where(
+            Application.user_id == user.id, Application.form_key == form_key
+        ).limit(1))).first()
     )
 
     if not application:

@@ -1,21 +1,19 @@
+from unittest.mock import AsyncMock, patch
+
+import jwt
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi.security import HTTPAuthorizationCredentials
 
 from auth import VerifyToken, UnauthorizedException, UnauthenticatedException
-from jwt.exceptions import PyJWKClientError
 
 
 @pytest.mark.asyncio
+@patch.object(VerifyToken, "_get_signing_key", new_callable=AsyncMock)
 @patch("auth.jwt.decode")
-@patch("auth.jwt.PyJWKClient")
-async def test_verify_success(mock_jwks_cls, mock_decode):
+async def test_verify_success(mock_decode, mock_get_signing_key):
     fake_token = "fake.jwt.token"
     fake_payload = {"sub": "123", "scope": "read:stuff"}
-
-    mock_client = MagicMock()
-    mock_client.get_signing_key_from_jwt.return_value.key = "fake_key"
-    mock_jwks_cls.return_value = mock_client
+    mock_get_signing_key.return_value = "fake_key"
     mock_decode.return_value = fake_payload
 
     verifier = VerifyToken()
@@ -24,8 +22,7 @@ async def test_verify_success(mock_jwks_cls, mock_decode):
     payload = await verifier.verify(security_scopes=[], token=creds)
 
     assert payload == fake_payload
-    mock_jwks_cls.assert_called_once()
-    mock_client.get_signing_key_from_jwt.assert_called_once_with(fake_token)
+    mock_get_signing_key.assert_awaited_once_with(fake_token)
     mock_decode.assert_called_once()
 
 
@@ -37,11 +34,9 @@ async def test_verify_unauthenticated():
 
 
 @pytest.mark.asyncio
-@patch("auth.jwt.PyJWKClient")
-async def test_verify_bad_signing_key(mock_jwks_cls):
-    mock_client = MagicMock()
-    mock_client.get_signing_key_from_jwt.side_effect = PyJWKClientError()
-    mock_jwks_cls.return_value = mock_client
+@patch.object(VerifyToken, "_get_signing_key", new_callable=AsyncMock)
+async def test_verify_bad_signing_key(mock_get_signing_key):
+    mock_get_signing_key.side_effect = jwt.PyJWKClientError("No signing key")
 
     verifier = VerifyToken()
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="bad.jwt")
@@ -51,12 +46,10 @@ async def test_verify_bad_signing_key(mock_jwks_cls):
 
 
 @pytest.mark.asyncio
+@patch.object(VerifyToken, "_get_signing_key", new_callable=AsyncMock)
 @patch("auth.jwt.decode", side_effect=Exception())
-@patch("auth.jwt.PyJWKClient")
-async def test_verify_invalid_token(mock_jwks_cls, mock_decode):
-    mock_client = MagicMock()
-    mock_client.get_signing_key_from_jwt.return_value.key = "fake_key"
-    mock_jwks_cls.return_value = mock_client
+async def test_verify_invalid_token(_mock_decode, mock_get_signing_key):
+    mock_get_signing_key.return_value = "fake_key"
 
     verifier = VerifyToken()
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="fake.jwt")
