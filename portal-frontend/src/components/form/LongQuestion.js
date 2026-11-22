@@ -2,6 +2,9 @@ import "./LongQuestion.css";
 import classNames from "classnames";
 import React, { forwardRef, useImperativeHandle } from "react";
 
+const countWords = (value) =>
+  value && value.trim() ? value.trim().split(/\s+/).length : 0;
+
 export const LongQuestion = forwardRef(
   (
     {
@@ -12,7 +15,10 @@ export const LongQuestion = forwardRef(
       rows,
       required = false,
       firstTry,
-      isValid = (value) => !required || (value && value.trim() !== ""),
+      maxWords,
+      isValid = (value) =>
+        (!required || (value && value.trim() !== "")) &&
+        (!maxWords || countWords(value) <= maxWords),
     },
     ref,
   ) => {
@@ -37,6 +43,15 @@ export const LongQuestion = forwardRef(
           rows={rows}
           required
         />
+        {maxWords && (
+          <span
+            className={classNames("long-word-count", {
+              "long-word-count-over": countWords(formData[name]) > maxWords,
+            })}
+          >
+            {countWords(formData[name])} / {maxWords} words
+          </span>
+        )}
       </div>
     );
   },

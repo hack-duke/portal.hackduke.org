@@ -31,3 +31,13 @@
 .invalid-border {
   border-color: #d03027;
 }
+
+.long-word-count {
+  align-self: flex-end;
+  color: #0042c6;
+  font-size: 0.85rem;
+}
+
+.long-word-count-over {
+  color: #d03027;
+}

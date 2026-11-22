@@ -62,14 +62,30 @@ export const CFG_APPLICATION_2027 = {
     <Page key="about" title="About You">
       <LongQuestion
         name="why_hackduke"
-        label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn?"
+        label="Tell us a bit about why you want to attend HackDuke! What do you hope to learn? (150 words)"
         rows={5}
+        maxWords={150}
         required
       />
       <LongQuestion
         name="why_track"
-        label="Which of our four tracks excites you the most (Health, Finance, Interactive Media, Sustainability)? Why?"
+        label="Which of our five tracks excites you the most (Education, Finance, Health, Interactive Media, Sustainability)? Why? (100 words)"
         rows={2}
+        maxWords={100}
+        required
+      />
+      <LongQuestion
+        name="proud_project"
+        label="Tell us about a project that you're proud of, technical or non-technical (150 words)"
+        rows={6}
+        maxWords={150}
+        required
+      />
+      <LongQuestion
+        name="ten_year_vision"
+        label="What do you envision yourself doing in the next 10 years? (100 words)"
+        rows={4}
+        maxWords={100}
         required
       />
     </Page>,
