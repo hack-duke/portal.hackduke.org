@@ -89,6 +89,51 @@ class TestApplication:
         assert data.form_data == {"name": "John Doe", "email": "john@example.com"}
 
     @mock_aws
+    def test_get_application_includes_resume_link(
+        self,
+        sample_user,
+        sample_form,
+        test_session,
+        monkeypatch,
+    ):
+        monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
+        application = Application(
+            user_id=sample_user.id,
+            form_key=sample_form.form_key,
+            status=ApplicationStatus.PENDING,
+            submission_json={"resume": "test_form/abc/resume/resume.pdf"},
+        )
+        test_session.add(application)
+        test_session.flush()
+
+        response = client.get("application", params={"form_key": "test_form"})
+
+        assert response.status_code == 200
+        resume_url = response.json()["resume_url"]
+        assert "test-bucket" in resume_url
+        assert "test_form/abc/resume/resume.pdf" in resume_url
+
+    def test_get_application_without_resume_has_no_link(
+        self,
+        sample_user,
+        sample_form,
+        test_session,
+    ):
+        application = Application(
+            user_id=sample_user.id,
+            form_key=sample_form.form_key,
+            status=ApplicationStatus.PENDING,
+            submission_json={"email": "john@example.com"},
+        )
+        test_session.add(application)
+        test_session.flush()
+
+        response = client.get("application", params={"form_key": "test_form"})
+
+        assert response.status_code == 200
+        assert response.json()["resume_url"] is None
+
+    @mock_aws
     def test_submit_application_success(
         self,
         monkeypatch,

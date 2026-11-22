@@ -5,7 +5,15 @@ import {
   LongQuestion,
   FileUploadQuestion,
   CheckQuestion,
+  SelectQuestion,
+  PhoneQuestion,
 } from "../components/form/Form";
+import { COUNTRIES } from "./data/countries";
+import { MAJORS, GRADUATION_YEARS } from "./data/majors";
+
+// ~10k schools, so it's split into its own chunk and loaded on first open.
+const loadUniversities = () =>
+  import("./data/universities.json").then((module) => module.default);
 
 export const CFG_APPLICATION_2027 = {
   formKey: "2027-cfg-application",
@@ -41,23 +49,42 @@ export const CFG_APPLICATION_2027 = {
       />
     </Page>,
     <Page key="education" title="Education">
-      <Question name="country" label="Country of Residence" required />
-      <Question name="university" label="University Name" required />
-      <Question name="major" label="Major" required />
-      <Question
+      <SelectQuestion
+        name="country"
+        label="Country of Residence"
+        options={COUNTRIES}
+        placeholder="Search countries…"
+        required
+      />
+      <SelectQuestion
         name="graduation_year"
         label="Graduation Year"
-        type="number"
-        placeholder="20XX"
+        options={GRADUATION_YEARS}
+        searchable={false}
+        placeholder="Select year"
         required
       />
-      <Question
-        name="phone"
-        label="Phone Number"
-        type="tel"
-        placeholder="123-456-7890"
+      <SelectQuestion
+        name="university"
+        label="University Name"
+        options={loadUniversities}
+        placeholder="Search for your school…"
+        hint="Can't find it? Type the full name and choose “Use …”."
+        allowCustom
+        fullWidth
         required
       />
+      <SelectQuestion
+        name="major"
+        label="Major(s)"
+        options={MAJORS}
+        placeholder="Search majors…"
+        hint="Select all that apply. Not listed? Type it and choose “Use …”."
+        multiple
+        allowCustom
+        required
+      />
+      <PhoneQuestion name="phone" label="Phone Number" required />
     </Page>,
     <Page key="about" title="About You">
       <LongQuestion

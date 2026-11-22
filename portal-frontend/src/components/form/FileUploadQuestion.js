@@ -1,5 +1,6 @@
 import "./FileUploadQuestion.css";
 import React, { forwardRef, useImperativeHandle } from "react";
+import classNames from "classnames";
 
 export const FileUploadQuestion = forwardRef(
   (
@@ -10,6 +11,7 @@ export const FileUploadQuestion = forwardRef(
       formData,
       handleFileChange,
       required = false,
+      firstTry,
       isValid = (value) => !required || value,
     },
     ref,
@@ -18,27 +20,36 @@ export const FileUploadQuestion = forwardRef(
       isValid: () => isValid(formData[name]), // Is this the best way to validate?
     }));
 
+    const file = formData?.[name];
+
     return (
-      <div>
-        <input
-          id={name}
-          type="file"
-          accept={accept}
-          onChange={(e) => handleFileChange(name, e.target.files[0])}
-          required
-        />
-        <div className="file-question-container">
-          <label className="file-question-label" htmlFor={name}>
-            {label}
-            {required && "*"}
-          </label>
-          <label className="file-question-button" htmlFor={name}>
-            Choose File
-          </label>
-          <span className="file-question-name">
-            {formData?.[name] && formData[name].name}
+      <div className="file-question">
+        <span className="question-label">
+          {label}
+          {required && <span className="required-mark">*</span>}
+        </span>
+        <label
+          htmlFor={name}
+          className={classNames("file-dropzone", {
+            "file-dropzone-filled": file,
+            "invalid-border": !firstTry && !isValid(file),
+          })}
+        >
+          <input
+            id={name}
+            type="file"
+            accept={accept}
+            onChange={(e) => handleFileChange(name, e.target.files[0])}
+            required={required}
+          />
+          <span className="file-dropzone-icon" aria-hidden="true">
+            {file ? "✓" : "↑"}
           </span>
-        </div>
+          <span className="file-dropzone-text">
+            <strong>{file ? file.name : "Choose a file"}</strong>
+            <span>{file ? "Click to replace" : "PDF only"}</span>
+          </span>
+        </label>
       </div>
     );
   },

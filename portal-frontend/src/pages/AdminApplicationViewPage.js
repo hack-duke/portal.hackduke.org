@@ -332,7 +332,9 @@ const AdminApplicationViewPage = () => {
                     <div className="edu-item">
                       <span className="edu-label">Major</span>
                       <span className="edu-value">
-                        {currentApp.submission_json.major}
+                        {[]
+                          .concat(currentApp.submission_json.major ?? [])
+                          .join(", ")}
                       </span>
                     </div>
                     <div className="edu-item">

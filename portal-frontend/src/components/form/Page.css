@@ -1,11 +1,98 @@
-.page-title {
-  text-align: center;
-  color: #0042c6;
-  font-weight: bold;
-  font-size: 1.8rem;
-  margin-bottom: 2rem;
-}
-
+/* A form section card, plus styles shared by every question type. */
 .page-container {
   width: 100%;
+  background: var(--hd-surface);
+  border: 1px solid var(--hd-border);
+  border-radius: var(--hd-radius);
+  padding: clamp(20px, 4vw, 36px);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 12px 32px -12px rgba(0, 66, 198, 0.12);
+  scroll-margin-top: calc(var(--hd-nav-height) + 24px);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--hd-border);
+}
+
+.page-number {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-family: "Urbanist", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: white;
+  background: var(--hd-blue);
+}
+
+/* Cycle the brand colours through the section badges. */
+.page-container:nth-child(5n + 2) .page-number {
+  background: var(--hd-green);
+}
+.page-container:nth-child(5n + 3) .page-number {
+  background: var(--hd-orange);
+}
+.page-container:nth-child(5n + 4) .page-number {
+  background: var(--hd-yellow);
+  color: var(--hd-ink);
+}
+.page-container:nth-child(5n + 5) .page-number {
+  background: var(--hd-purple);
+}
+
+.page-title {
+  margin: 0;
+  font-family: "Urbanist", sans-serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  color: var(--hd-ink);
+}
+
+.page-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 1.25rem;
+}
+
+/* Short text inputs sit two-up; everything else takes the full row. */
+.page-fields > * {
+  grid-column: 1 / -1;
+}
+.page-fields > .question-container {
+  grid-column: auto;
+}
+
+@media (max-width: 640px) {
+  .page-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.question-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--hd-ink);
+  margin: 0;
+}
+
+.required-mark {
+  color: var(--hd-orange);
+  margin-left: 2px;
+}
+
+.invalid-border.invalid-border {
+  border-color: var(--hd-error);
+  background-color: var(--hd-error-tint);
 }

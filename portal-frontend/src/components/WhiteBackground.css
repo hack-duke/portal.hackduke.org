@@ -1,18 +1,77 @@
 .white-bg-frame {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  position: fixed;
+  inset: 0;
   z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60rem 40rem at 110% -10%,
+      rgba(0, 66, 198, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      50rem 36rem at -15% 110%,
+      rgba(53, 198, 155, 0.1),
+      transparent 60%
+    ),
+    var(--hd-bg);
 }
 
-.white-bg-full {
-  transform: translate(calc(2px * var(--x)), calc(2px * var(--y))) scale(1.09)
-    translateX(-5%); /* Size up and translate svg so there are no visible seams*/
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-  overflow: hidden;
+.bg-shape {
+  position: absolute;
+  opacity: 0.9;
+  user-select: none;
+}
+
+.bg-shape-blob {
+  width: 300px;
+  top: 12vh;
+  right: -130px;
+  transform: rotate(-12deg);
+}
+
+.bg-shape-triangle {
+  width: 210px;
+  bottom: -70px;
+  left: -60px;
+  transform: rotate(18deg);
+}
+
+.bg-shape-hexagon {
+  width: 120px;
+  top: 58vh;
+  right: 5vw;
+  transform: rotate(10deg);
+}
+
+.bg-shape-oval {
+  width: 150px;
+  top: 22vh;
+  left: -60px;
+  transform: rotate(-20deg);
+}
+
+.bg-shape-circle {
+  width: 38px;
+  top: 16vh;
+  left: 9vw;
+}
+
+.bg-shape-blob-small {
+  width: 70px;
+  bottom: 10vh;
+  right: 12vw;
+}
+
+/* On narrower screens the form fills the width; keep shapes to the edges. */
+@media (max-width: 1100px) {
+  .bg-shape {
+    opacity: 0.35;
+  }
+  .bg-shape-hexagon,
+  .bg-shape-circle,
+  .bg-shape-blob-small {
+    display: none;
+  }
 }

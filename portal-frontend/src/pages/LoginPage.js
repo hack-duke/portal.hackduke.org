@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import "./LoginPage.css";
 import Countdown from "react-countdown";
 import CountdownRenderer from "../components/CountdownRenderer";
+import { EVENT_INFO } from "../portal/eventInfo";
 
 const LoginPage = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -17,7 +18,7 @@ const LoginPage = () => {
   }, []);
 
   if (isAuthenticated) {
-    return <Navigate to="/application" replace />;
+    return <Navigate to="/info" replace />;
   }
 
   return (
@@ -45,7 +46,7 @@ const LoginPage = () => {
         </div>
         {!priorityCompleted && (
           <Countdown
-            date={new Date("2026-01-01T23:59:59-05:00")}
+            date={new Date(EVENT_INFO.priorityDeadline)}
             onComplete={() => setPriorityCompleted(true)}
             renderer={({ days, hours, minutes, seconds }) => (
               <CountdownRenderer
@@ -61,7 +62,7 @@ const LoginPage = () => {
 
         {priorityCompleted && (
           <Countdown
-            date={new Date("2026-01-16T23:59:59-05:00")}
+            date={new Date(EVENT_INFO.finalDeadline)}
             renderer={({ days, hours, minutes, seconds }) => (
               <CountdownRenderer
                 days={days}

@@ -22,9 +22,11 @@ from .schema import (
     SubmitApplicationResponse,
     GetApplicationResponse,
 )
-from utils.s3 import upload_file_to_s3
+from utils.s3 import upload_file_to_s3, generate_view_url
 from pydantic import BaseModel
 import json
+
+RESUME_QUESTION_KEY = "resume"
 
 router = APIRouter()
 auth = VerifyToken()
@@ -167,7 +169,11 @@ async def submit_application(
                 user_id=user.id,
                 question_id=question.id,
                 application_id=application.id,
-                text_answer=str(field_value) if field_value is not None else None,
+                text_answer=(
+                    ", ".join(str(v) for v in field_value)
+                    if isinstance(field_value, list)
+                    else str(field_value) if field_value is not None else None
+                ),
                 bool_answer=field_value if isinstance(field_value, bool) else None,
             )
             db.add(response)
@@ -211,6 +217,7 @@ async def get_application(
         )
 
     form_data = application.submission_json or {}
+    resume_key = form_data.get(RESUME_QUESTION_KEY)
 
     return GetApplicationResponse(
         id=application.id,
@@ -218,4 +225,5 @@ async def get_application(
         status=application.status,
         created_at=application.created_at,
         form_data=form_data,
+        resume_url=generate_view_url(resume_key) if resume_key else None,
     )

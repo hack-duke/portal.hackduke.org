@@ -4,8 +4,8 @@ import { useAuth0 } from "@auth0/auth0-react";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import FormPage from "./pages/FormPage";
-import FormsLandingPage from "./pages/FormsLandingPage";
 import ApplicationStatusPage from "./pages/ApplicationStatusPage";
+import InfoPage from "./pages/InfoPage";
 import QRScannerPage from "./pages/QRScannerPage";
 import QRDisplayPage from "./pages/QRDisplayPage";
 import AdminPage from "./pages/AdminPage";
@@ -17,6 +17,7 @@ import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
 import { useInitializeAuth } from "./utils/authUtils";
+import { CURRENT_FORM_KEY } from "./forms/forms";
 
 const DynamicFormPage = () => {
   const params = new URLSearchParams(window.location.search);
@@ -42,10 +43,18 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route
+          path="/info"
+          element={
+            <ProtectedRoute>
+              <InfoPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/application"
           element={
             <ProtectedRoute>
-              <FormsLandingPage />
+              <FormPage formKey={CURRENT_FORM_KEY} />
             </ProtectedRoute>
           }
         />

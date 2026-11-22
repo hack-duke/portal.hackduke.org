@@ -522,6 +522,8 @@ async def list_applications(
         email = submission.get("email", "")
         university = submission.get("university", "")
         major = submission.get("major", "")
+        if isinstance(major, list):  # multi-select since the 2027 form
+            major = ", ".join(str(m) for m in major)
         graduation_year = str(submission.get("graduation_year", ""))
         country = submission.get("country", "")
 

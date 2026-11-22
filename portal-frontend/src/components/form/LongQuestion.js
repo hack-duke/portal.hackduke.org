@@ -28,9 +28,9 @@ export const LongQuestion = forwardRef(
 
     return (
       <div className="long-container">
-        <label className="long-label" htmlFor={name}>
+        <label className="question-label" htmlFor={name}>
           {label}
-          {required && "*"}
+          {required && <span className="required-mark">*</span>}
         </label>
         <textarea
           className={classNames("long-textarea", {

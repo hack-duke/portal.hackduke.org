@@ -10,10 +10,12 @@ export const Page = forwardRef(
       handleInputChange,
       handleFileChange,
       firstTry,
+      sectionNumber,
     },
     ref,
   ) => {
     const questionRefs = useRef([]);
+    const containerRef = useRef(null);
 
     const childrenWithProps = React.Children.map(children, (child, index) => {
       return React.cloneElement(child, {
@@ -32,13 +34,25 @@ export const Page = forwardRef(
           question?.isValid ? question.isValid() : true,
         );
       },
+      get element() {
+        return containerRef.current;
+      },
     }));
 
     return (
-      <div className="page-container">
-        <h1 className="page-title">{title}</h1>
-        {childrenWithProps}
-      </div>
+      <section className="page-container" ref={containerRef}>
+        {title && (
+          <header className="page-header">
+            {sectionNumber && (
+              <span className="page-number" aria-hidden="true">
+                {String(sectionNumber).padStart(2, "0")}
+              </span>
+            )}
+            <h2 className="page-title">{title}</h2>
+          </header>
+        )}
+        <div className="page-fields">{childrenWithProps}</div>
+      </section>
     );
   },
 );
