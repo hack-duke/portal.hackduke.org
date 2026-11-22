@@ -4,7 +4,7 @@
   "dockerFile": "Dockerfile",
   "remoteUser": "vscode",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "forwardPorts": [3000],
+  "forwardPorts": [3000, 8000],
   "runArgs": ["--network=host", "--dns-search=tail9e7885.ts.net"],
   "customizations": {
     "vscode": {

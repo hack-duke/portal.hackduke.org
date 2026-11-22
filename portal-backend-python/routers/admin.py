@@ -16,6 +16,7 @@ from models.response import Response
 from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
+from models.question import Question
 
 
 def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
@@ -41,7 +42,7 @@ auth = VerifyToken()
 LOCK_TIMEOUT_HOURS = 1
 LOCK_TIMEOUT_SECONDS = LOCK_TIMEOUT_HOURS * 3600
 CURRENT_FORM_KEY = "2027-cfg-application"
-RESUME_QUESTION_ID = "0f9782ba-7b18-418d-90ad-ec13a9b467c5"
+RESUME_QUESTION_KEY = "resume"
 RESUME_S3_BASE_URL = "https://hackathon-resume-bucket.s3.us-east-2.amazonaws.com/"
 
 
@@ -276,7 +277,11 @@ async def get_next_application(
     resume_response = (
         db.query(Response)
         .filter(Response.application_id == next_app.id)
-        .filter(Response.question_id == UUID(RESUME_QUESTION_ID))
+        .join(Question, Question.id == Response.question_id)
+        .filter(
+            Question.form_key == CURRENT_FORM_KEY,
+            Question.question_key == RESUME_QUESTION_KEY,
+        )
         .first()
     )
     if resume_response and resume_response.file_s3_key:
@@ -608,7 +613,11 @@ async def get_application(
     resume_response = (
         db.query(Response)
         .filter(Response.application_id == app.id)
-        .filter(Response.question_id == UUID(RESUME_QUESTION_ID))
+        .join(Question, Question.id == Response.question_id)
+        .filter(
+            Question.form_key == CURRENT_FORM_KEY,
+            Question.question_key == RESUME_QUESTION_KEY,
+        )
         .first()
     )
     if resume_response and resume_response.file_s3_key:

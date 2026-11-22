@@ -11,7 +11,7 @@ export const CFG_APPLICATION_2027 = {
   formKey: "2027-cfg-application",
   title: "HackDuke 2027 Application",
   closedMessage: {
-    title: "Applications Open.",
+    title: "Applications Closed.",
     body: (
       <>
         <p>
