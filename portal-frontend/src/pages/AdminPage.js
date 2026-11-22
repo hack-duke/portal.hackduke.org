@@ -245,6 +245,10 @@ const AdminPage = () => {
     navigate("/admin/applicants", { state: { sessionId } });
   };
 
+  const handleDecisionEmails = () => {
+    navigate("/admin/decision-emails", { state: { sessionId } });
+  };
+
   const handleManageRoles = () => {
     navigate("/admin/roles");
   };
@@ -376,6 +380,9 @@ const AdminPage = () => {
             className="view-applicants-btn"
           >
             View All Applicants
+          </Button>
+          <Button onClick={handleDecisionEmails} className="manage-roles-btn">
+            Send Decision Emails
           </Button>
           <Button onClick={handleManageRoles} className="manage-roles-btn">
             Manage Roles

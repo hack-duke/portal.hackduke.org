@@ -13,6 +13,7 @@ import AdminJudgePage from "./pages/AdminJudgePage";
 import AdminApplicantsPage from "./pages/AdminApplicantsPage";
 import AdminApplicationViewPage from "./pages/AdminApplicationViewPage";
 import AdminRolesPage from "./pages/AdminRolesPage";
+import AdminDecisionEmailsPage from "./pages/AdminDecisionEmailsPage";
 import "./App.css";
 import { FullPageLoadingSpinner } from "./components/FullPageLoadingSpinner";
 import NotFound from "./components/404page";
@@ -111,6 +112,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminRolesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/decision-emails"
+          element={
+            <ProtectedRoute>
+              <AdminDecisionEmailsPage />
             </ProtectedRoute>
           }
         />

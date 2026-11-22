@@ -1,0 +1,13 @@
+<!--
+  Acceptance email. Placeholders like ${first_name} are filled in per applicant
+  (values are HTML-escaped). Available: ${first_name}, ${event_name}, ${portal_url}.
+  Write $$ for a literal dollar sign.
+  TODO(organizers): finalize copy, dates, and confirmation deadline.
+-->
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5; color: #1a1a1a; max-width: 600px;">
+  <p>Hi ${first_name},</p>
+  <p>Congratulations! We're excited to let you know that you've been <strong>accepted</strong> to ${event_name}.</p>
+  <p>Please log in to the HackDuke portal to confirm your spot as soon as possible: <a href="${portal_url}">${portal_url}</a></p>
+  <p>We can't wait to see you there!</p>
+  <p>Best,<br />The HackDuke Team</p>
+</div>
