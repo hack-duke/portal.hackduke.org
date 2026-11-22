@@ -245,8 +245,8 @@ const AdminPage = () => {
     navigate("/admin/applicants", { state: { sessionId } });
   };
 
-  const handleEmailApplicants = () => {
-    navigate("/admin/email");
+  const handleDecisionEmails = () => {
+    navigate("/admin/decision-emails", { state: { sessionId } });
   };
 
   const handleManageRoles = () => {
@@ -381,8 +381,8 @@ const AdminPage = () => {
           >
             View All Applicants
           </Button>
-           <Button onClick={handleEmailApplicants} className="manage-roles-btn">
-            Email Applicants
+          <Button onClick={handleDecisionEmails} className="manage-roles-btn">
+            Send Decision Emails
           </Button>
           <Button onClick={handleManageRoles} className="manage-roles-btn">
             Manage Roles

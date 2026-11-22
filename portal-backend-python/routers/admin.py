@@ -16,8 +16,7 @@ from models.response import Response
 from models.form import Form as Form1
 from pydantic import BaseModel
 from services.google_sheets import export_applicants_to_sheets
-from utils.ses import send_email
-from routers.schema import SendEmailRequest
+from services import decision_emails
 
 
 def _user_has_role(db: Session, user_id: UUID, role: RoleEnum) -> bool:
@@ -970,13 +969,35 @@ async def remove_exception_email(
     )
 
 
-@router.post("/send-email")
-async def send_email_endpoint(
-    request: SendEmailRequest,
-    auth_payload: Dict[str, Any] = Security(auth.verify),
-    db: Session = Depends(get_db),
-):
-    """Send an email via AWS SES."""
+
+class DecisionEmailSample(BaseModel):
+    subject: str
+    html: str
+
+
+class DecisionEmailPreviewResponse(BaseModel):
+    counts: Dict[str, int]
+    total: int
+    missing_email: int
+    already_emailed: int
+    samples: Dict[str, DecisionEmailSample]
+
+
+class DecisionEmailFailure(BaseModel):
+    application_id: str
+    email: str
+    error: str
+
+
+class DecisionEmailSendResponse(BaseModel):
+    sent: int
+    failed: list[DecisionEmailFailure]
+    skipped_missing_email: int
+
+
+def _get_admin_with_session(
+    db: Session, auth_payload: Dict[str, Any], session_id: str
+) -> User:
     auth0_id = auth_payload.get("sub")
     if not auth0_id:
         raise HTTPException(status_code=401, detail="Auth0 ID not found in token")
@@ -987,15 +1008,40 @@ async def send_email_endpoint(
 
     _require_admin(db, user.id)
 
-    try:
-        send_email(
-            to=request.to,
-            subject=request.subject,
-            body=request.body,
-            cc=request.cc,
-            bcc=request.bcc,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    if not _validate_session(db, user.id, session_id):
+        raise HTTPException(status_code=403, detail="Session invalidated")
+    return user
 
-    return {"message": "Email sent successfully"}
+
+@router.get("/decision-emails/preview", response_model=DecisionEmailPreviewResponse)
+def preview_decision_emails(
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Counts of accepted/rejected applicants not yet emailed, plus sample emails."""
+    _get_admin_with_session(db, auth_payload, session_id)
+    return decision_emails.preview(db, CURRENT_FORM_KEY)
+
+
+@router.post("/decision-emails/send", response_model=DecisionEmailSendResponse)
+def send_decision_emails(
+    session_id: str,
+    auth_payload: Dict[str, Any] = Security(auth.verify),
+    db: Session = Depends(get_db),
+):
+    """Email every accepted/rejected applicant who hasn't been emailed yet.
+
+    Safe to call repeatedly: each applicant is emailed at most once, and
+    failed sends are left un-emailed so the next call retries them.
+    """
+    _get_admin_with_session(db, auth_payload, session_id)
+    try:
+        result = decision_emails.send_pending(db, CURRENT_FORM_KEY)
+    except RuntimeError as e:  # e.g. SES_SENDER_EMAIL not configured
+        raise HTTPException(status_code=500, detail=str(e))
+    return DecisionEmailSendResponse(
+        sent=result.sent,
+        failed=result.failed,
+        skipped_missing_email=result.skipped_missing_email,
+    )

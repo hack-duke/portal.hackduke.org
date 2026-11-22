@@ -48,3 +48,6 @@ class Application(Base):
     decided_at = Column(
         DateTime, nullable=True
     )  # Timestamp when decision was made
+    decision_emailed_at = Column(
+        DateTime, nullable=True
+    )  # Timestamp when the accept/reject email was sent; NULL = not emailed yet
