@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import datetime
 from uuid import UUID
 from models.application import ApplicationStatus
@@ -24,11 +24,3 @@ class GetApplicationResponse(BaseModel):
 class FormStatusResponse(BaseModel):
     form_key: str
     is_open: bool
-
-
-class SendEmailRequest(BaseModel):
-    to: List[str]
-    cc: Optional[List[str]] = None
-    bcc: Optional[List[str]] = None
-    subject: str
-    body: str
