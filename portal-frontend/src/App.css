@@ -19,9 +19,16 @@
   --hd-focus-ring: 0 0 0 4px rgba(0, 66, 198, 0.15);
 }
 
+/* The page colour goes on the root, not <body>: a body background would paint
+   over the fixed z-index:-1 backdrops (HeroBackground's blue on the login page,
+   WhiteBackground's shapes in the portal). :root also outranks Bulma's
+   `html { background-color: white }`. */
+:root {
+  background-color: var(--hd-bg);
+}
+
 body {
   margin: 0;
   font-family: "Oxygen", system-ui, sans-serif;
   color: var(--hd-ink);
-  background: var(--hd-bg);
 }
