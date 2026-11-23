@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import axios from "axios";
-import { MultiPageForm } from "../components/form/Form";
-import { Navbar } from "../components/Navbar";
+import { SinglePageForm } from "../components/form/Form";
 import "./FormPage.css";
-import { WhiteBackground } from "../components/WhiteBackground";
+import { PortalLayout } from "../components/portal/PortalLayout";
 import { useNavigate } from "react-router-dom";
 import { FullPageLoadingSpinner } from "../components/FullPageLoadingSpinner";
 import Modal, { ModalHeader } from "../components/Modal";
@@ -56,7 +55,7 @@ const FormPage = ({ formKey }) => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
   };
 
@@ -97,12 +96,12 @@ const FormPage = ({ formKey }) => {
             Authorization: `Bearer ${token}`,
           },
           params,
-        }
+        },
       );
 
       return Boolean(statusRes.data?.is_open);
     },
-    [formKey]
+    [formKey],
   );
 
   const checkExistingSubmission = useCallback(
@@ -117,7 +116,7 @@ const FormPage = ({ formKey }) => {
       });
       return true;
     },
-    [formKey]
+    [formKey],
   );
 
   useEffect(() => {
@@ -127,7 +126,7 @@ const FormPage = ({ formKey }) => {
 
         const getAuthToken = createGetAuthToken(
           getAccessTokenSilently,
-          setError
+          setError,
         );
         const token = await getAuthToken();
         if (!token) {
@@ -167,9 +166,7 @@ const FormPage = ({ formKey }) => {
 
   if (!formDefinition) {
     return (
-      <>
-        <Navbar />
-        <WhiteBackground />
+      <PortalLayout>
         <div className="notice-container">
           <h1>Form Not Found</h1>
           <p>The form you're looking for doesn't exist.</p>
@@ -178,14 +175,12 @@ const FormPage = ({ formKey }) => {
             <a href="mailto:hackers@hackduke.org">hackers@hackduke.org</a>
           </p>
         </div>
-      </>
+      </PortalLayout>
     );
   }
 
   return (
-    <>
-      <Navbar />
-      <WhiteBackground />
+    <PortalLayout>
       {loading && <FullPageLoadingSpinner />}
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <ModalHeader>Application Error</ModalHeader>
@@ -199,9 +194,17 @@ const FormPage = ({ formKey }) => {
 
       {isFormOpen && (
         <div className="form-container">
-          <MultiPageForm onSubmit={onSubmit}>
+          <header className="form-header">
+            <p className="form-eyebrow">Code for Good</p>
+            <h1 className="form-title">{formDefinition.title}</h1>
+            <p className="form-subtitle">
+              Fill out each section below, then submit at the bottom. Fields
+              marked <span className="required-mark">*</span> are required.
+            </p>
+          </header>
+          <SinglePageForm onSubmit={onSubmit}>
             {formDefinition.renderForm()}
-          </MultiPageForm>
+          </SinglePageForm>
         </div>
       )}
 
@@ -211,7 +214,7 @@ const FormPage = ({ formKey }) => {
           {formDefinition.closedMessage.body}
         </div>
       )}
-    </>
+    </PortalLayout>
   );
 };
 

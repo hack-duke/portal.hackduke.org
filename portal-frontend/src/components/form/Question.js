@@ -15,7 +15,7 @@ export const Question = forwardRef(
       firstTry,
       isValid = (value) => !required || (value && value.trim() !== ""),
     },
-    ref
+    ref,
   ) => {
     useImperativeHandle(ref, () => ({
       isValid: () => isValid(formData[name]),
@@ -25,7 +25,7 @@ export const Question = forwardRef(
       <div className="question-container">
         <label className="question-label" htmlFor={name}>
           {label}
-          {required && "*"}
+          {required && <span className="required-mark">*</span>}
         </label>
         <input
           className={classNames("question-input", {
@@ -41,5 +41,5 @@ export const Question = forwardRef(
         />
       </div>
     );
-  }
+  },
 );

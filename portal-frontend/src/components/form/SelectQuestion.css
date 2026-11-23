@@ -1,0 +1,176 @@
+.page-fields > .select-question-full {
+  grid-column: 1 / -1;
+}
+
+.question-hint {
+  font-size: 0.82rem;
+  color: var(--hd-muted);
+}
+
+/* Native <select> for short lists, styled like the text inputs. */
+.native-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="%235f6878" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 18px;
+}
+
+.native-select-empty {
+  color: #9aa3b5;
+}
+
+.native-select option {
+  color: var(--hd-ink);
+}
+
+/* Searchable combobox */
+.combo {
+  position: relative;
+}
+
+.combo-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 5px 40px 5px 14px;
+  background: var(--hd-surface);
+  border: 1.5px solid var(--hd-border);
+  border-radius: 10px;
+  cursor: text;
+  position: relative;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.combo-control:hover {
+  border-color: #b9c3d8;
+}
+
+.combo-control-multi {
+  padding-left: 8px;
+}
+
+.combo-open .combo-control,
+.combo-control:focus-within {
+  border-color: var(--hd-blue);
+  box-shadow: var(--hd-focus-ring);
+}
+
+.combo-input {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  height: 32px;
+  border: none;
+  outline: none;
+  padding: 0;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--hd-ink);
+  background: transparent;
+}
+
+.combo-input::placeholder {
+  color: #9aa3b5;
+}
+
+.combo-caret {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="%235f6878" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>')
+    no-repeat center / contain;
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.combo-open .combo-caret {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.combo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 4px 4px 10px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--hd-blue);
+  background: var(--hd-blue-tint);
+}
+
+.combo-chip-remove {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--hd-blue);
+  background: transparent;
+  cursor: pointer;
+}
+
+.combo-chip-remove:hover,
+.combo-chip-remove:focus-visible {
+  outline: none;
+  color: white;
+  background: var(--hd-blue);
+}
+
+.combo-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--hd-surface);
+  border: 1px solid var(--hd-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px -12px rgba(16, 24, 40, 0.25);
+}
+
+.combo-option {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: var(--hd-ink);
+  cursor: pointer;
+}
+
+.combo-option-active {
+  background: var(--hd-blue-tint);
+}
+
+.combo-option-selected {
+  font-weight: 700;
+  color: var(--hd-blue);
+}
+
+.combo-option-custom {
+  color: var(--hd-blue);
+  font-style: italic;
+}
+
+.combo-empty {
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  color: var(--hd-muted);
+}

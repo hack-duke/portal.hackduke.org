@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Optional, Dict, Any
 import datetime
 from uuid import UUID
 from models.application import ApplicationStatus
@@ -20,6 +20,7 @@ class GetApplicationResponse(BaseModel):
     status: ApplicationStatus
     form_data: Dict[str, Any]
     created_at: datetime.datetime
+    resume_url: Optional[str] = None
     
 class FormStatusResponse(BaseModel):
     form_key: str

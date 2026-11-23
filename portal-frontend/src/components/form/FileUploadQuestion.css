@@ -1,33 +1,78 @@
-.file-question-container {
+.file-question {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem; /* Don't love this apporach for responsiveness but will work for now */
+  flex-direction: column;
+  gap: 8px;
 }
 
-.file-question-label {
-  color: #0042c6;
-  text-align: right;
-  font-size: 1.2rem;
-}
-
-input[type="file"] {
-  display: none;
-}
-
-.file-question-button {
-  margin-left: 2rem;
-  background-color: #35c69b;
-  color: white;
-  padding: 5px 15px;
-  border-radius: 100px;
+.file-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1.5px dashed #b9c3d8;
+  border-radius: 12px;
+  background: var(--hd-bg);
   cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
-.file-question-button:hover {
-  opacity: 0.9;
+.file-dropzone:hover {
+  border-color: var(--hd-blue);
+  background: var(--hd-blue-tint);
 }
 
-.file-question-name {
-  margin-left: 1rem;
-  color: #0042c6;
+.file-dropzone:focus-within {
+  border-color: var(--hd-blue);
+  box-shadow: var(--hd-focus-ring);
+}
+
+.file-dropzone input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.file-dropzone-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  background: var(--hd-blue);
+}
+
+.file-dropzone-filled {
+  border-style: solid;
+  border-color: rgba(53, 198, 155, 0.6);
+  background: rgba(53, 198, 155, 0.08);
+}
+
+.file-dropzone-filled .file-dropzone-icon {
+  background: var(--hd-green);
+}
+
+.file-dropzone-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.95rem;
+}
+
+.file-dropzone-text strong {
+  color: var(--hd-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-dropzone-text span {
+  font-size: 0.85rem;
+  color: var(--hd-muted);
 }

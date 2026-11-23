@@ -1,44 +1,23 @@
 import React from "react";
-import "../App.css";
-import { useEffect } from "react";
-
 import "./WhiteBackground.css";
 
-export const WhiteBackground = () => {
-  let l1;
+// Static, fixed backdrop: soft brand tints plus a few hackduke.org shapes
+// peeking in from the edges. No scroll/mouse listeners, so it never janks.
+const SHAPES = [
+  { src: "/images/blob.svg", className: "bg-shape bg-shape-blob" },
+  { src: "/images/triangle.svg", className: "bg-shape bg-shape-triangle" },
+  { src: "/images/hexagon.svg", className: "bg-shape bg-shape-hexagon" },
+  { src: "/images/oval.svg", className: "bg-shape bg-shape-oval" },
+  { src: "/images/circle.svg", className: "bg-shape bg-shape-circle" },
+  { src: "/images/blob_small.svg", className: "bg-shape bg-shape-blob-small" },
+];
 
-  const parallax = (clientX, clientY) => {
-    if (!l1) {
-      l1 = document.getElementById("white-bg-full");
-    }
-    const x = (clientX - l1.offsetLeft) / 100;
-    const y = (clientY - l1.offsetTop) / 100;
-
-    const parent = document.querySelector(":root");
-    parent.style.setProperty("--x", x);
-    parent.style.setProperty("--y", y);
-  };
-
-  useEffect(() => {
-    function updateMouse(e) {
-      e.preventDefault();
-      parallax(e.clientX, e.clientY);
-    }
-    window.addEventListener("mousemove", updateMouse);
-    return () => window.removeEventListener("mousemove", updateMouse);
-  });
-
-  return (
-    <div className="white-bg-frame">
-      <img
-        className="white-bg-full"
-        id="white-bg-full"
-        src="/images/white-bg-full.svg"
-        alt="Repeating White Background"
-      />
-      {/* Export the entire frame from Figma as an SVG */}
-    </div>
-  );
-};
+export const WhiteBackground = () => (
+  <div className="white-bg-frame" aria-hidden="true">
+    {SHAPES.map((shape) => (
+      <img key={shape.src} src={shape.src} className={shape.className} alt="" />
+    ))}
+  </div>
+);
 
 export default WhiteBackground;

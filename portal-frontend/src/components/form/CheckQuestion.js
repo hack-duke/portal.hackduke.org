@@ -13,7 +13,7 @@ export const CheckQuestion = forwardRef(
       isValid = (value) => !required || value,
       children, // Accept children for label content
     },
-    ref
+    ref,
   ) => {
     useImperativeHandle(ref, () => ({
       isValid: () => isValid(formData[name]),
@@ -40,9 +40,9 @@ export const CheckQuestion = forwardRef(
         </div>
         <label className="check-label" htmlFor={name}>
           {children}
-          {required && "*"}
+          {required && <span className="required-mark">*</span>}
         </label>
       </div>
     );
-  }
+  },
 );

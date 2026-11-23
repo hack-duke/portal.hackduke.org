@@ -1,33 +1,44 @@
 .long-container {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 8px;
-  margin-bottom: 1.5rem;
-  max-width: 600px;
-}
-
-.long-label {
-  color: #0042c6;
-  font-size: 1rem;
-  margin-bottom: 0;
 }
 
 .long-textarea {
-  border-style: solid;
-  border-width: 1px;
-  border-radius: 5px;
-  border-color: #0042c6;
-  color: #00297c;
-  font-size: 1rem;
-  line-height: 1.5;
-  box-shadow: 4px 4px 4px rgba(62, 181, 255, 0.3);
-  padding: 10px 10px;
   width: 100%;
-  resize: none;
-  height: auto;
+  min-height: 7rem;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--hd-ink);
+  background: var(--hd-surface);
+  border: 1.5px solid var(--hd-border);
+  border-radius: 10px;
+  resize: vertical;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.invalid-border {
-  border-color: #d03027;
+.long-textarea:hover {
+  border-color: #b9c3d8;
+}
+
+.long-textarea:focus {
+  outline: none;
+  border-color: var(--hd-blue);
+  box-shadow: var(--hd-focus-ring);
+}
+
+.long-word-count {
+  align-self: flex-end;
+  font-size: 0.82rem;
+  color: var(--hd-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.long-word-count-over {
+  color: var(--hd-error);
+  font-weight: 700;
 }

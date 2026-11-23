@@ -59,7 +59,7 @@ def test_non_admin_user(test_session):
     # Delete any existing user with this auth0_id from previous test runs
     test_session.query(User).filter(User.auth0_id == auth0_id).delete()
     test_session.flush()
-    
+
     user = User(auth0_id=auth0_id)
     test_session.add(user)
     test_session.flush()
@@ -69,12 +69,12 @@ def test_non_admin_user(test_session):
 @pytest.fixture
 def test_form(test_session):
     """Create a test form."""
-    form_key = "2026-cfg-application"  # Must match CURRENT_FORM_KEY in admin.py
+    form_key = "2027-cfg-application"  # Must match CURRENT_FORM_KEY in admin.py
     # Delete any existing form with this key from previous test runs
     test_session.query(Form).filter(Form.form_key == form_key).delete()
     test_session.flush()
 
-    form = Form(form_key=form_key, year=2026, is_open=True)
+    form = Form(form_key=form_key, year=2027, is_open=True)
     test_session.add(form)
     test_session.flush()
     return form
@@ -101,7 +101,7 @@ class TestAdminAuth:
     def test_admin_check_success(self, test_admin_user, test_session):
         """Test successful admin check."""
         response = client.post("/admin/auth/check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is True
@@ -109,10 +109,12 @@ class TestAdminAuth:
 
     def test_non_admin_check(self, test_non_admin_user, test_session):
         """Test non-admin user cannot access admin panel."""
-        app.dependency_overrides[auth.verify] = lambda: {"sub": "auth0|regular_user_123"}
-        
+        app.dependency_overrides[auth.verify] = lambda: {
+            "sub": "auth0|regular_user_123"
+        }
+
         response = client.post("/admin/auth/check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is False
@@ -135,22 +137,19 @@ class TestAdminAuth:
         assert session_id_1 != session_id_2
 
         # Verify old session is invalid
-        response_ping = client.get(
-            "/admin/ping",
-            params={"session_id": session_id_1}
-        )
+        response_ping = client.get("/admin/ping", params={"session_id": session_id_1})
         assert response_ping.status_code == 403
 
     def test_unauthenticated_request(self, test_session):
         """Test that unauthenticated requests are rejected."""
         # Override with a bad auth that raises an exception
         from fastapi import HTTPException
-        
+
         def mock_verify_fails():
             raise HTTPException(status_code=401, detail="Unauthorized")
-        
+
         app.dependency_overrides[auth.verify] = mock_verify_fails
-        
+
         response = client.post("/admin/auth/check")
         assert response.status_code == 401
 
@@ -163,13 +162,12 @@ class TestNextApplication:
         # First, authenticate
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         # Get next application
         response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(pending_applications[0].id)
@@ -182,17 +180,16 @@ class TestNextApplication:
         """Test that application gets locked when retrieved."""
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         # Get application
-        client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
-        )
-        
+        client.get("/admin/next-application", params={"session_id": session_id})
+
         # Check it's locked
-        app = test_session.query(Application).filter(
-            Application.id == pending_applications[0].id
-        ).first()
+        app = (
+            test_session.query(Application)
+            .filter(Application.id == pending_applications[0].id)
+            .first()
+        )
         assert app.locked_by is not None
         assert app.locked_at is not None
 
@@ -226,116 +223,112 @@ class TestNextApplication:
         test_session.add(app1)
         test_session.add(app2)
         test_session.flush()
-        
+
         # Admin1 gets app1
         auth_response1 = client.post("/admin/auth/check")
         session_id1 = auth_response1.json()["session_id"]
-        
+
         response1 = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id1}
+            "/admin/next-application", params={"session_id": session_id1}
         )
         retrieved_app1_id = response1.json()["id"]
-        
+
         # Admin2 tries to get next app (should get app2, not app1)
         app.dependency_overrides[auth.verify] = lambda: {"sub": admin2_auth0_id}
         auth_response2 = client.post("/admin/auth/check")
         session_id2 = auth_response2.json()["session_id"]
-        
+
         response2 = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id2}
+            "/admin/next-application", params={"session_id": session_id2}
         )
         retrieved_app2_id = response2.json()["id"]
-        
+
         assert retrieved_app1_id != retrieved_app2_id
         assert retrieved_app2_id == str(app2.id)
 
-    def test_no_pending_applications(self, test_admin_user, test_session, test_form, test_non_admin_user):
+    def test_no_pending_applications(
+        self, test_admin_user, test_session, test_form, test_non_admin_user
+    ):
         """Test that 404 is returned when no pending applications exist."""
         # Don't use pending_applications fixture - create a clean state with no pending apps
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
-        
+
         assert response.status_code == 404
 
     def test_invalid_session(self, test_admin_user, pending_applications, test_session):
         """Test that invalid session is rejected."""
         response = client.get(
-            "/admin/next-application",
-            params={"session_id": "invalid_session_id"}
+            "/admin/next-application", params={"session_id": "invalid_session_id"}
         )
-        
+
         assert response.status_code == 403
 
 
 class TestSubmitDecision:
-    def test_accept_decision(
-        self, test_admin_user, pending_applications, test_session
-    ):
+    def test_accept_decision(self, test_admin_user, pending_applications, test_session):
         """Test accepting an application."""
         # Get application and lock it
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
         app_id = app_response.json()["id"]
-        
+
         # Submit decision
         decision_response = client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "accept"},
-            params={"session_id": session_id}
+            params={"session_id": session_id},
         )
-        
+
         assert decision_response.status_code == 200
         data = decision_response.json()
         assert data["status"].lower() == "accepted"
-        
+
         # Verify in database
-        app = test_session.query(Application).filter(
-            Application.id == pending_applications[0].id
-        ).first()
+        app = (
+            test_session.query(Application)
+            .filter(Application.id == pending_applications[0].id)
+            .first()
+        )
         assert app.status == ApplicationStatus.ACCEPTED
         assert app.decided_by is not None
         assert app.locked_by is None  # Should be unlocked
 
-    def test_reject_decision(
-        self, test_admin_user, pending_applications, test_session
-    ):
+    def test_reject_decision(self, test_admin_user, pending_applications, test_session):
         """Test rejecting an application."""
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
         app_id = app_response.json()["id"]
-        
+
         # Submit decision
         decision_response = client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "reject"},
-            params={"session_id": session_id}
+            params={"session_id": session_id},
         )
-        
+
         assert decision_response.status_code == 200
         data = decision_response.json()
         assert data["status"] == "rejected"
-        
+
         # Verify in database
-        app = test_session.query(Application).filter(
-            Application.id == pending_applications[0].id
-        ).first()
+        app = (
+            test_session.query(Application)
+            .filter(Application.id == pending_applications[0].id)
+            .first()
+        )
         assert app.status == ApplicationStatus.REJECTED
         assert app.decided_by is not None
 
@@ -345,50 +338,48 @@ class TestSubmitDecision:
         """Test that changing decision back to pending clears decided_by."""
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
         app_id = app_response.json()["id"]
-        
+
         # Accept
         client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "accept"},
-            params={"session_id": session_id}
+            params={"session_id": session_id},
         )
-        
+
         # Verify decided_by is set
-        app_obj = test_session.query(Application).filter(
-            Application.id == app_id
-        ).first()
+        app_obj = (
+            test_session.query(Application).filter(Application.id == app_id).first()
+        )
         assert app_obj.status == ApplicationStatus.ACCEPTED
         assert app_obj.decided_by is not None
         admin_user_id = test_admin_user.id
-        
+
         # Now we need to get the app again to lock it (since accepting unlocks it)
         # Then we can change decision back to pending
         app_response2 = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
-        
+
         # It should return the accepted app since it's pending now... wait, accepted apps aren't pending
         # So let's manually re-lock it instead
         app_obj.locked_by = admin_user_id
         app_obj.locked_at = datetime.utcnow()
         test_session.flush()
-        
+
         # Now change decision back to pending
         decision_response = client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "pending"},
-            params={"session_id": session_id}
+            params={"session_id": session_id},
         )
-        
+
         assert decision_response.status_code == 200
-        
+
         # Verify decided_by is cleared and status is pending
         test_session.refresh(app_obj)
         assert app_obj.status == ApplicationStatus.PENDING
@@ -411,24 +402,23 @@ class TestSubmitDecision:
         # Admin1 locks app
         auth_response1 = client.post("/admin/auth/check")
         session_id1 = auth_response1.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id1}
+            "/admin/next-application", params={"session_id": session_id1}
         )
         app_id = app_response.json()["id"]
-        
+
         # Admin2 tries to decide
         app.dependency_overrides[auth.verify] = lambda: {"sub": admin2_auth0_id}
         auth_response2 = client.post("/admin/auth/check")
         session_id2 = auth_response2.json()["session_id"]
-        
+
         decision_response = client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "accept"},
-            params={"session_id": session_id2}
+            params={"session_id": session_id2},
         )
-        
+
         assert decision_response.status_code == 403
 
     def test_invalid_decision(
@@ -437,19 +427,18 @@ class TestSubmitDecision:
         """Test that invalid decision is rejected."""
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
         app_id = app_response.json()["id"]
-        
+
         decision_response = client.post(
             f"/admin/application/{app_id}/decision",
             json={"decision": "maybe"},
-            params={"session_id": session_id}
+            params={"session_id": session_id},
         )
-        
+
         assert decision_response.status_code == 400
 
 
@@ -459,7 +448,7 @@ class TestStats:
     ):
         """Test that stats return both global and personal counts."""
         admin_user_obj = test_admin_user
-        
+
         # Create applications in different states
         accepted_by_admin = Application(
             user_id=test_non_admin_user.id,
@@ -478,27 +467,24 @@ class TestStats:
             form_key=test_form.form_key,
             status=ApplicationStatus.PENDING,
         )
-        
+
         test_session.add_all([accepted_by_admin, rejected_by_admin, pending])
         test_session.flush()
-        
+
         # Get stats
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
-        stats_response = client.get(
-            "/admin/stats",
-            params={"session_id": session_id}
-        )
-        
+
+        stats_response = client.get("/admin/stats", params={"session_id": session_id})
+
         assert stats_response.status_code == 200
         data = stats_response.json()
-        
+
         # Global stats
         assert data["total_pending"] == 1
         assert data["total_accepted"] == 1
         assert data["total_rejected"] == 1
-        
+
         # Personal stats
         assert data["user_accepted"] == 1
         assert data["user_rejected"] == 1
@@ -506,10 +492,9 @@ class TestStats:
     def test_stats_requires_valid_session(self, test_admin_user, test_session):
         """Test that invalid session is rejected."""
         response = client.get(
-            "/admin/stats",
-            params={"session_id": "invalid_session_id"}
+            "/admin/stats", params={"session_id": "invalid_session_id"}
         )
-        
+
         assert response.status_code == 403
 
 
@@ -518,22 +503,18 @@ class TestPing:
         """Test that valid session responds to ping."""
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
-        ping_response = client.get(
-            "/admin/ping",
-            params={"session_id": session_id}
-        )
-        
+
+        ping_response = client.get("/admin/ping", params={"session_id": session_id})
+
         assert ping_response.status_code == 200
         assert ping_response.json()["status"] == "ok"
 
     def test_ping_invalid_session(self, test_admin_user, test_session):
         """Test that invalid session fails ping."""
         response = client.get(
-            "/admin/ping",
-            params={"session_id": "invalid_session_id"}
+            "/admin/ping", params={"session_id": "invalid_session_id"}
         )
-        
+
         assert response.status_code == 403
 
 
@@ -543,16 +524,13 @@ class TestLogout:
         # Login
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         # Logout
         logout_response = client.post("/admin/logout")
         assert logout_response.status_code == 200
-        
+
         # Verify session is cleared
-        ping_response = client.get(
-            "/admin/ping",
-            params={"session_id": session_id}
-        )
+        ping_response = client.get("/admin/ping", params={"session_id": session_id})
         assert ping_response.status_code == 403
 
     def test_logout_releases_locks(
@@ -560,24 +538,23 @@ class TestLogout:
     ):
         """Test that logout releases all locks held by the admin."""
         admin_user_obj = test_admin_user
-        
+
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         # Lock multiple apps
         for _ in range(2):
-            client.get(
-                "/admin/next-application",
-                params={"session_id": session_id}
-            )
-        
+            client.get("/admin/next-application", params={"session_id": session_id})
+
         # Logout
         client.post("/admin/logout")
-        
+
         # Verify locks are released
-        locked_apps = test_session.query(Application).filter(
-            Application.locked_by == admin_user_obj.id
-        ).all()
+        locked_apps = (
+            test_session.query(Application)
+            .filter(Application.locked_by == admin_user_obj.id)
+            .all()
+        )
         assert len(locked_apps) == 0
 
 
@@ -587,7 +564,7 @@ class TestLockTimeout:
     ):
         """Test that expired locks are released when getting next application."""
         admin_user_obj = test_admin_user
-        
+
         # Create a single pending app with an old lock
         app_with_expired_lock = Application(
             user_id=test_non_admin_user.id,
@@ -599,7 +576,7 @@ class TestLockTimeout:
         )
         test_session.add(app_with_expired_lock)
         test_session.flush()
-        
+
         # Now get next application from a different admin
         other_admin_auth0_id = f"auth0|admin_user_{uuid4()}"
         app.dependency_overrides[auth.verify] = lambda: {"sub": other_admin_auth0_id}
@@ -613,12 +590,11 @@ class TestLockTimeout:
 
         auth_response = client.post("/admin/auth/check")
         session_id = auth_response.json()["session_id"]
-        
+
         app_response = client.get(
-            "/admin/next-application",
-            params={"session_id": session_id}
+            "/admin/next-application", params={"session_id": session_id}
         )
-        
+
         # Should be able to get the old app (lock was expired)
         assert app_response.status_code == 200
         assert app_response.json()["id"] == str(app_with_expired_lock.id)

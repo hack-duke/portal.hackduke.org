@@ -1,4 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, Form as FastAPIForm, File, UploadFile, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Security,
+    Form as FastAPIForm,
+    File,
+    UploadFile,
+    Query,
+)
 from uuid import UUID
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
@@ -13,9 +22,11 @@ from .schema import (
     SubmitApplicationResponse,
     GetApplicationResponse,
 )
-from utils.s3 import upload_file_to_s3
+from utils.s3 import upload_file_to_s3, generate_view_url
 from pydantic import BaseModel
 import json
+
+RESUME_QUESTION_KEY = "resume"
 
 router = APIRouter()
 auth = VerifyToken()
@@ -29,7 +40,9 @@ class FormStatusResponse(BaseModel):
 @router.get("/form-status", response_model=FormStatusResponse)
 async def form_status(
     form_key: str,
-    email: Optional[str] = Query(None, description="User email to check for exception override"),
+    email: Optional[str] = Query(
+        None, description="User email to check for exception override"
+    ),
     auth_payload: Dict[str, Any] = Security(auth.verify),
     db: Session = Depends(get_db),
 ):
@@ -53,7 +66,7 @@ async def form_status(
 
 @router.post("/submit", response_model=SubmitApplicationResponse)
 async def submit_application(
-    form_key: str = FastAPIForm(...),   # <-- use FastAPIForm (not ORM model)
+    form_key: str = FastAPIForm(...),  # <-- use FastAPIForm (not ORM model)
     form_data: str = FastAPIForm(...),
     auth0_email: Optional[str] = FastAPIForm(None),  # For exception list checking
     files: List[UploadFile] = File(default=[]),
@@ -79,7 +92,9 @@ async def submit_application(
         # Check if user's Auth0 email has an exception
         exception_emails = form.exception_emails or []
         email_to_check = (auth0_email or "").lower()
-        has_exception = email_to_check and email_to_check in [e.lower() for e in exception_emails]
+        has_exception = email_to_check and email_to_check in [
+            e.lower() for e in exception_emails
+        ]
         if not has_exception:
             raise HTTPException(status_code=403, detail="Form is closed")
 
@@ -154,7 +169,11 @@ async def submit_application(
                 user_id=user.id,
                 question_id=question.id,
                 application_id=application.id,
-                text_answer=str(field_value) if field_value is not None else None,
+                text_answer=(
+                    ", ".join(str(v) for v in field_value)
+                    if isinstance(field_value, list)
+                    else str(field_value) if field_value is not None else None
+                ),
                 bool_answer=field_value if isinstance(field_value, bool) else None,
             )
             db.add(response)
@@ -198,6 +217,7 @@ async def get_application(
         )
 
     form_data = application.submission_json or {}
+    resume_key = form_data.get(RESUME_QUESTION_KEY)
 
     return GetApplicationResponse(
         id=application.id,
@@ -205,4 +225,5 @@ async def get_application(
         status=application.status,
         created_at=application.created_at,
         form_data=form_data,
+        resume_url=generate_view_url(resume_key) if resume_key else None,
     )

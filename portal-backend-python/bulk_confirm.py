@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Bulk confirm accepted applications from a txt file.
-Only considers applications where form_key is "2026-cfg-application".
+Only considers applications where form_key is "2027-cfg-application".
 """
 
 import sys
@@ -19,7 +19,7 @@ db_name = os.getenv("DB_NAME")
 db_port = os.getenv("DB_PORT", "5432")
 
 DB_URL = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-FORM_KEY_FILTER = "2026-cfg-application"
+FORM_KEY_FILTER = "2027-cfg-application"
 
 def is_valid_uuid(value: str) -> bool:
     try:

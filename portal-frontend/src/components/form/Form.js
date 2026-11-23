@@ -1,6 +1,6 @@
 // Example API
 
-/* <MultiPageForm onSubmit={mockSubmit}>
+/* <SinglePageForm onSubmit={mockSubmit}>
       <Page>
         <Question name="school" label="School:" />
         <Question name="major" label="Major:" />
@@ -9,20 +9,24 @@
       <Page>
         <FileUploadQuestion name="resume" label="Upload Resume (PDF only)" accept="application/pdf" />
       </Page>
-</MultiPageForm> */
+</SinglePageForm> */
 
 import { FileUploadQuestion } from "./FileUploadQuestion";
 import { Question } from "./Question";
 import { Page } from "./Page";
-import { MultiPageForm } from "./MultiPageForm";
+import { SinglePageForm } from "./SinglePageForm";
 import { LongQuestion } from "./LongQuestion";
 import { CheckQuestion } from "./CheckQuestion";
+import { SelectQuestion } from "./SelectQuestion";
+import { PhoneQuestion } from "./PhoneQuestion";
 
 export {
-  MultiPageForm,
+  SinglePageForm,
   Page,
   Question,
   LongQuestion,
   FileUploadQuestion,
   CheckQuestion,
+  SelectQuestion,
+  PhoneQuestion,
 };

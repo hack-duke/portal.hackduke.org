@@ -1,4 +1,27 @@
+:root {
+  /* HackDuke brand palette (matches hackduke.org) */
+  --hd-blue: #0042c6;
+  --hd-blue-dark: #00309a;
+  --hd-blue-tint: #e8eefb;
+  --hd-yellow: #f7af1c;
+  --hd-orange: #e55511;
+  --hd-green: #35c69b;
+  --hd-purple: #77037b;
+  --hd-ink: #242424;
+  --hd-muted: #5f6878;
+  --hd-border: #d9dfeb;
+  --hd-surface: #ffffff;
+  --hd-bg: #f6f7fb;
+  --hd-error: #d93025;
+  --hd-error-tint: #fdf1f0;
+  --hd-nav-height: 68px;
+  --hd-radius: 16px;
+  --hd-focus-ring: 0 0 0 4px rgba(0, 66, 198, 0.15);
+}
+
 body {
   margin: 0;
-  font-family: "Oxygen";
+  font-family: "Oxygen", system-ui, sans-serif;
+  color: var(--hd-ink);
+  background: var(--hd-bg);
 }

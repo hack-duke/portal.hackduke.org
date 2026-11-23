@@ -269,7 +269,9 @@ const AdminJudgePage = () => {
                     <div className="edu-item">
                       <span className="edu-label">Major</span>
                       <span className="edu-value">
-                        {currentApp.submission_json.major}
+                        {[]
+                          .concat(currentApp.submission_json.major ?? [])
+                          .join(", ")}
                       </span>
                     </div>
                     <div className="edu-item">
@@ -300,6 +302,24 @@ const AdminJudgePage = () => {
                         {currentApp.submission_json.why_track}
                       </p>
                     </div>
+                    {currentApp.submission_json.proud_project && (
+                      <div className="essay">
+                        <label className="essay-label">
+                          Project You're Proud Of
+                        </label>
+                        <p className="essay-text">
+                          {currentApp.submission_json.proud_project}
+                        </p>
+                      </div>
+                    )}
+                    {currentApp.submission_json.ten_year_vision && (
+                      <div className="essay">
+                        <label className="essay-label">Next 10 Years</label>
+                        <p className="essay-text">
+                          {currentApp.submission_json.ten_year_vision}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
