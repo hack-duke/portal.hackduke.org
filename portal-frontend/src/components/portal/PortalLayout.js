@@ -17,13 +17,13 @@ import "./PortalLayout.css";
 // Applicant-facing shell: a sidebar on desktop that collapses into a top bar
 // with a dropdown menu on small screens. Admin pages keep the regular Navbar.
 const NAV_ITEMS = [
-  { to: "/info", label: "Information", icon: InfoIcon, match: ["/info"] },
   {
     to: "/application",
     label: "Application",
     icon: ClipboardIcon,
     match: ["/application", "/form", "/status"],
   },
+  { to: "/info", label: "Information", icon: InfoIcon, match: ["/info"] },
 ];
 
 export const PortalLayout = ({ children }) => {
@@ -41,10 +41,19 @@ export const PortalLayout = ({ children }) => {
         className={classNames("portal-sidebar", { "menu-open": menuOpen })}
       >
         <div className="portal-sidebar-top">
-          <Link to="/info" className="portal-brand">
-            <span className="portal-brand-logo">
-              <img src="/images/Small Logo.svg" alt="" />
-            </span>
+          <Link to="/application" className="portal-brand">
+            <svg
+              className="portal-brand-logo"
+              viewBox="0 0 68 67"
+              aria-hidden="true"
+            >
+              <path
+                d="M66.5013 66L54.0719 66L46.9309 48.5822L46.9282 48.5757L34.9225 19.8741L33.9963 17.6597L33.0764 19.8767L21.1686 48.5738L21.1668 48.5783L13.8386 66L1.49868 66L28.5204 1L39.4796 1L66.5013 66Z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
             <span className="portal-brand-text">
               HackDuke <span>Portal</span>
             </span>

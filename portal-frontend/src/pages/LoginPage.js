@@ -18,7 +18,7 @@ const LoginPage = () => {
   }, []);
 
   if (isAuthenticated) {
-    return <Navigate to="/info" replace />;
+    return <Navigate to="/application" replace />;
   }
 
   return (

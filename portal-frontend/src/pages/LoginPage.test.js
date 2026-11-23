@@ -19,15 +19,15 @@ test("restores the HackDuke participant and mentor entry points", () => {
   expect(screen.queryByText(/DuQuantum/i)).toBeNull();
 });
 
-test("signed-in participants land on the portal information page", () => {
+test("signed-in participants land on the application", () => {
   useAuth0.mockReturnValue({ isAuthenticated: true });
   render(
     <MemoryRouter initialEntries={["/"]}>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        <Route path="/info" element={<h1>HackDuke portal information</h1>} />
+        <Route path="/application" element={<h1>HackDuke application</h1>} />
       </Routes>
     </MemoryRouter>,
   );
-  expect(screen.getByRole("heading", { name: "HackDuke portal information" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "HackDuke application" })).toBeTruthy();
 });

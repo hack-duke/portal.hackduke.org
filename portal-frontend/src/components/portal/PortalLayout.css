@@ -34,18 +34,10 @@
 }
 
 .portal-brand-logo {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: var(--hd-blue);
-  box-shadow: 0 6px 14px rgba(0, 66, 198, 0.28);
-}
-
-.portal-brand-logo img {
-  width: 22px;
-  height: 22px;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  color: var(--hd-blue);
 }
 
 .portal-brand-text {
@@ -167,14 +159,8 @@
   }
 
   .portal-brand-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-  }
-
-  .portal-brand-logo img {
-    width: 19px;
-    height: 19px;
+    width: 28px;
+    height: 28px;
   }
 
   .portal-brand-text {
